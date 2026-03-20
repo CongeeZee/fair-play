@@ -55,8 +55,8 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
 // PUT /rounds/:id/holes/:holeId — submit or update a score for one hole
 router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
-  const roundId = parseInt(req.params.id);
-  const holeId = parseInt(req.params.holeId);
+  const roundId = parseInt(String(req.params.id));
+  const holeId = parseInt(String(req.params.holeId));
 
   if (isNaN(roundId) || isNaN(holeId)) {
     res.status(400).json({ error: "Invalid round or hole ID" });
@@ -201,7 +201,7 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
 
 // GET /rounds/:id — single round detail
 router.get("/:id", async (req: AuthRequest, res: Response) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid round ID" });
     return;

@@ -53,7 +53,7 @@ router.get("/", async (req: Request, res: Response) => {
 
 // GET /courses/:id
 router.get("/:id", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid course ID" });
     return;
