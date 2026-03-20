@@ -26,6 +26,69 @@ const courseSchema = z.object({
     ),
 });
 
+// GET /courses/tees/:externalId — return available tee sets for a course; must be before /:id
+router.get("/tees/:externalId", async (req: Request, res: Response) => {
+  const { externalId } = req.params;
+  const apiKey = process.env.GOLF_API_KEY;
+  if (!apiKey) { res.status(503).json({ error: "Golf API not configured" }); return; }
+
+  try {
+    const response = await fetch(
+      `https://api.golfcourseapi.com/v1/courses/${externalId}`,
+      { headers: { Authorization: `Key ${apiKey}` } }
+    );
+    if (!response.ok) { res.status(502).json({ error: "External API error" }); return; }
+
+    type TeeSet = { tee_name: string; total_yards: number; par_total: number };
+    type CourseResp = {
+      course_name: string; club_name?: string;
+      tees?: { male?: TeeSet[]; female?: TeeSet[] };
+    };
+    const { course } = (await response.json()) as { course: CourseResp };
+
+    const tees = [
+      ...(course.tees?.male ?? []).map((t) => ({ name: t.tee_name, gender: "male", totalYards: t.total_yards, parTotal: t.par_total })),
+      ...(course.tees?.female ?? []).map((t) => ({ name: t.tee_name, gender: "female", totalYards: t.total_yards, parTotal: t.par_total })),
+    ];
+
+    res.json({ courseName: course.course_name, clubName: course.club_name, tees });
+  } catch (err) {
+    console.error("GET /courses/tees error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /courses/search?q= — proxy to golfcourseapi.com; must be before /:id
+router.get("/search", async (req: Request, res: Response) => {
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (q.length < 2) {
+    res.json([]);
+    return;
+  }
+
+  const apiKey = process.env.GOLF_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "Golf API not configured" });
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `Key ${apiKey}` } }
+    );
+    if (!response.ok) {
+      res.status(502).json({ error: "External API error" });
+      return;
+    }
+    const data = (await response.json()) as { courses?: unknown[] };
+    res.json(data.courses ?? []);
+  } catch (err) {
+    console.error("GET /courses/search error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /courses?search=
 // Public — no auth required, users need to browse before logging in
 router.get("/", async (req: Request, res: Response) => {
