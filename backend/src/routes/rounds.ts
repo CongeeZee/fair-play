@@ -21,7 +21,12 @@ async function importExternalCourse(externalId: string, teeName?: string) {
   if (!response.ok) throw new Error(`External API returned ${response.status}`);
 
   type ExternalHole = { par: number; yardage: number };
-  type ExternalTeeSet = { tee_name: string; holes: ExternalHole[] };
+  type ExternalTeeSet = {
+    tee_name: string;
+    holes: ExternalHole[];
+    course_rating?: number;
+    slope_rating?: number;
+  };
   type ExternalCourse = {
     id: number;
     course_name: string;
@@ -53,6 +58,8 @@ async function importExternalCourse(externalId: string, teeName?: string) {
     create: {
       name: courseName,
       externalId: dbExternalId,
+      courseRating: teeSet.course_rating ?? null,
+      slopeRating: teeSet.slope_rating ?? null,
       holes: {
         // Holes come ordered in the array — use index for hole number
         create: teeSet.holes.map((h, idx) => ({
@@ -266,6 +273,99 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error("GET /rounds/stats error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /rounds/handicap — World Handicap System index for the current user
+// Must be defined before /:id
+router.get("/handicap", async (req: AuthRequest, res: Response) => {
+  try {
+    // WHS uses the most recent 20 rounds
+    const rounds = await prisma.round.findMany({
+      where: { userId: req.userId! },
+      include: {
+        course: { select: { name: true, courseRating: true, slopeRating: true, holes: { select: { id: true } } } },
+        roundHoles: { include: { hole: { select: { par: true } } } },
+      },
+      orderBy: { playedAt: "desc" },
+      take: 20,
+    });
+
+    // Only use rounds that have rating/slope data and are fully scored
+    const eligible = rounds.filter((r) => {
+      const totalHoles = r.course.holes.length;
+      return (
+        r.roundHoles.length === totalHoles &&
+        totalHoles > 0 &&
+        r.course.courseRating != null &&
+        r.course.slopeRating != null
+      );
+    });
+
+    if (eligible.length < 3) {
+      res.json({
+        handicapIndex: null,
+        totalEligible: eligible.length,
+        minimumRequired: 3,
+        differentials: [],
+      });
+      return;
+    }
+
+    // Score differential = (113 / slope) × (gross - courseRating)
+    const differentials = eligible.map((r) => {
+      const gross = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+      const diff = (113 / r.course.slopeRating!) * (gross - r.course.courseRating!);
+      return {
+        roundId: r.id,
+        playedAt: r.playedAt,
+        courseName: r.course.name,
+        gross,
+        courseRating: r.course.courseRating!,
+        slopeRating: r.course.slopeRating!,
+        differential: parseFloat(diff.toFixed(1)),
+      };
+    });
+
+    // WHS lookup table: [minRounds, maxRounds, differentialsToUse, adjustment]
+    const WHS_TABLE: [number, number, number, number][] = [
+      [3, 3, 1, -2.0],
+      [4, 4, 1, -1.0],
+      [5, 5, 1, 0],
+      [6, 6, 2, -1.0],
+      [7, 8, 2, 0],
+      [9, 11, 3, 0],
+      [12, 14, 4, 0],
+      [15, 16, 5, 0],
+      [17, 18, 6, 0],
+      [19, 19, 7, 0],
+      [20, 20, 8, 0],
+    ];
+
+    const n = differentials.length;
+    const [, , use, adj] = WHS_TABLE.find(([min, max]) => n >= min && n <= max)!;
+
+    const sorted = [...differentials].sort((a, b) => a.differential - b.differential);
+    const used = sorted.slice(0, use);
+    const avg = used.reduce((s, d) => s + d.differential, 0) / use;
+
+    // Apply 96% factor and truncate (not round) to 1 decimal — WHS spec
+    const raw = (avg + adj) * 0.96;
+    const handicapIndex = Math.trunc(raw * 10) / 10;
+    // WHS cap: 54.0
+    const cappedIndex = Math.min(handicapIndex, 54.0);
+
+    const usedIds = new Set(used.map((d) => d.roundId));
+
+    res.json({
+      handicapIndex: cappedIndex,
+      differentialsUsed: use,
+      totalEligible: n,
+      differentials: differentials.map((d) => ({ ...d, used: usedIds.has(d.roundId) })),
+    });
+  } catch (err) {
+    console.error("GET /rounds/handicap error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

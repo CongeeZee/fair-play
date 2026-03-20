@@ -77,10 +77,10 @@ export default function HistoryPage() {
                 diff == null ? null : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
               const chipColor =
                 diff == null ? 'default'
-                : diff < 0 ? '#c9a84c'
+                : diff < 0 ? '#c62828'
                 : diff === 0 ? '#2d5e42'
-                : diff <= 5 ? '#e6a817'
-                : '#c62828'
+                : diff <= 5 ? '#1a3a5c'
+                : '#1a3a5c'
 
               return (
                 <Box key={round.id}>
