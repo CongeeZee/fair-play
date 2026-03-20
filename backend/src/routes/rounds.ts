@@ -8,13 +8,79 @@ const router = Router();
 // All round routes require a valid JWT
 router.use(requireAuth);
 
+// Fetch a course from golfcourseapi.com and upsert it into our DB.
+// Returns the local Course record (with holes).
+async function importExternalCourse(externalId: string, teeName?: string) {
+  const apiKey = process.env.GOLF_API_KEY;
+  if (!apiKey) throw new Error("Golf API not configured");
+
+  const response = await fetch(
+    `https://api.golfcourseapi.com/v1/courses/${externalId}`,
+    { headers: { Authorization: `Key ${apiKey}` } }
+  );
+  if (!response.ok) throw new Error(`External API returned ${response.status}`);
+
+  type ExternalHole = { par: number; yardage: number };
+  type ExternalTeeSet = { tee_name: string; holes: ExternalHole[] };
+  type ExternalCourse = {
+    id: number;
+    course_name: string;
+    club_name?: string;
+    tees?: { male?: ExternalTeeSet[]; female?: ExternalTeeSet[] };
+  };
+
+  const { course: data } = (await response.json()) as { course: ExternalCourse };
+
+  const allTees = [...(data.tees?.male ?? []), ...(data.tees?.female ?? [])];
+  const teeSet = teeName
+    ? allTees.find((t) => t.tee_name === teeName)
+    : (data.tees?.male?.[0] ?? data.tees?.female?.[0]);
+  if (!teeSet || !teeSet.holes?.length) {
+    throw new Error("No hole data available for this course");
+  }
+
+  const baseName = data.club_name && data.club_name !== data.course_name
+    ? `${data.course_name} (${data.club_name})`
+    : data.course_name;
+  const courseName = `${baseName} — ${teeSet.tee_name} Tees`;
+
+  // Include tee name in the key so each tee set is stored as its own course
+  const dbExternalId = `${data.id}_${teeSet.tee_name}`;
+
+  // Upsert course so concurrent requests don't create duplicates
+  const course = await prisma.course.upsert({
+    where: { externalId: dbExternalId },
+    create: {
+      name: courseName,
+      externalId: dbExternalId,
+      holes: {
+        // Holes come ordered in the array — use index for hole number
+        create: teeSet.holes.map((h, idx) => ({
+          number: idx + 1,
+          par: h.par,
+          distance: h.yardage,
+        })),
+      },
+    },
+    update: {},
+    include: { holes: { orderBy: { number: "asc" } } },
+  });
+
+  return course;
+}
+
 // POST /rounds — start a new round at a course
 router.post("/", async (req: AuthRequest, res: Response) => {
-  const schema = z.object({
-    courseId: z.number().int().positive(),
-    // Allow backdating (e.g. user forgot to log during the round)
-    playedAt: z.coerce.date().optional(),
-  });
+  const schema = z
+    .object({
+      courseId: z.number().int().positive().optional(),
+      externalCourseId: z.string().optional(),
+      teeName: z.string().optional(),
+      playedAt: z.coerce.date().optional(),
+    })
+    .refine((d) => d.courseId != null || d.externalCourseId != null, {
+      message: "Either courseId or externalCourseId is required",
+    });
 
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -22,22 +88,27 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const { courseId, playedAt } = result.data;
+  const { courseId, externalCourseId, teeName, playedAt } = result.data;
 
   try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-    });
+    let resolvedCourseId: number;
 
-    if (!course) {
-      res.status(404).json({ error: "Course not found" });
-      return;
+    if (externalCourseId) {
+      const course = await importExternalCourse(externalCourseId, teeName);
+      resolvedCourseId = course.id;
+    } else {
+      const course = await prisma.course.findUnique({ where: { id: courseId! } });
+      if (!course) {
+        res.status(404).json({ error: "Course not found" });
+        return;
+      }
+      resolvedCourseId = course.id;
     }
 
     const round = await prisma.round.create({
       data: {
         userId: req.userId!,
-        courseId,
+        courseId: resolvedCourseId,
         playedAt: playedAt ?? new Date(),
       },
       include: {
@@ -195,6 +266,33 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error("GET /rounds/stats error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /rounds/:id — delete a round and all its scores
+router.delete("/:id", async (req: AuthRequest, res: Response) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid round ID" });
+    return;
+  }
+
+  try {
+    const round = await prisma.round.findUnique({ where: { id } });
+    if (!round) {
+      res.status(404).json({ error: "Round not found" });
+      return;
+    }
+    if (round.userId !== req.userId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    await prisma.round.delete({ where: { id } });
+    res.status(204).send();
+  } catch (err) {
+    console.error("DELETE /rounds/:id error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
