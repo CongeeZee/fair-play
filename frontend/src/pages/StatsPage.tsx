@@ -6,8 +6,13 @@ import {
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import { useQuery } from '@tanstack/react-query'
-import { getStats, getHandicap } from '../api/rounds'
+import { getStats, getHandicap, getRounds } from '../api/rounds'
 import { formatCourseName } from '../utils'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ReferenceLine, ResponsiveContainer, Dot
+} from 'recharts'
+import type { Round } from '../types'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -30,6 +35,98 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   )
 }
 
+function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
+  const chartData = rounds
+    .filter((r) => r.holesCompleted != null && r.holesCompleted > 0 && r.scoreToPar != null)
+    .slice()
+    .sort((a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime())
+    .map((r, i) => ({
+      index: i,
+      date: new Date(r.playedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      scoreToPar: r.scoreToPar!,
+      course: r.course?.name ? formatCourseName(r.course.name) : 'Unknown',
+      strokes: r.totalStrokes,
+    }))
+
+  if (chartData.length < 2) return null
+
+  const minVal = Math.min(...chartData.map((d) => d.scoreToPar))
+  const maxVal = Math.max(...chartData.map((d) => d.scoreToPar))
+
+  return (
+    <Card elevation={1} sx={{ mb: 4 }}>
+      <CardContent>
+        <Typography variant="h6" color="primary.main" gutterBottom>
+          Score Trend
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Score to par over your last {chartData.length} rounds
+        </Typography>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+            <XAxis
+              dataKey="index"
+              type="number"
+              domain={[0, chartData.length - 1]}
+              ticks={chartData.map((d) => d.index)}
+              tickFormatter={(i) => chartData[i]?.date ?? ''}
+              tick={{ fontSize: 12, fill: '#888' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[minVal - 1, maxVal + 1]}
+              tickFormatter={(v) => v === 0 ? 'E' : v > 0 ? `+${v}` : `${v}`}
+              tick={{ fontSize: 12, fill: '#888' }}
+              axisLine={false}
+              tickLine={false}
+              width={36}
+            />
+            <ReferenceLine y={0} stroke="#2d5e42" strokeDasharray="4 4" strokeWidth={1.5} />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const d = payload[0].payload
+                const score = d.scoreToPar
+                const label = score === 0 ? 'E' : score > 0 ? `+${score}` : `${score}`
+                return (
+                  <Paper elevation={3} sx={{ p: 1.5, minWidth: 160 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {d.date}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, my: 0.25 }}>
+                      {label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{
+                      maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {d.course}
+                    </Typography>
+                  </Paper>
+                )
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="scoreToPar"
+              stroke="#1a3a5c"
+              strokeWidth={2.5}
+              dot={(props) => {
+                const { cx, cy, payload } = props
+                const score = payload.scoreToPar
+                const color = score < 0 ? '#c62828' : score === 0 ? '#2d5e42' : '#1a3a5c'
+                return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={2} />
+              }}
+              activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function StatsPage() {
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['stats'],
@@ -39,6 +136,12 @@ export default function StatsPage() {
   const { data: handicap, isLoading: handicapLoading } = useQuery({
     queryKey: ['handicap'],
     queryFn: getHandicap,
+  })
+
+  // Reuses the ['rounds'] cache already populated by HistoryPage
+  const { data: rounds } = useQuery({
+    queryKey: ['rounds'],
+    queryFn: getRounds,
   })
 
   if (statsLoading || handicapLoading) {
@@ -198,6 +301,9 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Score trend chart */}
+      <ScoreTrendChart rounds={rounds ?? []} />
 
       {/* General stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
