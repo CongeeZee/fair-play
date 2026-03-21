@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatCourseName } from '../utils'
 import {
   Box, Container, Typography, CircularProgress, Alert,
   List, ListItemButton, ListItemText, Paper, Chip, Divider,
@@ -87,7 +88,7 @@ export default function HistoryPage() {
                   {idx > 0 && <Divider />}
                   <ListItemButton onClick={() => navigate(`/rounds/${round.id}`)}>
                     <ListItemText
-                      primary={round.course?.name ?? 'Unknown Course'}
+                      primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
                       secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
                     />
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -138,7 +139,7 @@ export default function HistoryPage() {
           <DialogContentText>
             {confirmRound && (
               <>
-                {confirmRound.course?.name ?? 'This round'} on{' '}
+                {confirmRound.course?.name ? formatCourseName(confirmRound.course.name) : 'This round'} on{' '}
                 {new Date(confirmRound.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
                 {' '}will be permanently deleted.
               </>

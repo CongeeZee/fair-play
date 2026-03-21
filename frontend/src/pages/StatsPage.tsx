@@ -7,6 +7,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import { useQuery } from '@tanstack/react-query'
 import { getStats, getHandicap } from '../api/rounds'
+import { formatCourseName } from '../utils'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -171,7 +172,7 @@ export default function StatsPage() {
                       sx={{ bgcolor: d.used ? 'rgba(45,94,66,0.08)' : undefined }}
                     >
                       <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {d.courseName}
+                        {formatCourseName(d.courseName)}
                       </TableCell>
                       <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                         {new Date(d.playedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
