@@ -1,5 +1,5 @@
 import client from './client'
-import type { Round, Stats } from '../types'
+import type { Round, Stats, HandicapResult } from '../types'
 
 export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
@@ -18,3 +18,6 @@ export const deleteRound = (id: string) =>
 
 export const getStats = () =>
   client.get<Stats>('/rounds/stats').then((r) => r.data)
+
+export const getHandicap = () =>
+  client.get<HandicapResult>('/rounds/handicap').then((r) => r.data)

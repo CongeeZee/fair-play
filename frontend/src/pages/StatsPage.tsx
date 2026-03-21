@@ -1,11 +1,13 @@
 import {
   Box, Container, Typography, CircularProgress, Alert,
-  Grid, Card, CardContent, Divider, LinearProgress
+  Grid, Card, CardContent, Divider, LinearProgress,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip
 } from '@mui/material'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import { useQuery } from '@tanstack/react-query'
-import { getStats } from '../api/rounds'
+import { getStats, getHandicap } from '../api/rounds'
+import { formatCourseName } from '../utils'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -29,12 +31,17 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 }
 
 export default function StatsPage() {
-  const { data: stats, isLoading, error } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['stats'],
     queryFn: getStats,
   })
 
-  if (isLoading) {
+  const { data: handicap, isLoading: handicapLoading } = useQuery({
+    queryKey: ['handicap'],
+    queryFn: getHandicap,
+  })
+
+  if (statsLoading || handicapLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
         <CircularProgress />
@@ -42,7 +49,7 @@ export default function StatsPage() {
     )
   }
 
-  if (error) {
+  if (statsError) {
     return (
       <Container sx={{ py: 4 }}>
         <Alert severity="error">Failed to load stats.</Alert>
@@ -80,6 +87,13 @@ export default function StatsPage() {
       ]
     : []
 
+  const hcapIndex = handicap?.handicapIndex
+  const hcapDisplay =
+    hcapIndex == null ? '–'
+    : hcapIndex === 0 ? '0.0'
+    : hcapIndex > 0 ? `+${hcapIndex.toFixed(1)}`
+    : hcapIndex.toFixed(1)
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
@@ -87,6 +101,105 @@ export default function StatsPage() {
         <Typography variant="h4" color="primary.main">Stats</Typography>
       </Box>
 
+      {/* Handicap Index hero */}
+      <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)' }}>
+        <CardContent sx={{ py: 3 }}>
+          <Grid container spacing={3} alignItems="center">
+            <Grid size={{ xs: 12, sm: 'auto' }}>
+              <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>
+                  World Handicap System
+                </Typography>
+                <Typography variant="h1" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1, fontSize: { xs: '4rem', sm: '5rem' } }}>
+                  {hcapDisplay}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
+                  Handicap Index
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 'grow' }}>
+              {handicap && hcapIndex != null ? (
+                <Box sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                  <Typography variant="body2">
+                    Based on best <strong>{handicap.differentialsUsed}</strong> of last <strong>{handicap.totalEligible}</strong> eligible rounds
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Eligible rounds require course rating &amp; slope data
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <Typography variant="body2">
+                    {handicap?.totalEligible ?? 0} of 3 required rounds recorded
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Play courses from the search to get rating &amp; slope data
+                  </Typography>
+                </Box>
+              )}
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Score differentials table */}
+      {handicap && handicap.differentials.length > 0 && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h6" color="primary.main" gutterBottom>
+              Score Differentials
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Last {handicap.totalEligible} eligible rounds · differential = (113 ÷ slope) × (score − course rating)
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'background.default' }}>
+                    <TableCell>Course</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="center">Score</TableCell>
+                    <TableCell align="center">Rating</TableCell>
+                    <TableCell align="center">Slope</TableCell>
+                    <TableCell align="center">Differential</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {handicap.differentials.map((d) => (
+                    <TableRow
+                      key={d.roundId}
+                      sx={{ bgcolor: d.used ? 'rgba(45,94,66,0.08)' : undefined }}
+                    >
+                      <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {formatCourseName(d.courseName)}
+                      </TableCell>
+                      <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                        {new Date(d.playedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </TableCell>
+                      <TableCell align="center">{d.gross}</TableCell>
+                      <TableCell align="center">{d.courseRating}</TableCell>
+                      <TableCell align="center">{d.slopeRating}</TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <Typography variant="body2" fontWeight={d.used ? 700 : 400}>
+                            {d.differential.toFixed(1)}
+                          </Typography>
+                          {d.used && (
+                            <Chip label="used" size="small" sx={{ bgcolor: '#2d5e42', color: '#fff', height: 18, fontSize: 10 }} />
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* General stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard label="Rounds Played" value={String(stats.roundsPlayed)} />
@@ -119,6 +232,7 @@ export default function StatsPage() {
         </Grid>
       </Grid>
 
+      {/* Hole breakdown */}
       {breakdown && totalHoles > 0 && (
         <Card elevation={1}>
           <CardContent>

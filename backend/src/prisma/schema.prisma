@@ -18,11 +18,13 @@ model User {
 }
 
 model Course {
-  id         Int     @id @default(autoincrement())
-  name       String
-  externalId String? @unique
-  holes      Hole[]
-  rounds     Round[]
+  id           Int     @id @default(autoincrement())
+  name         String
+  externalId   String? @unique
+  courseRating Float?
+  slopeRating  Int?
+  holes        Hole[]
+  rounds       Round[]
 }
 
 model Hole {

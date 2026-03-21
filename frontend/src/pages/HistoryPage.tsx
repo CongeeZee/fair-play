@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatCourseName } from '../utils'
 import {
   Box, Container, Typography, CircularProgress, Alert,
   List, ListItemButton, ListItemText, Paper, Chip, Divider,
@@ -77,17 +78,17 @@ export default function HistoryPage() {
                 diff == null ? null : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
               const chipColor =
                 diff == null ? 'default'
-                : diff < 0 ? '#c9a84c'
+                : diff < 0 ? '#c62828'
                 : diff === 0 ? '#2d5e42'
-                : diff <= 5 ? '#e6a817'
-                : '#c62828'
+                : diff <= 5 ? '#1a3a5c'
+                : '#1a3a5c'
 
               return (
                 <Box key={round.id}>
                   {idx > 0 && <Divider />}
                   <ListItemButton onClick={() => navigate(`/rounds/${round.id}`)}>
                     <ListItemText
-                      primary={round.course?.name ?? 'Unknown Course'}
+                      primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
                       secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
                     />
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -138,7 +139,7 @@ export default function HistoryPage() {
           <DialogContentText>
             {confirmRound && (
               <>
-                {confirmRound.course?.name ?? 'This round'} on{' '}
+                {confirmRound.course?.name ? formatCourseName(confirmRound.course.name) : 'This round'} on{' '}
                 {new Date(confirmRound.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
                 {' '}will be permanently deleted.
               </>

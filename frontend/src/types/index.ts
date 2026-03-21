@@ -58,3 +58,22 @@ export interface Stats {
   worstScoreToPar?: number
   holeBreakdown?: HoleBreakdown
 }
+
+export interface HandicapDifferential {
+  roundId: string
+  playedAt: string
+  courseName: string
+  gross: number
+  courseRating: number
+  slopeRating: number
+  differential: number
+  used: boolean
+}
+
+export interface HandicapResult {
+  handicapIndex: number | null
+  differentialsUsed: number
+  totalEligible: number
+  minimumRequired?: number
+  differentials: HandicapDifferential[]
+}
