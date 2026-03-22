@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatCourseName } from '../utils'
+import PageHeader from '../components/PageHeader'
 import {
   Box, Container, Typography, CircularProgress, Alert,
   List, ListItemButton, ListItemText, Paper, Chip, Divider,
@@ -11,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import HistoryIcon from '@mui/icons-material/History'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRounds, deleteRound } from '../api/rounds'
+import { getRounds, getRound, deleteRound } from '../api/rounds'
 import type { Round } from '../types'
 
 export default function HistoryPage() {
@@ -24,6 +25,10 @@ export default function HistoryPage() {
     queryKey: ['rounds'],
     queryFn: getRounds,
   })
+
+  const prefetchRound = (id: string) => {
+    queryClient.prefetchQuery({ queryKey: ['round', id], queryFn: () => getRound(id) })
+  }
 
   const handleDelete = async () => {
     if (!confirmRound) return
@@ -54,10 +59,9 @@ export default function HistoryPage() {
   }
 
   return (
+    <Box>
+    <PageHeader title="Round History" />
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" color="primary.main" gutterBottom>
-        Round History
-      </Typography>
 
       {rounds && rounds.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -86,7 +90,10 @@ export default function HistoryPage() {
               return (
                 <Box key={round.id}>
                   {idx > 0 && <Divider />}
-                  <ListItemButton onClick={() => navigate(`/rounds/${round.id}`)}>
+                  <ListItemButton
+                    onClick={() => navigate(`/rounds/${round.id}`)}
+                    onMouseEnter={() => prefetchRound(round.id)}
+                  >
                     <ListItemText
                       primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
                       secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
@@ -154,5 +161,6 @@ export default function HistoryPage() {
         </DialogActions>
       </Dialog>
     </Container>
+    </Box>
   )
 }

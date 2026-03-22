@@ -11,6 +11,17 @@ router.use(requireAuth);
 // Fetch a course from golfcourseapi.com and upsert it into our DB.
 // Returns the local Course record (with holes).
 async function importExternalCourse(externalId: string, teeName?: string) {
+  // Short-circuit: if we know the tee name we can build the exact DB key
+  // and skip the external API call entirely if the course is already cached.
+  if (teeName) {
+    const dbExternalId = `${externalId}_${teeName}`;
+    const existing = await prisma.course.findUnique({
+      where: { externalId: dbExternalId },
+      include: { holes: { orderBy: { number: "asc" } } },
+    });
+    if (existing) return existing;
+  }
+
   const apiKey = process.env.GOLF_API_KEY;
   if (!apiKey) throw new Error("Golf API not configured");
 
@@ -285,7 +296,14 @@ router.get("/handicap", async (req: AuthRequest, res: Response) => {
     const rounds = await prisma.round.findMany({
       where: { userId: req.userId! },
       include: {
-        course: { select: { name: true, courseRating: true, slopeRating: true, holes: { select: { id: true } } } },
+        course: {
+          select: {
+            name: true,
+            courseRating: true,
+            slopeRating: true,
+            _count: { select: { holes: true } },
+          },
+        },
         roundHoles: { include: { hole: { select: { par: true } } } },
       },
       orderBy: { playedAt: "desc" },
@@ -294,10 +312,9 @@ router.get("/handicap", async (req: AuthRequest, res: Response) => {
 
     // Only use rounds that have rating/slope data and are fully scored
     const eligible = rounds.filter((r) => {
-      const totalHoles = r.course.holes.length;
+      const totalHoles = r.course._count.holes;
       return (
-        r.roundHoles.length === totalHoles &&
-        totalHoles > 0 &&
+        r.roundHoles.length === totalHoles && totalHoles > 0 &&
         r.course.courseRating != null &&
         r.course.slopeRating != null
       );

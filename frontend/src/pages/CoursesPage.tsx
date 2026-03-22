@@ -10,6 +10,7 @@ import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchExternalCourses, getExternalCourseTees } from '../api/courses'
+import PageHeader from '../components/PageHeader'
 import type { TeeOption } from '../api/courses'
 import { createRound } from '../api/rounds'
 
@@ -77,10 +78,9 @@ export default function CoursesPage() {
   }
 
   return (
+    <Box>
+    <PageHeader title="Find a Course" subtitle="Search 30,000+ real courses worldwide" />
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" color="primary.main" gutterBottom>
-        Find a Course
-      </Typography>
 
       <TextField
         fullWidth
@@ -200,5 +200,6 @@ export default function CoursesPage() {
         </DialogActions>
       </Dialog>
     </Container>
+    </Box>
   )
 }

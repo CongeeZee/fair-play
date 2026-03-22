@@ -8,6 +8,7 @@ import BarChartIcon from '@mui/icons-material/BarChart'
 import { useQuery } from '@tanstack/react-query'
 import { getStats, getHandicap, getRounds } from '../api/rounds'
 import { formatCourseName } from '../utils'
+import PageHeader from '../components/PageHeader'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
@@ -198,11 +199,9 @@ export default function StatsPage() {
     : hcapIndex.toFixed(1)
 
   return (
+    <Box>
+    <PageHeader title="Stats" subtitle="Your performance at a glance" />
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <EmojiEventsIcon sx={{ color: 'secondary.main', fontSize: 32 }} />
-        <Typography variant="h4" color="primary.main">Stats</Typography>
-      </Box>
 
       {/* Handicap Index hero */}
       <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)' }}>
@@ -377,5 +376,6 @@ export default function StatsPage() {
         </Card>
       )}
     </Container>
+    </Box>
   )
 }

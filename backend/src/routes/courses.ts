@@ -5,6 +5,20 @@ import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
+// Simple in-memory TTL cache to avoid hammering golfcourseapi.com
+// (free tier: 300 req/day). Results are stable for hours.
+const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const apiCache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function cacheGet(key: string): unknown | null {
+  const entry = apiCache.get(key);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.data;
+}
+function cacheSet(key: string, data: unknown) {
+  apiCache.set(key, { data, expiresAt: Date.now() + TTL_MS });
+}
+
 const holeSchema = z.object({
   number: z.number().int().min(1).max(18),
   par: z.number().int().min(3).max(5),
@@ -29,6 +43,11 @@ const courseSchema = z.object({
 // GET /courses/tees/:externalId — return available tee sets for a course; must be before /:id
 router.get("/tees/:externalId", async (req: Request, res: Response) => {
   const { externalId } = req.params;
+  const cacheKey = `tees:${externalId}`;
+
+  const cached = cacheGet(cacheKey);
+  if (cached) { res.json(cached); return; }
+
   const apiKey = process.env.GOLF_API_KEY;
   if (!apiKey) { res.status(503).json({ error: "Golf API not configured" }); return; }
 
@@ -51,7 +70,9 @@ router.get("/tees/:externalId", async (req: Request, res: Response) => {
       ...(course.tees?.female ?? []).map((t) => ({ name: t.tee_name, gender: "female", totalYards: t.total_yards, parTotal: t.par_total })),
     ];
 
-    res.json({ courseName: course.course_name, clubName: course.club_name, tees });
+    const result = { courseName: course.course_name, clubName: course.club_name, tees };
+    cacheSet(cacheKey, result);
+    res.json(result);
   } catch (err) {
     console.error("GET /courses/tees error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -65,6 +86,10 @@ router.get("/search", async (req: Request, res: Response) => {
     res.json([]);
     return;
   }
+
+  const cacheKey = `search:${q.toLowerCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) { res.json(cached); return; }
 
   const apiKey = process.env.GOLF_API_KEY;
   if (!apiKey) {
@@ -82,7 +107,9 @@ router.get("/search", async (req: Request, res: Response) => {
       return;
     }
     const data = (await response.json()) as { courses?: unknown[] };
-    res.json(data.courses ?? []);
+    const result = data.courses ?? [];
+    cacheSet(cacheKey, result);
+    res.json(result);
   } catch (err) {
     console.error("GET /courses/search error:", err);
     res.status(500).json({ error: "Internal server error" });
