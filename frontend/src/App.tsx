@@ -1,8 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Box } from '@mui/material'
+import { Box, Toolbar } from '@mui/material'
 
 import theme from './theme'
 import { AuthProvider } from './contexts/AuthContext'
@@ -21,10 +21,46 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 30_000,
+      staleTime: 5 * 60_000,  // 5 minutes — most data is stable
+      gcTime: 10 * 60_000,    // keep unused cache for 10 minutes
     },
   },
 })
+
+function Layout() {
+  const { pathname } = useLocation()
+  const isHome = pathname === '/'
+
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Navbar />
+      {/* Spacer so fixed navbar doesn't overlap content — not needed on home
+          because the hero intentionally sits behind the transparent navbar */}
+      {!isHome && <Toolbar />}
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/courses"
+          element={<ProtectedRoute><CoursesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/rounds/:id"
+          element={<ProtectedRoute><RoundPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/history"
+          element={<ProtectedRoute><HistoryPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/stats"
+          element={<ProtectedRoute><StatsPage /></ProtectedRoute>}
+        />
+      </Routes>
+    </Box>
+  )
+}
 
 export default function App() {
   return (
@@ -33,30 +69,7 @@ export default function App() {
         <CssBaseline />
         <BrowserRouter>
           <AuthProvider>
-            <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-              <Navbar />
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route
-                  path="/courses"
-                  element={<ProtectedRoute><CoursesPage /></ProtectedRoute>}
-                />
-                <Route
-                  path="/rounds/:id"
-                  element={<ProtectedRoute><RoundPage /></ProtectedRoute>}
-                />
-                <Route
-                  path="/history"
-                  element={<ProtectedRoute><HistoryPage /></ProtectedRoute>}
-                />
-                <Route
-                  path="/stats"
-                  element={<ProtectedRoute><StatsPage /></ProtectedRoute>}
-                />
-              </Routes>
-            </Box>
+            <Layout />
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
