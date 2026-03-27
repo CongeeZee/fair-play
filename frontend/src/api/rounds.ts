@@ -4,8 +4,17 @@ import type { Round, Stats, HandicapResult } from '../types'
 export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
 
-export const scoreHole = (roundId: string, holeId: string, strokes: number) =>
-  client.put(`/rounds/${roundId}/holes/${holeId}`, { strokes }).then((r) => r.data)
+export interface HoleScore {
+  strokes: number
+  putts?: number
+  teeShotDirection?: string
+  sandShots?: number
+  penalties?: number
+  hazards?: number
+}
+
+export const scoreHole = (roundId: string, holeId: string, data: HoleScore) =>
+  client.put(`/rounds/${roundId}/holes/${holeId}`, data).then((r) => r.data)
 
 export const getRounds = () =>
   client.get<Round[]>('/rounds').then((r) => r.data)

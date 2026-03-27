@@ -50,12 +50,17 @@ model Round {
 }
 
 model RoundHole {
-  id      Int   @id @default(autoincrement())
-  roundId Int
-  holeId  Int
-  strokes Int
-  round   Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  hole    Hole  @relation(fields: [holeId], references: [id])
+  id               Int     @id @default(autoincrement())
+  roundId          Int
+  holeId           Int
+  strokes          Int
+  putts            Int?
+  teeShotDirection String?
+  sandShots        Int?
+  penalties        Int?
+  hazards          Int?
+  round            Round   @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  hole             Hole    @relation(fields: [holeId], references: [id])
 
   @@unique([roundId, holeId])
 }
