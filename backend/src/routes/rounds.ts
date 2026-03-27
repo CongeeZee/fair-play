@@ -155,6 +155,11 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
   const schema = z.object({
     // Max 20 strokes per hole is generous but prevents garbage data
     strokes: z.number().int().min(1).max(20),
+    putts: z.number().int().min(0).max(20).optional(),
+    teeShotDirection: z.enum(["fairway", "left", "right", "penalty"]).optional(),
+    sandShots: z.number().int().min(0).max(20).optional(),
+    penalties: z.number().int().min(0).max(20).optional(),
+    hazards: z.number().int().min(0).max(20).optional(),
   });
 
   const result = schema.safeParse(req.body);
@@ -182,11 +187,14 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const { strokes, putts, teeShotDirection, sandShots, penalties, hazards } = result.data;
+    const holeData = { strokes, putts, teeShotDirection, sandShots, penalties, hazards };
+
     // Upsert — re-submitting a score corrects it rather than errors
     const roundHole = await prisma.roundHole.upsert({
       where: { roundId_holeId: { roundId, holeId } },
-      create: { roundId, holeId, strokes: result.data.strokes },
-      update: { strokes: result.data.strokes },
+      create: { roundId, holeId, ...holeData },
+      update: holeData,
       include: { hole: true },
     });
 
