@@ -29,6 +29,11 @@ export interface RoundHole {
   roundId: string
   holeId: string
   strokes: number
+  putts?: number
+  teeShotDirection?: string
+  sandShots?: number
+  penalties?: number
+  hazards?: number
 }
 
 export interface Round {
