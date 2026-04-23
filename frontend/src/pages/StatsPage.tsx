@@ -3,8 +3,10 @@ import {
   Grid, Card, CardContent, Divider, LinearProgress,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip
 } from '@mui/material'
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import BarChartIcon from '@mui/icons-material/BarChart'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import TrendingDownIcon from '@mui/icons-material/TrendingDown'
+import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
 import { useQuery } from '@tanstack/react-query'
 import { getStats, getHandicap, getRounds } from '../api/rounds'
 import { formatCourseName } from '../utils'
@@ -31,6 +33,67 @@ function StatCard({ label, value, color }: { label: string; value: string; color
         <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Form/Improvement Card ────────────────────────────────────────────────────
+function ImprovementCard({ rounds }: { rounds: Round[] }) {
+  const eligible = rounds
+    .filter((r) => r.scoreToPar != null && r.holesCompleted != null && r.holesCompleted > 0)
+    .slice()
+    .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
+
+  if (eligible.length < 4) return null
+
+  const recent = eligible.slice(0, Math.min(5, Math.floor(eligible.length / 2)))
+  const previous = eligible.slice(recent.length, recent.length * 2)
+
+  if (previous.length === 0) return null
+
+  const avgRecent = recent.reduce((s, r) => s + r.scoreToPar!, 0) / recent.length
+  const avgPrev = previous.reduce((s, r) => s + r.scoreToPar!, 0) / previous.length
+  const delta = avgRecent - avgPrev // negative = improved (lower score = better)
+
+  const improved = delta < -0.4
+  const declined = delta > 0.4
+
+  const TrendIcon = improved ? TrendingDownIcon : declined ? TrendingUpIcon : TrendingFlatIcon
+  const trendColor = improved ? '#2d5e42' : declined ? '#c62828' : '#4a5e4a'
+  const trendBg = improved ? 'rgba(45,94,66,0.1)' : declined ? 'rgba(198,40,40,0.08)' : 'rgba(74,94,74,0.08)'
+  const label = improved
+    ? `${Math.abs(delta).toFixed(1)} strokes better`
+    : declined
+    ? `${Math.abs(delta).toFixed(1)} strokes worse`
+    : 'Holding steady'
+  const sub = `Last ${recent.length} rounds vs previous ${previous.length}`
+
+  return (
+    <Card elevation={1} sx={{ mb: 4, bgcolor: trendBg, border: '1px solid', borderColor: improved ? 'rgba(45,94,66,0.2)' : declined ? 'rgba(198,40,40,0.2)' : 'rgba(74,94,74,0.15)' }}>
+      <CardContent sx={{ py: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ bgcolor: trendColor, borderRadius: '50%', p: 1.25, display: 'flex', flexShrink: 0 }}>
+            <TrendIcon sx={{ color: '#fff', fontSize: 22 }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, display: 'block', lineHeight: 1.2 }}>
+              Recent Form
+            </Typography>
+            <Typography variant="h6" fontWeight={700} sx={{ color: trendColor, lineHeight: 1.3 }}>
+              {label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {sub}
+            </Typography>
+          </Box>
+          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+            <Typography variant="caption" color="text.secondary" display="block">Avg (recent)</Typography>
+            <Typography variant="h6" fontWeight={700} sx={{ color: trendColor }}>
+              {avgRecent >= 0 ? '+' : ''}{avgRecent.toFixed(1)}
+            </Typography>
+          </Box>
+        </Box>
       </CardContent>
     </Card>
   )
@@ -244,6 +307,9 @@ export default function StatsPage() {
           </Grid>
         </CardContent>
       </Card>
+
+      {/* Recent form / improvement trend */}
+      <ImprovementCard rounds={rounds ?? []} />
 
       {/* Score differentials table */}
       {handicap && handicap.differentials.length > 0 && (

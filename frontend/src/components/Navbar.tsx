@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material'
+import { AppBar, Toolbar, Typography, Button, Box, useScrollTrigger } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -9,6 +9,9 @@ export default function Navbar() {
   const { pathname } = useLocation()
 
   const isHome = pathname === '/'
+
+  // Become solid when the user scrolls down on the home page
+  const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 80 })
 
   const handleLogout = () => {
     logout()
@@ -21,15 +24,17 @@ export default function Navbar() {
     { label: 'Stats', to: '/stats' },
   ]
 
+  const solid = !isHome || scrolled
+
   return (
     <AppBar
       position="fixed"
-      elevation={isHome ? 0 : 2}
+      elevation={solid ? 2 : 0}
       sx={{
-        bgcolor: isHome ? 'transparent' : '#1a3a2a',
-        backdropFilter: isHome ? 'blur(10px)' : 'none',
-        borderBottom: isHome ? '1px solid rgba(255,255,255,0.1)' : 'none',
-        transition: 'background-color 0.3s ease',
+        bgcolor: solid ? '#1a3a2a' : 'transparent',
+        backdropFilter: !solid ? 'blur(10px)' : 'none',
+        borderBottom: !solid ? '1px solid rgba(255,255,255,0.1)' : 'none',
+        transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
       }}
     >
       <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
@@ -42,7 +47,7 @@ export default function Navbar() {
             flexGrow: 0,
             textDecoration: 'none',
             color: '#fff',
-            mr: 4,
+            mr: { xs: 'auto', md: 4 },
             fontFamily: '"Playfair Display", serif',
             fontSize: '1.25rem',
             letterSpacing: '0.5px',
@@ -51,8 +56,9 @@ export default function Navbar() {
           Fairway
         </Typography>
 
+        {/* Desktop nav links — hidden on mobile (BottomNav handles it) */}
         {user && (
-          <Box sx={{ display: 'flex', gap: 0.5, flexGrow: 1, alignItems: 'center' }}>
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 0.5, flexGrow: 1, alignItems: 'center' }}>
             {navLinks.map(({ label, to }) => (
               <Button
                 key={to}
@@ -77,9 +83,12 @@ export default function Navbar() {
 
         {!user && <Box sx={{ flexGrow: 1 }} />}
 
+        {/* On mobile with user, push sign-out to right */}
+        {user && <Box sx={{ display: { xs: 'block', md: 'none' }, flexGrow: 1 }} />}
+
         {user && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body2" sx={{ color: 'secondary.main', fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
+            <Typography variant="body2" sx={{ color: 'secondary.main', fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
               {user.name}
             </Typography>
             <Button
