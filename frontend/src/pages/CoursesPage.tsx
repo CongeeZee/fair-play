@@ -1,18 +1,22 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box, Button, Container, List, ListItem, ListItemText,
   TextField, Typography, CircularProgress, Alert, Paper, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
   RadioGroup, FormControlLabel, Radio, FormControl, Chip
+
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import HistoryIcon from '@mui/icons-material/History'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchExternalCourses, getExternalCourseTees } from '../api/courses'
 import PageHeader from '../components/PageHeader'
 import type { TeeOption } from '../api/courses'
-import { createRound } from '../api/rounds'
+import { createRound, getRounds } from '../api/rounds'
+import { formatCourseName } from '../utils'
+import type { Round } from '../types'
 
 interface TeeDialog {
   externalCourseId: string
@@ -20,11 +24,30 @@ interface TeeDialog {
   tees: TeeOption[]
 }
 
+// Derive unique recently played courses from rounds history
+function useRecentCourses(rounds: Round[] | undefined) {
+  return useMemo(() => {
+    if (!rounds || rounds.length === 0) return []
+    const seen = new Set<string>()
+    const result: { externalId?: string; name: string; lastPlayed: string }[] = []
+    for (const r of rounds) {
+      if (!r.course?.name) continue
+      const key = r.course.name
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push({ name: r.course.name, lastPlayed: r.playedAt })
+      }
+      if (result.length >= 5) break
+    }
+    return result
+  }, [rounds])
+}
+
 export default function CoursesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [loadingTees, setLoadingTees] = useState<number | null>(null)
+  const [loadingTees, setLoadingTees] = useState<number | string | null>(null)
   const [teeDialog, setTeeDialog] = useState<TeeDialog | null>(null)
   const [selectedTee, setSelectedTee] = useState<string>('')
   const [startingRound, setStartingRound] = useState(false)
@@ -41,22 +64,37 @@ export default function CoursesPage() {
     enabled: ready,
   })
 
-  const handleSelectCourse = useCallback(async (courseId: number) => {
+  // Fetch round history to show recently played courses
+  const { data: rounds } = useQuery({
+    queryKey: ['rounds'],
+    queryFn: getRounds,
+  })
+
+  const recentCourses = useRecentCourses(rounds)
+
+  const fetchTeesAndOpen = useCallback(async (courseId: number | string, overrideName?: string) => {
     setLoadingTees(courseId)
     try {
       const data = await getExternalCourseTees(String(courseId))
+      const courseName = overrideName ?? (data.clubName
+        ? `${data.courseName} (${data.clubName})`
+        : data.courseName)
       setTeeDialog({
         externalCourseId: String(courseId),
-        courseName: data.clubName
-          ? `${data.courseName} (${data.clubName})`
-          : data.courseName,
+        courseName,
         tees: data.tees,
       })
       setSelectedTee(data.tees[0]?.name ?? '')
+    } catch {
+      // silently ignore — no external ID for history courses
     } finally {
       setLoadingTees(null)
     }
   }, [])
+
+  const handleSelectCourse = useCallback((courseId: number) => {
+    fetchTeesAndOpen(courseId)
+  }, [fetchTeesAndOpen])
 
   const handleStartRound = useCallback(async () => {
     if (!teeDialog || !selectedTee) return
@@ -77,6 +115,8 @@ export default function CoursesPage() {
     return [loc.city, loc.state, loc.country].filter(Boolean).join(', ')
   }
 
+  const showRecent = recentCourses.length > 0 && !ready
+
   return (
     <Box>
     <PageHeader title="Find a Course" subtitle="Search 30,000+ real courses worldwide" />
@@ -93,11 +133,64 @@ export default function CoursesPage() {
         }}
       />
 
-      {!ready && (
+      {/* Recently played courses */}
+      {showRecent && (
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+            <HistoryIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5 }}>
+              Recently Played
+            </Typography>
+          </Box>
+          <Paper elevation={1}>
+            <List disablePadding>
+              {recentCourses.map((c, idx) => {
+                const loading = loadingTees === c.name
+                return (
+                  <Box key={c.name}>
+                    {idx > 0 && <Divider />}
+                    <ListItem
+                      secondaryAction={
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          disabled={loading || loadingTees !== null}
+                          onClick={() => {
+                            // Search for the course by name to get the external ID
+                            setSearch(formatCourseName(c.name))
+                          }}
+                        >
+                          {loading ? <CircularProgress size={16} color="inherit" /> : 'Play Again'}
+                        </Button>
+                      }
+                    >
+                      <ListItemText
+                        primary={formatCourseName(c.name)}
+                        secondary={`Last played ${new Date(c.lastPlayed).toLocaleDateString('en-GB', { dateStyle: 'medium' })}`}
+                      />
+                    </ListItem>
+                  </Box>
+                )
+              })}
+            </List>
+          </Paper>
+        </Box>
+      )}
+
+      {!ready && !showRecent && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <GolfCourseIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
           <Typography color="text.secondary">
             Type at least 2 characters to search 30,000+ real courses
+          </Typography>
+        </Box>
+      )}
+
+      {!ready && showRecent && (
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Or search for a new course above
           </Typography>
         </Box>
       )}

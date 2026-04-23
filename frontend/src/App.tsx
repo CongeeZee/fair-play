@@ -8,6 +8,8 @@ import theme from './theme'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
+import BottomNav from './components/BottomNav'
+import { useAuth } from './contexts/AuthContext'
 
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -29,10 +31,18 @@ const queryClient = new QueryClient({
 
 function Layout() {
   const { pathname } = useLocation()
+  const { user } = useAuth()
   const isHome = pathname === '/'
+  // Show bottom nav on authenticated pages (not home/login/register)
+  const showBottomNav = user && !['/login', '/register', '/'].includes(pathname)
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{
+      minHeight: '100vh',
+      bgcolor: 'background.default',
+      // On mobile, add bottom padding so fixed BottomNav doesn't overlap content
+      pb: showBottomNav ? { xs: '60px', md: 0 } : 0,
+    }}>
       <Navbar />
       {/* Spacer so fixed navbar doesn't overlap content — not needed on home
           because the hero intentionally sits behind the transparent navbar */}
@@ -58,6 +68,7 @@ function Layout() {
           element={<ProtectedRoute><StatsPage /></ProtectedRoute>}
         />
       </Routes>
+      {showBottomNav && <BottomNav />}
     </Box>
   )
 }
