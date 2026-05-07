@@ -16,11 +16,14 @@ export interface Hole {
   par: number
   distance: number
   courseId: string
+  greenLatitude?: number | null
+  greenLongitude?: number | null
 }
 
 export interface Course {
   id: string
   name: string
+  externalId?: string | null
   holes: Hole[]
 }
 
@@ -31,6 +34,8 @@ export interface RoundHole {
   strokes: number
   putts?: number
   teeShotDirection?: string
+  teeShotDistance?: string
+  approachResult?: string
   sandShots?: number
   penalties?: number
   hazards?: number
@@ -73,6 +78,62 @@ export interface HandicapDifferential {
   slopeRating: number
   differential: number
   used: boolean
+}
+
+export interface CourseStatsSummary {
+  courseId: string
+  courseName: string
+  roundsPlayed: number
+  averageScoreToPar: number
+  bestScoreToPar: number
+  rounds: Array<{
+    roundId: string
+    playedAt: string
+    scoreToPar: number
+    totalStrokes: number
+    holesCompleted: number
+  }>
+}
+
+export interface CourseHoleStat {
+  holeId: string
+  number: number
+  par: number
+  distance: number
+  roundsPlayed: number
+  averageScoreToPar: number | null
+  averagePutts: number | null
+  girRate: number | null
+  fairwayRate: number | null
+}
+
+export interface CourseDetailStats {
+  courseId: string
+  courseName: string
+  holes: CourseHoleStat[]
+}
+
+export interface InsightSuggestion {
+  area: string
+  message: string
+  severity: 'high' | 'medium' | 'low'
+}
+
+export interface InsightsResult {
+  hasData: boolean
+  dataPoints?: number
+  metrics?: {
+    avgPutts: number | null
+    threePuttRate: number | null
+    girRate: number | null
+    fairwayRate: number | null
+    doublePlusRate: number | null
+    par3: { count: number; averageScoreToPar: number } | null
+    par4: { count: number; averageScoreToPar: number } | null
+    par5: { count: number; averageScoreToPar: number } | null
+    approachMisses: { left: number; right: number; short: number; long: number; total: number } | null
+  }
+  suggestions?: InsightSuggestion[]
 }
 
 export interface HandicapResult {

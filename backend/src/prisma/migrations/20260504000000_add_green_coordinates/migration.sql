@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Hole" ADD COLUMN "greenLatitude" DOUBLE PRECISION,
+ADD COLUMN "greenLongitude" DOUBLE PRECISION;

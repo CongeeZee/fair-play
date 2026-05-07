@@ -1,21 +1,29 @@
 import {
   Box, Container, Typography, CircularProgress, Alert,
   Grid, Card, CardContent, Divider, LinearProgress,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip,
+  List, ListItemButton, ListItemText,
 } from '@mui/material'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
+import LightbulbIcon from '@mui/icons-material/Lightbulb'
+import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { useQuery } from '@tanstack/react-query'
-import { getStats, getHandicap, getRounds } from '../api/rounds'
+import { useNavigate } from 'react-router-dom'
+import { getStats, getHandicap, getRounds, getCourseStats, getInsights } from '../api/rounds'
 import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
 } from 'recharts'
-import type { Round } from '../types'
+import type { Round, InsightSuggestion } from '../types'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -191,7 +199,30 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
   )
 }
 
+function severityIcon(s: InsightSuggestion['severity']) {
+  if (s === 'high') return <WarningAmberIcon sx={{ fontSize: 18, color: '#c62828' }} />
+  if (s === 'medium') return <InfoOutlinedIcon sx={{ fontSize: 18, color: '#e6a817' }} />
+  return <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#2d5e42' }} />
+}
+
+function severityBg(s: InsightSuggestion['severity']) {
+  if (s === 'high') return { bg: 'rgba(198,40,40,0.06)', border: 'rgba(198,40,40,0.2)', text: '#c62828' }
+  if (s === 'medium') return { bg: 'rgba(230,168,23,0.06)', border: 'rgba(230,168,23,0.25)', text: '#8a6000' }
+  return { bg: 'rgba(45,94,66,0.06)', border: 'rgba(45,94,66,0.2)', text: '#2d5e42' }
+}
+
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ textAlign: 'center', px: 1.5, py: 1, bgcolor: 'background.default', borderRadius: 2, flex: 1, minWidth: 80 }}>
+      <Typography variant="h6" fontWeight={700} color="primary.main">{value}</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>{label}</Typography>
+    </Box>
+  )
+}
+
 export default function StatsPage() {
+  const navigate = useNavigate()
+
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['stats'],
     queryFn: getStats,
@@ -206,6 +237,16 @@ export default function StatsPage() {
   const { data: rounds } = useQuery({
     queryKey: ['rounds'],
     queryFn: getRounds,
+  })
+
+  const { data: courseStats } = useQuery({
+    queryKey: ['course-stats'],
+    queryFn: getCourseStats,
+  })
+
+  const { data: insights } = useQuery({
+    queryKey: ['insights'],
+    queryFn: getInsights,
   })
 
   if (statsLoading || handicapLoading) {
@@ -405,7 +446,7 @@ export default function StatsPage() {
 
       {/* Hole breakdown */}
       {breakdown && totalHoles > 0 && (
-        <Card elevation={1}>
+        <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
             <Typography variant="h6" color="primary.main" gutterBottom>
               Hole Breakdown
@@ -439,6 +480,128 @@ export default function StatsPage() {
               ))}
             </Box>
           </CardContent>
+        </Card>
+      )}
+
+      {/* ── Game Insights ─────────────────────────────────────────────── */}
+      {insights?.hasData && insights.suggestions && insights.suggestions.length > 0 && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <LightbulbIcon sx={{ color: '#c9a84c' }} />
+              <Typography variant="h6" color="primary.main" fontWeight={700}>
+                Game Insights
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Based on {insights.dataPoints} holes analysed
+            </Typography>
+
+            {/* Key metrics row */}
+            {insights.metrics && (
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
+                {insights.metrics.girRate != null && (
+                  <MetricPill label="GIR Rate" value={`${(insights.metrics.girRate * 100).toFixed(0)}%`} />
+                )}
+                {insights.metrics.fairwayRate != null && (
+                  <MetricPill label="Fairways Hit" value={`${(insights.metrics.fairwayRate * 100).toFixed(0)}%`} />
+                )}
+                {insights.metrics.avgPutts != null && (
+                  <MetricPill label="Avg Putts" value={insights.metrics.avgPutts.toFixed(1)} />
+                )}
+                {insights.metrics.doublePlusRate != null && (
+                  <MetricPill label="Double+ Rate" value={`${(insights.metrics.doublePlusRate * 100).toFixed(0)}%`} />
+                )}
+              </Box>
+            )}
+
+            <Divider sx={{ mb: 2 }} />
+
+            {/* Per-par averages */}
+            {insights.metrics && (insights.metrics.par3 || insights.metrics.par4 || insights.metrics.par5) && (
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
+                {insights.metrics.par3 && (
+                  <MetricPill
+                    label={`Par 3 avg (${insights.metrics.par3.count} holes)`}
+                    value={insights.metrics.par3.averageScoreToPar > 0 ? `+${insights.metrics.par3.averageScoreToPar.toFixed(1)}` : insights.metrics.par3.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+                {insights.metrics.par4 && (
+                  <MetricPill
+                    label={`Par 4 avg (${insights.metrics.par4.count} holes)`}
+                    value={insights.metrics.par4.averageScoreToPar > 0 ? `+${insights.metrics.par4.averageScoreToPar.toFixed(1)}` : insights.metrics.par4.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+                {insights.metrics.par5 && (
+                  <MetricPill
+                    label={`Par 5 avg (${insights.metrics.par5.count} holes)`}
+                    value={insights.metrics.par5.averageScoreToPar > 0 ? `+${insights.metrics.par5.averageScoreToPar.toFixed(1)}` : insights.metrics.par5.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+              </Box>
+            )}
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {insights.suggestions.map((s, i) => {
+                const { bg, border, text } = severityBg(s.severity)
+                return (
+                  <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, border: '1px solid', borderColor: border, borderRadius: 2 }}>
+                    <Box sx={{ pt: 0.1, flexShrink: 0 }}>{severityIcon(s.severity)}</Box>
+                    <Box>
+                      <Typography variant="caption" fontWeight={700} sx={{ color: text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                        {s.area}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 0.25 }}>
+                        {s.message}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Courses Played ────────────────────────────────────────────── */}
+      {courseStats && courseStats.length > 0 && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent sx={{ pb: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <GolfCourseIcon sx={{ color: 'primary.main' }} />
+              <Typography variant="h6" color="primary.main" fontWeight={700}>
+                Courses Played
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Click a course to see your hole-by-hole breakdown
+            </Typography>
+          </CardContent>
+          <List disablePadding>
+            {courseStats.map((c, idx) => {
+              const diffStr = c.averageScoreToPar === 0 ? 'E' : c.averageScoreToPar > 0 ? `+${c.averageScoreToPar.toFixed(1)}` : c.averageScoreToPar.toFixed(1)
+              const bestStr = c.bestScoreToPar === 0 ? 'E' : c.bestScoreToPar > 0 ? `+${c.bestScoreToPar}` : `${c.bestScoreToPar}`
+              const chipColor = c.averageScoreToPar < 0 ? '#c9a84c' : c.averageScoreToPar === 0 ? '#2d5e42' : c.averageScoreToPar <= 10 ? '#1a3a5c' : '#c62828'
+              return (
+                <Box key={c.courseId}>
+                  {idx > 0 && <Divider />}
+                  <ListItemButton onClick={() => navigate(`/stats/courses/${c.courseId}`)}>
+                    <ListItemText
+                      primary={formatCourseName(c.courseName)}
+                      secondary={`${c.roundsPlayed} round${c.roundsPlayed !== 1 ? 's' : ''} · Best: ${bestStr}`}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="caption" color="text.secondary" display="block">Avg</Typography>
+                        <Chip label={diffStr} size="small" sx={{ bgcolor: chipColor, color: '#fff', fontWeight: 700, height: 22 }} />
+                      </Box>
+                      <ChevronRightIcon sx={{ color: 'text.secondary' }} />
+                    </Box>
+                  </ListItemButton>
+                </Box>
+              )
+            })}
+          </List>
         </Card>
       )}
     </Container>

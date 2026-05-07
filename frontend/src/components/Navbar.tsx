@@ -53,7 +53,7 @@ export default function Navbar() {
             letterSpacing: '0.5px',
           }}
         >
-          Fairway
+          Fairplay
         </Typography>
 
         {/* Desktop nav links — hidden on mobile (BottomNav handles it) */}
