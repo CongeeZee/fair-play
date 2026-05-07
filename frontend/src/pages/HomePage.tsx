@@ -65,7 +65,7 @@ export default function HomePage() {
             textShadow: '0 2px 20px rgba(0,0,0,0.4)',
           }}
         >
-          Fairway
+          Fairplay
         </Typography>
 
         <Typography

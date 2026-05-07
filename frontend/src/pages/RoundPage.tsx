@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Box, Container, Typography, CircularProgress, Alert,
   Paper, Button, ButtonGroup, Chip, IconButton, Divider,
@@ -13,10 +13,188 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import SyncIcon from '@mui/icons-material/Sync'
+import GpsFixedIcon from '@mui/icons-material/GpsFixed'
+import GpsNotFixedIcon from '@mui/icons-material/GpsNotFixed'
+import GpsOffIcon from '@mui/icons-material/GpsOff'
+import FlagIcon from '@mui/icons-material/Flag'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRound, scoreHole } from '../api/rounds'
+import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
 import type { RoundHole } from '../types'
+
+// ── GPS utilities ────────────────────────────────────────────────────────────
+function haversineYards(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Math.round(R * c * 1.09361)
+}
+
+function useGPS() {
+  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
+  const [accuracy, setAccuracy] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [enabled, setEnabled] = useState(false)
+  const watchRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      if (watchRef.current != null) {
+        navigator.geolocation.clearWatch(watchRef.current)
+        watchRef.current = null
+      }
+      return
+    }
+    if (!navigator.geolocation) {
+      setError('GPS not supported on this device')
+      return
+    }
+    watchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setAccuracy(pos.coords.accuracy)
+        setError(null)
+      },
+      (err) => { setError(err.message) },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 },
+    )
+    return () => {
+      if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current)
+    }
+  }, [enabled])
+
+  return { position, accuracy, error, enabled, setEnabled }
+}
+
+// ── GPS Distance Panel ───────────────────────────────────────────────────────
+function GPSDistancePanel({
+  hole,
+  roundId,
+  gps,
+  onGreenMarked,
+}: {
+  hole: { id: string; number: number; par: number; greenLatitude?: number | null; greenLongitude?: number | null }
+  roundId: string
+  gps: ReturnType<typeof useGPS>
+  onGreenMarked: (holeId: string, lat: number, lng: number) => void
+}) {
+  const [marking, setMarking] = useState(false)
+  const { position, accuracy, error, enabled, setEnabled } = gps
+
+  const hasGreen = hole.greenLatitude != null && hole.greenLongitude != null
+  const distance = useMemo(() => {
+    if (!position || !hasGreen) return null
+    return haversineYards(position.lat, position.lng, hole.greenLatitude!, hole.greenLongitude!)
+  }, [position, hasGreen, hole.greenLatitude, hole.greenLongitude])
+
+  const handleMarkGreen = async () => {
+    if (!position) return
+    setMarking(true)
+    try {
+      await markGreenLocation(roundId, hole.id, position.lat, position.lng)
+      onGreenMarked(hole.id, position.lat, position.lng)
+    } finally {
+      setMarking(false)
+    }
+  }
+
+  // Not enabled — show start button
+  if (!enabled) {
+    return (
+      <Box
+        onClick={() => setEnabled(true)}
+        sx={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1,
+          px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', cursor: 'pointer',
+          borderBottom: '1px solid', borderColor: 'divider',
+          '&:hover': { bgcolor: 'rgba(26,58,42,0.1)' },
+        }}
+      >
+        <GpsOffIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+          Tap to enable GPS distance
+        </Typography>
+      </Box>
+    )
+  }
+
+  // GPS error
+  if (error) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 3, py: 1, bgcolor: 'rgba(198,40,40,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <GpsOffIcon sx={{ fontSize: 18, color: '#c62828' }} />
+        <Typography variant="caption" color="error">{error}</Typography>
+      </Box>
+    )
+  }
+
+  // Waiting for GPS fix
+  if (!position) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <GpsNotFixedIcon sx={{ fontSize: 18, color: 'text.secondary', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 0.4 }, '50%': { opacity: 1 } } }} />
+        <Typography variant="body2" color="text.secondary">Acquiring GPS signal…</Typography>
+      </Box>
+    )
+  }
+
+  // Have position but no green coordinates — offer to mark
+  if (!hasGreen) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, bgcolor: 'rgba(201,168,76,0.08)', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <GpsFixedIcon sx={{ fontSize: 18, color: '#c9a84c' }} />
+          <Typography variant="body2" color="text.secondary">
+            No green location set
+          </Typography>
+        </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<FlagIcon fontSize="small" />}
+          onClick={handleMarkGreen}
+          disabled={marking}
+          sx={{ fontSize: '0.7rem', py: 0.25, textTransform: 'none' }}
+        >
+          {marking ? 'Saving…' : 'Mark Green'}
+        </Button>
+      </Box>
+    )
+  }
+
+  // Full distance display
+  const accuracyYards = accuracy ? Math.round(accuracy * 1.09361) : null
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <GpsFixedIcon sx={{ fontSize: 18, color: '#2d5e42' }} />
+        <Typography variant="caption" color="text.secondary">
+          To centre of green
+        </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', lineHeight: 1 }}>
+          {distance}
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+          yds
+        </Typography>
+        {accuracyYards != null && (
+          <Tooltip title={`GPS accuracy: ±${accuracyYards} yds`}>
+            <Typography variant="caption" sx={{ color: accuracyYards <= 10 ? '#2d5e42' : accuracyYards <= 30 ? '#e6a817' : '#c62828', ml: 0.5 }}>
+              ±{accuracyYards}
+            </Typography>
+          </Tooltip>
+        )}
+      </Box>
+    </Box>
+  )
+}
 
 const TEE_DIRECTIONS = [
   { value: 'fairway', label: 'Fairway' },
@@ -27,7 +205,8 @@ const TEE_DIRECTIONS = [
 
 const STROKE_QUICK_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-function scoreLabel(diff: number) {
+function scoreLabel(diff: number, strokes: number) {
+  if (strokes === 1) return { label: 'Ace!', color: '#c9a84c' }
   if (diff <= -2) return { label: 'Eagle', color: '#c9a84c' }
   if (diff === -1) return { label: 'Birdie', color: '#2d5e42' }
   if (diff === 0) return { label: 'Par', color: '#555' }
@@ -47,6 +226,8 @@ interface HoleScoreState {
   strokes: number
   putts: number
   teeShotDirection: string
+  teeShotDistance: string
+  approachResult: string
   sandShots: number
   penalties: number
   hazards: number
@@ -56,6 +237,8 @@ const defaultScore = (): HoleScoreState => ({
   strokes: 0,
   putts: 0,
   teeShotDirection: '',
+  teeShotDistance: '',
+  approachResult: '',
   sandShots: 0,
   penalties: 0,
   hazards: 0,
@@ -66,11 +249,13 @@ function Stepper({
   value,
   onChange,
   min = 0,
+  max,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
   min?: number
+  max?: number
 }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
@@ -81,6 +266,7 @@ function Stepper({
         <IconButton
           size="small"
           onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
           sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
         >
           <RemoveIcon fontSize="small" />
@@ -90,7 +276,7 @@ function Stepper({
         </Typography>
         <IconButton
           size="small"
-          onClick={() => onChange(value + 1)}
+          onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
           sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
         >
           <AddIcon fontSize="small" />
@@ -114,18 +300,22 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
   const frontNine = holes.slice(0, 9)
   const backNine = holes.slice(9)
 
-  const totalPar = holes.reduce((s, h) => s + h.par, 0)
   const totalStrokes = holes.reduce((s, h) => s + (holeScores[h.id]?.strokes ?? 0), 0)
-  const frontPar = frontNine.reduce((s, h) => s + h.par, 0)
+  const totalPar = holes.reduce((s, h) => (holeScores[h.id]?.strokes ? s + h.par : s), 0)
   const frontStrokes = frontNine.reduce((s, h) => s + (holeScores[h.id]?.strokes ?? 0), 0)
-  const backPar = backNine.reduce((s, h) => s + h.par, 0)
+  const frontScoredPar = frontNine.reduce((s, h) => (holeScores[h.id]?.strokes ? s + h.par : s), 0)
   const backStrokes = backNine.reduce((s, h) => s + (holeScores[h.id]?.strokes ?? 0), 0)
+  const backScoredPar = backNine.reduce((s, h) => (holeScores[h.id]?.strokes ? s + h.par : s), 0)
+  // Keep full-half pars for the par row display
+  const frontPar = frontNine.reduce((s, h) => s + h.par, 0)
+  const backPar = backNine.reduce((s, h) => s + h.par, 0)
 
   const renderHalfTable = (
     half: { id: string; number: number; par: number; distance: number }[],
     label: string,
     subPar: number,
-    subStrokes: number
+    subStrokes: number,
+    subScoredPar: number,
   ) => (
     <Box sx={{ mb: 2 }}>
       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, ml: 0.5, display: 'block', mb: 0.5 }}>
@@ -213,7 +403,10 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                 )
               })}
               <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8rem' }}>
-                {subStrokes > 0 ? subStrokes : '–'}
+                {subStrokes > 0 ? (() => {
+                  const d = subStrokes - subScoredPar
+                  return d === 0 ? 'E' : d > 0 ? `+${d}` : d
+                })() : '–'}
               </TableCell>
             </TableRow>
           </TableBody>
@@ -236,8 +429,8 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
         )}
       </DialogTitle>
       <DialogContent sx={{ pt: 1 }}>
-        {renderHalfTable(frontNine, 'Front 9', frontPar, frontStrokes)}
-        {backNine.length > 0 && renderHalfTable(backNine, 'Back 9', backPar, backStrokes)}
+        {renderHalfTable(frontNine, 'Front 9', frontPar, frontStrokes, frontScoredPar)}
+        {backNine.length > 0 && renderHalfTable(backNine, 'Back 9', backPar, backStrokes, backScoredPar)}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
             Total Par: <strong>{totalPar}</strong>
@@ -265,6 +458,8 @@ export default function RoundPage() {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScoreState>>({})
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [scorecardOpen, setScorecardOpen] = useState(false)
+  const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
+  const gps = useGPS()
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -281,6 +476,8 @@ export default function RoundPage() {
           strokes: s.strokes ?? 0,
           putts: s.putts ?? 0,
           teeShotDirection: s.teeShotDirection ?? '',
+          teeShotDistance: s.teeShotDistance ?? '',
+          approachResult: s.approachResult ?? '',
           sandShots: s.sandShots ?? 0,
           penalties: s.penalties ?? 0,
           hazards: s.hazards ?? 0,
@@ -300,6 +497,8 @@ export default function RoundPage() {
           strokes: score.strokes,
           putts: score.putts || undefined,
           teeShotDirection: score.teeShotDirection || undefined,
+          teeShotDistance: score.teeShotDistance || undefined,
+          approachResult: score.approachResult || undefined,
           sandShots: score.sandShots || undefined,
           penalties: score.penalties || undefined,
           hazards: score.hazards || undefined,
@@ -319,6 +518,32 @@ export default function RoundPage() {
       saveHole(holeId, updated)
       return { ...prev, [holeId]: updated }
     })
+  }
+
+  const updateStrokes = (holeId: string, newStrokes: number) => {
+    setHoleScores((prev) => {
+      const cur = prev[holeId] ?? defaultScore()
+      // If strokes drops below putts + 1, clamp putts down
+      const newPutts = cur.putts > 0 && newStrokes > 0 ? Math.min(cur.putts, newStrokes - 1) : cur.putts
+      const updated = { ...cur, strokes: newStrokes, putts: newPutts }
+      saveHole(holeId, updated)
+      return { ...prev, [holeId]: updated }
+    })
+  }
+
+  const updatePutts = (holeId: string, newPutts: number, currentStrokes: number) => {
+    setHoleScores((prev) => {
+      const cur = prev[holeId] ?? defaultScore()
+      // If putts would meet or exceed strokes, auto-bump strokes to newPutts + 1
+      const newStrokes = newPutts >= currentStrokes ? newPutts + 1 : currentStrokes
+      const updated = { ...cur, putts: newPutts, strokes: newStrokes }
+      saveHole(holeId, updated)
+      return { ...prev, [holeId]: updated }
+    })
+  }
+
+  const handleGreenMarked = (holeId: string, lat: number, lng: number) => {
+    setGreenOverrides((prev) => ({ ...prev, [holeId]: { lat, lng } }))
   }
 
   if (isLoading) {
@@ -344,12 +569,20 @@ export default function RoundPage() {
 
   if (!hole) return null
 
+  // Merge green coordinates: local override takes priority over API data
+  const greenOverride = greenOverrides[holeId]
+  const holeWithGreen = {
+    ...hole,
+    greenLatitude: greenOverride?.lat ?? hole.greenLatitude,
+    greenLongitude: greenOverride?.lng ?? hole.greenLongitude,
+  }
+
   const score = holeScores[holeId] ?? defaultScore()
   const diff = score.strokes ? score.strokes - hole.par : null
-  const scoreInfo = diff != null ? scoreLabel(diff) : null
+  const scoreInfo = diff != null ? scoreLabel(diff, score.strokes) : null
 
   const totalStrokes = holes.reduce((sum, h) => sum + (holeScores[h.id]?.strokes ?? 0), 0)
-  const totalPar = holes.reduce((sum, h) => sum + h.par, 0)
+  const totalPar = holes.reduce((sum, h) => (holeScores[h.id]?.strokes ? sum + h.par : sum), 0)
   const totalDiff = totalStrokes > 0 ? totalStrokes - totalPar : null
 
   const isLastHole = currentHoleIndex === totalHoles - 1
@@ -459,6 +692,14 @@ export default function RoundPage() {
           </Box>
         </Box>
 
+        {/* GPS distance to green */}
+        <GPSDistancePanel
+          hole={holeWithGreen}
+          roundId={id!}
+          gps={gps}
+          onGreenMarked={handleGreenMarked}
+        />
+
         <Box sx={{ px: 3, py: 2 }}>
           {/* Strokes — stepper + quick-tap chips */}
           <Box sx={{ py: 1.5 }}>
@@ -468,7 +709,7 @@ export default function RoundPage() {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <IconButton
-                  onClick={() => updateField(holeId, 'strokes', Math.max(1, score.strokes - 1))}
+                  onClick={() => updateStrokes(holeId, Math.max(1, score.strokes - 1))}
                   sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                 >
                   <RemoveIcon />
@@ -477,7 +718,7 @@ export default function RoundPage() {
                   {score.strokes || '–'}
                 </Typography>
                 <IconButton
-                  onClick={() => updateField(holeId, 'strokes', score.strokes + 1)}
+                  onClick={() => updateStrokes(holeId, score.strokes + 1)}
                   sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                 >
                   <AddIcon />
@@ -499,7 +740,7 @@ export default function RoundPage() {
                 return (
                   <Box
                     key={n}
-                    onClick={() => updateField(holeId, 'strokes', n)}
+                    onClick={() => updateStrokes(holeId, n)}
                     sx={{
                       width: 36, height: 36,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -524,34 +765,107 @@ export default function RoundPage() {
 
           <Divider />
 
-          {/* Tee shot direction */}
-          <Box sx={{ py: 1.5 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
-              Tee Shot
-            </Typography>
-            <ButtonGroup fullWidth size="small" variant="outlined">
-              {TEE_DIRECTIONS.map((dir) => (
-                <Button
-                  key={dir.value}
-                  variant={score.teeShotDirection === dir.value ? 'contained' : 'outlined'}
-                  onClick={() =>
-                    updateField(holeId, 'teeShotDirection', score.teeShotDirection === dir.value ? '' : dir.value)
-                  }
-                  sx={{ textTransform: 'none', fontWeight: score.teeShotDirection === dir.value ? 700 : 400 }}
-                >
-                  {dir.label}
-                </Button>
-              ))}
-            </ButtonGroup>
-          </Box>
+          {/* Par 3: tee shot IS the approach — single combined section */}
+          {hole.par === 3 ? (
+            <>
+              <Box sx={{ py: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
+                  Tee Shot
+                </Typography>
+                {/* GIR full-width */}
+                <ButtonGroup fullWidth size="small" variant="outlined" sx={{ mb: 0.75 }}>
+                  <Button
+                    variant={score.approachResult === 'gir' ? 'contained' : 'outlined'}
+                    onClick={() => updateField(holeId, 'approachResult', score.approachResult === 'gir' ? '' : 'gir')}
+                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? '#2d5e42 !important' : undefined }}
+                  >
+                    Hit Green ✓
+                  </Button>
+                </ButtonGroup>
+                {/* Miss zones */}
+                <ButtonGroup fullWidth size="small" variant="outlined">
+                  {[
+                    { value: 'short', label: 'Short' },
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' },
+                    { value: 'long', label: 'Long' },
+                  ].map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant={score.approachResult === opt.value ? 'contained' : 'outlined'}
+                      onClick={() => updateField(holeId, 'approachResult', score.approachResult === opt.value ? '' : opt.value)}
+                      sx={{ textTransform: 'none', fontWeight: score.approachResult === opt.value ? 700 : 400 }}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </Box>
+              <Divider />
+            </>
+          ) : (
+            <>
+              {/* Par 4 / Par 5: separate tee shot direction + approach */}
+              <Box sx={{ py: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
+                  Tee Shot
+                </Typography>
+                <ButtonGroup fullWidth size="small" variant="outlined">
+                  {TEE_DIRECTIONS.map((dir) => (
+                    <Button
+                      key={dir.value}
+                      variant={score.teeShotDirection === dir.value ? 'contained' : 'outlined'}
+                      onClick={() => updateField(holeId, 'teeShotDirection', score.teeShotDirection === dir.value ? '' : dir.value)}
+                      sx={{ textTransform: 'none', fontWeight: score.teeShotDirection === dir.value ? 700 : 400 }}
+                    >
+                      {dir.label}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </Box>
+              <Divider />
+              <Box sx={{ py: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
+                  Approach Shot
+                </Typography>
+                <ButtonGroup fullWidth size="small" variant="outlined" sx={{ mb: 0.75 }}>
+                  <Button
+                    variant={score.approachResult === 'gir' ? 'contained' : 'outlined'}
+                    onClick={() => updateField(holeId, 'approachResult', score.approachResult === 'gir' ? '' : 'gir')}
+                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? '#2d5e42 !important' : undefined }}
+                  >
+                    GIR ✓
+                  </Button>
+                </ButtonGroup>
+                <ButtonGroup fullWidth size="small" variant="outlined">
+                  {[
+                    { value: 'short', label: 'Short' },
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' },
+                    { value: 'long', label: 'Long' },
+                  ].map((opt) => (
+                    <Button
+                      key={opt.value}
+                      variant={score.approachResult === opt.value ? 'contained' : 'outlined'}
+                      onClick={() => updateField(holeId, 'approachResult', score.approachResult === opt.value ? '' : opt.value)}
+                      sx={{ textTransform: 'none', fontWeight: score.approachResult === opt.value ? 700 : 400 }}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </ButtonGroup>
+              </Box>
+              <Divider />
+            </>
+          )}
 
-          <Divider />
 
-          <Stepper label="Putts" value={score.putts} onChange={(v) => updateField(holeId, 'putts', v)} />
+
+          <Stepper label="Putts" value={score.putts} onChange={(v) => updatePutts(holeId, v, score.strokes)} max={score.strokes > 0 ? score.strokes - 1 : 0} />
           <Divider />
           <Stepper label="Sand Shots" value={score.sandShots} onChange={(v) => updateField(holeId, 'sandShots', v)} />
           <Divider />
-          <Stepper label="Hazards" value={score.hazards} onChange={(v) => updateField(holeId, 'hazards', v)} />
+          <Stepper label="Penalty Areas" value={score.hazards} onChange={(v) => updateField(holeId, 'hazards', v)} />
           <Divider />
           <Stepper label="Penalties" value={score.penalties} onChange={(v) => updateField(holeId, 'penalties', v)} />
         </Box>

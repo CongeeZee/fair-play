@@ -29,13 +29,13 @@ function useRecentCourses(rounds: Round[] | undefined) {
   return useMemo(() => {
     if (!rounds || rounds.length === 0) return []
     const seen = new Set<string>()
-    const result: { externalId?: string; name: string; lastPlayed: string }[] = []
+    const result: { courseId: string; externalId?: string | null; name: string; lastPlayed: string }[] = []
     for (const r of rounds) {
       if (!r.course?.name) continue
       const key = r.course.name
       if (!seen.has(key)) {
         seen.add(key)
-        result.push({ name: r.course.name, lastPlayed: r.playedAt })
+        result.push({ courseId: r.course.id, externalId: r.course.externalId, name: r.course.name, lastPlayed: r.playedAt })
       }
       if (result.length >= 5) break
     }
@@ -48,6 +48,7 @@ export default function CoursesPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [loadingTees, setLoadingTees] = useState<number | string | null>(null)
+  const [playAgainLoading, setPlayAgainLoading] = useState<string | null>(null)
   const [teeDialog, setTeeDialog] = useState<TeeDialog | null>(null)
   const [selectedTee, setSelectedTee] = useState<string>('')
   const [startingRound, setStartingRound] = useState(false)
@@ -95,6 +96,16 @@ export default function CoursesPage() {
   const handleSelectCourse = useCallback((courseId: number) => {
     fetchTeesAndOpen(courseId)
   }, [fetchTeesAndOpen])
+
+  const handlePlayAgain = useCallback(async (courseId: string) => {
+    setPlayAgainLoading(courseId)
+    try {
+      const round = await createRound({ courseId })
+      navigate(`/rounds/${round.id}`)
+    } catch {
+      setPlayAgainLoading(null)
+    }
+  }, [navigate])
 
   const handleStartRound = useCallback(async () => {
     if (!teeDialog || !selectedTee) return
@@ -145,9 +156,9 @@ export default function CoursesPage() {
           <Paper elevation={1}>
             <List disablePadding>
               {recentCourses.map((c, idx) => {
-                const loading = loadingTees === c.name
+                const loading = playAgainLoading === c.courseId
                 return (
-                  <Box key={c.name}>
+                  <Box key={c.courseId}>
                     {idx > 0 && <Divider />}
                     <ListItem
                       secondaryAction={
@@ -155,11 +166,8 @@ export default function CoursesPage() {
                           variant="outlined"
                           color="primary"
                           size="small"
-                          disabled={loading || loadingTees !== null}
-                          onClick={() => {
-                            // Search for the course by name to get the external ID
-                            setSearch(formatCourseName(c.name))
-                          }}
+                          disabled={loading || playAgainLoading !== null}
+                          onClick={() => handlePlayAgain(c.courseId)}
                         >
                           {loading ? <CircularProgress size={16} color="inherit" /> : 'Play Again'}
                         </Button>

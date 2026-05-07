@@ -42,7 +42,7 @@ export default function LoginPage() {
           Sign In
         </Typography>
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-          Welcome back to Fairway
+          Welcome back to Fairplay
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

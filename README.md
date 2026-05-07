@@ -1,4 +1,4 @@
-# Fairway - Golf Score Tracker
+# Fairplay - Golf Score Tracker
 
 A full-stack golf scoring and handicap tracking web application. Built with React, Express, Prisma, and PostgreSQL.
 

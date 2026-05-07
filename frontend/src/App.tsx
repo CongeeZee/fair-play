@@ -18,6 +18,7 @@ import CoursesPage from './pages/CoursesPage'
 import RoundPage from './pages/RoundPage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
+import CourseStatsPage from './pages/CourseStatsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,10 @@ function Layout() {
         <Route
           path="/stats"
           element={<ProtectedRoute><StatsPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/stats/courses/:courseId"
+          element={<ProtectedRoute><CourseStatsPage /></ProtectedRoute>}
         />
       </Routes>
       {showBottomNav && <BottomNav />}

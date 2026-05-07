@@ -28,13 +28,15 @@ model Course {
 }
 
 model Hole {
-  id        Int         @id @default(autoincrement())
-  number    Int
-  par       Int
-  distance  Int
-  courseId  Int
-  course    Course      @relation(fields: [courseId], references: [id])
-  scores    RoundHole[]
+  id             Int         @id @default(autoincrement())
+  number         Int
+  par            Int
+  distance       Int
+  courseId        Int
+  greenLatitude  Float?
+  greenLongitude Float?
+  course         Course      @relation(fields: [courseId], references: [id])
+  scores         RoundHole[]
 
   @@unique([courseId, number])
 }
@@ -56,6 +58,8 @@ model RoundHole {
   strokes          Int
   putts            Int?
   teeShotDirection String?
+  teeShotDistance  String?
+  approachResult   String?
   sandShots        Int?
   penalties        Int?
   hazards          Int?

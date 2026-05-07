@@ -50,7 +50,7 @@ export default function RegisterPage() {
           Create Account
         </Typography>
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-          Join Fairway and start tracking your game
+          Join Fairplay and start tracking your game
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
