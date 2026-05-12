@@ -9,14 +9,16 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  passwordHash  String?
-  googleId      String?        @unique
-  name          String
-  createdAt     DateTime       @default(now())
-  rounds        Round[]
-  refreshTokens RefreshToken[]
+  id                Int            @id @default(autoincrement())
+  email             String         @unique
+  passwordHash      String?
+  googleId          String?        @unique
+  name              String
+  emailVerified     Boolean        @default(false)
+  verificationToken String?        @unique
+  createdAt         DateTime       @default(now())
+  rounds            Round[]
+  refreshTokens     RefreshToken[]
 }
 
 model RefreshToken {

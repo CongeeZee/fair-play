@@ -12,3 +12,9 @@ export const googleLogin = (credential: string) =>
 
 export const logout = (refreshToken: string | null) =>
   client.post('/auth/logout', { refreshToken }).catch(() => {})
+
+export const verifyEmail = (token: string) =>
+  client.get<{ message: string }>(`/auth/verify-email/${token}`).then((r) => r.data)
+
+export const resendVerification = () =>
+  client.post<{ message: string }>('/auth/resend-verification').then((r) => r.data)
