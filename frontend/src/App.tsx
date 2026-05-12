@@ -24,6 +24,7 @@ import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import CourseStatsPage from './pages/CourseStatsPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import RateLimitSnackbar from './components/RateLimitSnackbar'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +82,7 @@ function Layout() {
         />
       </Routes>
       {showBottomNav && <BottomNav />}
+      <RateLimitSnackbar />
     </Box>
   )
 }
