@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { notifyRateLimit } from '../components/RateLimitSnackbar'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -53,6 +54,11 @@ client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+    if (error.response?.status === 429) {
+      notifyRateLimit()
+      return Promise.reject(error)
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true

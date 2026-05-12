@@ -3,11 +3,13 @@ import cors from "cors";
 import authRouter from "./routes/auth";
 import coursesRouter from "./routes/courses";
 import roundsRouter from "./routes/rounds";
+import { standardLimiter } from "./middleware/rateLimiter";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(standardLimiter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });

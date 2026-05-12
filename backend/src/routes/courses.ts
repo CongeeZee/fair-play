@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { moderateLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
@@ -41,7 +42,7 @@ const courseSchema = z.object({
 });
 
 // GET /courses/tees/:externalId — return available tee sets for a course; must be before /:id
-router.get("/tees/:externalId", async (req: Request, res: Response) => {
+router.get("/tees/:externalId", moderateLimiter, async (req: Request, res: Response) => {
   const { externalId } = req.params;
   const cacheKey = `tees:${externalId}`;
 
@@ -80,7 +81,7 @@ router.get("/tees/:externalId", async (req: Request, res: Response) => {
 });
 
 // GET /courses/search?q= — proxy to golfcourseapi.com; must be before /:id
-router.get("/search", async (req: Request, res: Response) => {
+router.get("/search", moderateLimiter, async (req: Request, res: Response) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (q.length < 2) {
     res.json([]);
