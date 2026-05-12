@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Box, Container, Typography, Paper, CircularProgress, Button } from '@mui/material'
+import { Container, Typography, Paper, CircularProgress, Button } from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { useSearchParams, Link } from 'react-router-dom'
