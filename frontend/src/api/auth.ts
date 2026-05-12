@@ -9,3 +9,6 @@ export const login = (email: string, password: string) =>
 
 export const googleLogin = (credential: string) =>
   client.post<AuthResponse>('/auth/google', { credential }).then((r) => r.data)
+
+export const logout = (refreshToken: string | null) =>
+  client.post('/auth/logout', { refreshToken }).catch(() => {})

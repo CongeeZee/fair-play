@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -8,6 +9,8 @@ import prisma from "../lib/prisma";
 const googleClient = new OAuth2Client();
 
 const router = Router();
+
+const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -20,11 +23,45 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-function signToken(userId: number): string {
+function signAccessToken(userId: number): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET environment variable is not set");
-  // 7-day expiry is fine for MVP; production should use short-lived tokens + refresh
-  return jwt.sign({ userId }, secret, { expiresIn: "7d" });
+  return jwt.sign({ userId }, secret, { expiresIn: "15m" });
+}
+
+async function createRefreshToken(userId: number): Promise<string> {
+  const raw = crypto.randomBytes(40).toString("hex");
+  const hashed = crypto.createHash("sha256").update(raw).digest("hex");
+  const expiresAt = new Date(
+    Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  await prisma.refreshToken.create({
+    data: { token: hashed, userId, expiresAt },
+  });
+
+  return raw;
+}
+
+function hashToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
+interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+}
+
+async function issueTokens(user: AuthUser, res: Response, status = 200) {
+  const accessToken = signAccessToken(user.id);
+  const refreshToken = await createRefreshToken(user.id);
+
+  res.status(status).json({
+    user: { id: user.id, email: user.email, name: user.name },
+    token: accessToken,
+    refreshToken,
+  });
 }
 
 // POST /auth/register
@@ -47,11 +84,10 @@ router.post("/register", async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
       data: { email, passwordHash, name },
-      // Never return passwordHash to the client
       select: { id: true, email: true, name: true, createdAt: true },
     });
 
-    res.status(201).json({ user, token: signToken(user.id) });
+    await issueTokens(user, res, 201);
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -71,8 +107,6 @@ router.post("/login", async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // Always run bcrypt.compare even when user is null — this prevents a
-    // timing attack that would reveal whether an email address is registered
     const dummyHash =
       "$2b$12$invalidhashfortimingprotectionxxxxxxxxxxxxxxxxxxxxxxxx";
     const valid = await bcrypt.compare(password, user?.passwordHash || dummyHash);
@@ -82,10 +116,7 @@ router.post("/login", async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({
-      user: { id: user.id, email: user.email, name: user.name },
-      token: signToken(user.id),
-    });
+    await issueTokens(user, res);
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -113,13 +144,11 @@ router.post("/google", async (req: Request, res: Response) => {
 
     const { sub: googleId, email, name } = payload;
 
-    // Find existing user by googleId or email
     let user = await prisma.user.findFirst({
       where: { OR: [{ googleId }, { email }] },
     });
 
     if (user) {
-      // Link Google account if user exists by email but hasn't linked Google yet
       if (!user.googleId) {
         user = await prisma.user.update({
           where: { id: user.id },
@@ -127,20 +156,70 @@ router.post("/google", async (req: Request, res: Response) => {
         });
       }
     } else {
-      // Create new user
       user = await prisma.user.create({
         data: { email, name: name || email.split("@")[0], googleId },
       });
     }
 
-    res.json({
-      user: { id: user.id, email: user.email, name: user.name },
-      token: signToken(user.id),
-    });
+    await issueTokens(user, res);
   } catch (err) {
     console.error("Google auth error:", err);
     res.status(401).json({ error: "Google authentication failed" });
   }
+});
+
+// POST /auth/refresh — exchange refresh token for new access + refresh tokens
+router.post("/refresh", async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    res.status(400).json({ error: "Missing refresh token" });
+    return;
+  }
+
+  try {
+    const hashed = hashToken(refreshToken);
+    const stored = await prisma.refreshToken.findUnique({
+      where: { token: hashed },
+      include: { user: { select: { id: true, email: true, name: true } } },
+    });
+
+    if (!stored) {
+      res.status(401).json({ error: "Invalid refresh token" });
+      return;
+    }
+
+    // Delete the used token (rotation)
+    await prisma.refreshToken.delete({ where: { id: stored.id } });
+
+    if (stored.expiresAt < new Date()) {
+      res.status(401).json({ error: "Refresh token expired" });
+      return;
+    }
+
+    // Issue new pair
+    await issueTokens(stored.user, res);
+  } catch (err) {
+    console.error("Refresh error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /auth/logout — invalidate refresh token
+router.post("/logout", async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  try {
+    const hashed = hashToken(refreshToken);
+    await prisma.refreshToken.deleteMany({ where: { token: hashed } });
+  } catch {
+    // Silently ignore — token may already be gone
+  }
+
+  res.json({ ok: true });
 });
 
 export default router;
