@@ -3,7 +3,7 @@ import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import TrackChangesIcon from '@mui/icons-material/TrackChanges'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const HERO_IMAGE =
@@ -29,6 +29,8 @@ const features = [
 
 export default function HomePage() {
   const { user } = useAuth()
+
+  if (user) return <Navigate to="/courses" replace />
 
   return (
     <Box>
@@ -83,45 +85,30 @@ export default function HomePage() {
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {user ? (
-            <Button
-              variant="contained"
-              color="secondary"
-              component={Link}
-              to="/courses"
-              size="large"
-              sx={{ px: 5, py: 1.5, fontSize: '1rem' }}
-            >
-              Find a Course
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="contained"
-                color="secondary"
-                component={Link}
-                to="/register"
-                size="large"
-                sx={{ px: 5, py: 1.5, fontSize: '1rem' }}
-              >
-                Get Started
-              </Button>
-              <Button
-                variant="outlined"
-                component={Link}
-                to="/login"
-                size="large"
-                sx={{
-                  px: 5, py: 1.5, fontSize: '1rem',
-                  color: '#fff',
-                  borderColor: 'rgba(255,255,255,0.45)',
-                  '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
-                }}
-              >
-                Sign In
-              </Button>
-            </>
-          )}
+          <Button
+            variant="contained"
+            color="secondary"
+            component={Link}
+            to="/register"
+            size="large"
+            sx={{ px: 5, py: 1.5, fontSize: '1rem' }}
+          >
+            Get Started
+          </Button>
+          <Button
+            variant="outlined"
+            component={Link}
+            to="/login"
+            size="large"
+            sx={{
+              px: 5, py: 1.5, fontSize: '1rem',
+              color: '#fff',
+              borderColor: 'rgba(255,255,255,0.45)',
+              '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+            }}
+          >
+            Sign In
+          </Button>
         </Box>
 
         {/* Feature strip pinned to bottom of hero */}

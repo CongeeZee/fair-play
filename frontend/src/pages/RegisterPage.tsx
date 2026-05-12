@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import {
   Box, Button, Container, TextField, Typography, Alert,
-  IconButton, InputAdornment, Paper, Link as MuiLink
+  IconButton, InputAdornment, Paper, Link as MuiLink, Divider
 } from '@mui/material'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { Link, useNavigate } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function RegisterPage() {
-  const { register } = useAuth()
+  const { register, googleLogin } = useAuth()
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
@@ -104,6 +105,27 @@ export default function RegisterPage() {
           <Button type="submit" variant="contained" color="primary" size="large" disabled={loading}>
             {loading ? 'Creating account…' : 'Create Account'}
           </Button>
+        </Box>
+
+        <Divider sx={{ my: 3 }}>or</Divider>
+
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={(response) => {
+              if (response.credential) {
+                setError('')
+                setLoading(true)
+                googleLogin(response.credential)
+                  .then(() => navigate('/courses'))
+                  .catch(() => setError('Google sign-up failed. Please try again.'))
+                  .finally(() => setLoading(false))
+              }
+            }}
+            onError={() => setError('Google sign-up failed. Please try again.')}
+            size="large"
+            width={320}
+            text="signup_with"
+          />
         </Box>
 
         <Typography variant="body2" align="center" sx={{ mt: 3 }}>

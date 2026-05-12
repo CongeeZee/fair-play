@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import {
   Box, Button, Container, TextField, Typography, Alert,
-  IconButton, InputAdornment, Paper, Link as MuiLink
+  IconButton, InputAdornment, Paper, Link as MuiLink, Divider
 } from '@mui/material'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, googleLogin } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string })?.from ?? '/'
@@ -78,6 +79,27 @@ export default function LoginPage() {
           <Button type="submit" variant="contained" color="primary" size="large" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </Button>
+        </Box>
+
+        <Divider sx={{ my: 3 }}>or</Divider>
+
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={(response) => {
+              if (response.credential) {
+                setError('')
+                setLoading(true)
+                googleLogin(response.credential)
+                  .then(() => navigate(from, { replace: true }))
+                  .catch(() => setError('Google sign-in failed. Please try again.'))
+                  .finally(() => setLoading(false))
+              }
+            }}
+            onError={() => setError('Google sign-in failed. Please try again.')}
+            size="large"
+            width={320}
+            text="signin_with"
+          />
         </Box>
 
         <Typography variant="body2" align="center" sx={{ mt: 3 }}>
