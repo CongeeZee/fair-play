@@ -12,6 +12,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
 import BottomNav from './components/BottomNav'
+import VerifyEmailBanner from './components/VerifyEmailBanner'
 import { useAuth } from './contexts/AuthContext'
 
 import HomePage from './pages/HomePage'
@@ -22,6 +23,7 @@ import RoundPage from './pages/RoundPage'
 import HistoryPage from './pages/HistoryPage'
 import StatsPage from './pages/StatsPage'
 import CourseStatsPage from './pages/CourseStatsPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,10 +53,12 @@ function Layout() {
       {/* Spacer so fixed navbar doesn't overlap content — not needed on home
           because the hero intentionally sits behind the transparent navbar */}
       {!isHome && <Toolbar />}
+      {!isHome && <VerifyEmailBanner />}
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route
           path="/courses"
           element={<ProtectedRoute><CoursesPage /></ProtectedRoute>}

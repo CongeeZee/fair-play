@@ -8,6 +8,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   googleLogin: (credential: string) => Promise<void>
+  markEmailVerified: () => void
   logout: () => void
 }
 
@@ -37,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((resp) => {
           setAccessToken(resp.data.token)
           localStorage.setItem('refreshToken', resp.data.refreshToken)
+          localStorage.setItem('user', JSON.stringify(resp.data.user))
+          setUser(resp.data.user)
         })
         .catch(() => {
           // Refresh failed — clear session
@@ -64,6 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleAuthResponse(data, setUser)
   }, [])
 
+  const markEmailVerified = useCallback(() => {
+    setUser((prev) => {
+      if (!prev) return prev
+      const updated = { ...prev, emailVerified: true }
+      localStorage.setItem('user', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
   const logout = useCallback(() => {
     const refreshToken = localStorage.getItem('refreshToken')
     authApi.logout(refreshToken)
@@ -74,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, logout }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, logout }}>
       {children}
     </AuthContext.Provider>
   )
