@@ -15,7 +15,7 @@ export const strictLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message,
-  keyGenerator: (req) => req.ip || "unknown",
+  validate: false,
 });
 
 export const moderateLimiter = rateLimit({
@@ -24,7 +24,7 @@ export const moderateLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message,
-  keyGenerator: (req) => req.ip || "unknown",
+  validate: false,
 });
 
 export const standardLimiter = rateLimit({
@@ -34,4 +34,5 @@ export const standardLimiter = rateLimit({
   legacyHeaders: false,
   message,
   keyGenerator: userOrIpKey,
+  validate: false,
 });
