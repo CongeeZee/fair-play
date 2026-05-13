@@ -17,9 +17,12 @@ import GpsFixedIcon from '@mui/icons-material/GpsFixed'
 import GpsNotFixedIcon from '@mui/icons-material/GpsNotFixed'
 import GpsOffIcon from '@mui/icons-material/GpsOff'
 import FlagIcon from '@mui/icons-material/Flag'
+import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import OfflineBanner from '../components/OfflineBanner'
 import type { RoundHole } from '../types'
 
 // ── GPS utilities ────────────────────────────────────────────────────────────
@@ -460,6 +463,7 @@ export default function RoundPage() {
   const [scorecardOpen, setScorecardOpen] = useState(false)
   const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
   const gps = useGPS()
+  const { syncState, pendingCount, flush, refreshCount } = useOnlineStatus()
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -506,11 +510,12 @@ export default function RoundPage() {
         setSaveStatus('saved')
         if (savedTimer.current) clearTimeout(savedTimer.current)
         savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500)
+        refreshCount()
       } catch {
         setSaveStatus('idle')
       }
     }, 500)
-  }, [id])
+  }, [id, refreshCount])
 
   const updateField = (holeId: string, field: keyof HoleScoreState, value: number | string) => {
     setHoleScores((prev) => {
@@ -593,6 +598,10 @@ export default function RoundPage() {
   }
 
   return (
+    <>
+    {/* Offline banner — full width above content */}
+    <OfflineBanner syncState={syncState} pendingCount={pendingCount} />
+
     <Container maxWidth="sm" sx={{ py: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 2 }}>
@@ -650,9 +659,18 @@ export default function RoundPage() {
       </Box>
 
       {/* Progress */}
-      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>
-        Hole {currentHoleIndex + 1} of {totalHoles}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>
+          Hole {currentHoleIndex + 1} of {totalHoles}
+        </Typography>
+        {pendingCount > 0 && (
+          <Tooltip title={`${pendingCount} score${pendingCount > 1 ? 's' : ''} pending — tap to sync`}>
+            <IconButton size="small" onClick={flush} sx={{ color: '#f5a623' }}>
+              <CloudSyncIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
 
       {/* Hole card */}
       <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, mt: 1, overflow: 'hidden' }}>
@@ -947,5 +965,6 @@ export default function RoundPage() {
         onSelectHole={(idx) => setCurrentHoleIndex(idx)}
       />
     </Container>
+    </>
   )
 }
