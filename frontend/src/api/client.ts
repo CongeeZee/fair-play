@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { notifyRateLimit } from '../components/RateLimitSnackbar'
+import { queueRequest } from '../lib/offlineQueue'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -49,7 +50,24 @@ async function doRefresh(): Promise<string | null> {
   }
 }
 
-// Intercept 401 responses and attempt refresh
+/** Check if a request is a mutating round request that should be queued on network failure */
+function isQueueableRoundRequest(config: InternalAxiosRequestConfig): boolean {
+  const url = config.url || ''
+  const method = (config.method || '').toUpperCase()
+  if (method !== 'PUT' && method !== 'POST') return false
+  // Match: /rounds, /rounds/:id/holes/:holeId, /rounds/:id/mark-green/:holeId
+  return /^\/rounds(\/|$)/.test(url)
+}
+
+/** Check if an error is a network error (no response from server) */
+function isNetworkError(error: AxiosError): boolean {
+  if (!error.response && error.code) {
+    return ['ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT'].includes(error.code)
+  }
+  return !error.response && !!error.request
+}
+
+// Intercept 401 responses and attempt refresh; queue network errors for round requests
 client.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -58,6 +76,16 @@ client.interceptors.response.use(
     if (error.response?.status === 429) {
       notifyRateLimit()
       return Promise.reject(error)
+    }
+
+    // Queue network errors on round mutations instead of failing
+    if (isNetworkError(error) && isQueueableRoundRequest(originalRequest)) {
+      const url = originalRequest.url || ''
+      const method = (originalRequest.method || 'PUT').toUpperCase()
+      const body = originalRequest.data ? JSON.parse(originalRequest.data) : undefined
+      await queueRequest(url, method, body)
+      // Return a synthetic success so the UI keeps working
+      return { data: body, status: 200, statusText: 'OK (queued)', headers: {}, config: originalRequest }
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -82,5 +110,15 @@ client.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+/** Send a raw request — used by flushQueue to replay queued requests */
+export async function sendRawRequest(url: string, method: string, body: unknown): Promise<boolean> {
+  try {
+    await client.request({ url, method, data: body })
+    return true
+  } catch {
+    return false
+  }
+}
 
 export default client
