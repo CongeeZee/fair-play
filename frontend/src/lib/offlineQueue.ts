@@ -1,4 +1,4 @@
-import { get, set, del, keys, entries } from 'idb-keyval'
+import { set, del, keys, entries } from 'idb-keyval'
 
 export interface QueuedRequest {
   id: string
