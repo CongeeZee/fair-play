@@ -1,6 +1,5 @@
 import { Box, Typography, CircularProgress } from '@mui/material'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
-import SyncIcon from '@mui/icons-material/Sync'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import type { SyncState } from '../hooks/useOnlineStatus'
 
