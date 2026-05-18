@@ -25,6 +25,8 @@ import StatsPage from './pages/StatsPage'
 import CourseStatsPage from './pages/CourseStatsPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import SharedScorecardPage from './pages/SharedScorecardPage'
+import FriendsPage from './pages/FriendsPage'
+import FeedPage from './pages/FeedPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 
 const queryClient = new QueryClient({
@@ -63,6 +65,10 @@ function Layout() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/scorecard/:shareId" element={<SharedScorecardPage />} />
         <Route
+          path="/feed"
+          element={<ProtectedRoute><FeedPage /></ProtectedRoute>}
+        />
+        <Route
           path="/courses"
           element={<ProtectedRoute><CoursesPage /></ProtectedRoute>}
         />
@@ -73,6 +79,10 @@ function Layout() {
         <Route
           path="/history"
           element={<ProtectedRoute><HistoryPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/friends"
+          element={<ProtectedRoute><FriendsPage /></ProtectedRoute>}
         />
         <Route
           path="/stats"

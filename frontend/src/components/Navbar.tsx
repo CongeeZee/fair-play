@@ -1,7 +1,9 @@
-import { AppBar, Toolbar, Typography, Button, Box, useScrollTrigger } from '@mui/material'
+import { AppBar, Toolbar, Typography, Button, Box, Badge, useScrollTrigger } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { getFriendRequests } from '../api/friends'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -18,10 +20,20 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const { data: friendRequests } = useQuery({
+    queryKey: ['friend-requests'],
+    queryFn: getFriendRequests,
+    enabled: !!user?.emailVerified,
+    refetchInterval: 60_000,
+  })
+  const pendingCount = friendRequests?.length ?? 0
+
   const navLinks = [
-    { label: 'Courses', to: '/courses' },
-    { label: 'History', to: '/history' },
-    { label: 'Stats', to: '/stats' },
+    { label: 'Feed', to: '/feed', badge: 0 },
+    { label: 'Courses', to: '/courses', badge: 0 },
+    { label: 'History', to: '/history', badge: 0 },
+    { label: 'Stats', to: '/stats', badge: 0 },
+    { label: 'Friends', to: '/friends', badge: pendingCount },
   ]
 
   const solid = !isHome || scrolled
@@ -59,7 +71,7 @@ export default function Navbar() {
         {/* Desktop nav links — hidden on mobile (BottomNav handles it) */}
         {user && (
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 0.5, flexGrow: 1, alignItems: 'center' }}>
-            {navLinks.map(({ label, to }) => (
+            {navLinks.map(({ label, to, badge }) => (
               <Button
                 key={to}
                 color="inherit"
@@ -75,7 +87,7 @@ export default function Navbar() {
                   '&:hover': { opacity: 1, bgcolor: 'rgba(255,255,255,0.08)' },
                 }}
               >
-                {label}
+                {badge > 0 ? <Badge badgeContent={badge} color="error" sx={{ '& .MuiBadge-badge': { right: -10, top: -2 } }}>{label}</Badge> : label}
               </Button>
             ))}
           </Box>
