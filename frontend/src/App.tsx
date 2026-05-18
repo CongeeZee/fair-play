@@ -28,6 +28,7 @@ import SharedScorecardPage from './pages/SharedScorecardPage'
 import FriendsPage from './pages/FriendsPage'
 import FeedPage from './pages/FeedPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
+import OnboardingFlow from './components/OnboardingFlow'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,7 @@ function Layout() {
         />
       </Routes>
       {showBottomNav && <BottomNav />}
+      <OnboardingFlow />
       <RateLimitSnackbar />
     </Box>
   )

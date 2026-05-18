@@ -14,14 +14,16 @@ model User {
   passwordHash      String?
   googleId          String?          @unique
   name              String
-  emailVerified     Boolean          @default(false)
-  verificationToken String?          @unique
-  createdAt         DateTime         @default(now())
+  emailVerified          Boolean          @default(false)
+  verificationToken      String?          @unique
+  hasCompletedOnboarding Boolean          @default(false)
+  createdAt              DateTime         @default(now())
   rounds            Round[]
   refreshTokens     RefreshToken[]
   linkedHandicap    LinkedHandicap?
   sentRequests      Friendship[]     @relation("requester")
   receivedRequests  Friendship[]     @relation("addressee")
+  pushSubscriptions PushSubscription[]
 }
 
 enum FriendshipStatus {
@@ -90,14 +92,27 @@ model Hole {
 }
 
 model Round {
-  id         Int         @id @default(autoincrement())
-  shareId    String?     @unique
-  playedAt   DateTime    @default(now())
-  userId     Int
-  courseId   Int
-  user       User        @relation(fields: [userId], references: [id])
-  course     Course      @relation(fields: [courseId], references: [id])
-  roundHoles RoundHole[]
+  id          Int         @id @default(autoincrement())
+  shareId     String?     @unique
+  playedAt    DateTime    @default(now())
+  completedAt DateTime?
+  userId      Int
+  courseId     Int
+  user        User        @relation(fields: [userId], references: [id])
+  course      Course      @relation(fields: [courseId], references: [id])
+  roundHoles  RoundHole[]
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    Int
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
 }
 
 model RoundHole {

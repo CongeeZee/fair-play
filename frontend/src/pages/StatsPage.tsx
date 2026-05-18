@@ -15,12 +15,13 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { getStats, getHandicap, getRounds, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
 import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
 import LinkHandicapDialog from '../components/LinkHandicapDialog'
 import HandicapTrendChart from '../components/HandicapTrendChart'
+import LeaderboardSection from '../components/LeaderboardSection'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
@@ -300,10 +301,12 @@ export default function StatsPage() {
         <Typography variant="h4" color="primary.main" gutterBottom>Stats</Typography>
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <BarChartIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography color="text.secondary">No rounds played yet.</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Complete some rounds to see your stats here.
+          <Typography color="text.secondary" sx={{ mb: 1 }}>
+            Play your first round to start tracking your game.
           </Typography>
+          <Button variant="contained" component={Link} to="/courses" sx={{ mt: 1 }}>
+            Find a Course
+          </Button>
         </Box>
       </Container>
     )
@@ -508,6 +511,9 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Friend leaderboards */}
+      <LeaderboardSection />
 
       {/* Handicap trend chart */}
       <HandicapTrendChart />

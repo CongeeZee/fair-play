@@ -5,6 +5,7 @@ import coursesRouter from "./routes/courses";
 import roundsRouter from "./routes/rounds";
 import handicapRouter from "./routes/handicap";
 import friendsRouter from "./routes/friends";
+import notificationsRouter from "./routes/notifications";
 import { standardLimiter } from "./middleware/rateLimiter";
 import prisma from "./lib/prisma";
 
@@ -76,6 +77,7 @@ app.use("/courses", coursesRouter);
 app.use("/rounds", roundsRouter);
 app.use("/handicap", handicapRouter);
 app.use("/friends", friendsRouter);
+app.use("/notifications", notificationsRouter);
 
 // Catch-all 404
 app.use((_req, res) => {
