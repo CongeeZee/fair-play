@@ -1,13 +1,34 @@
-import { Paper, BottomNavigation, BottomNavigationAction } from '@mui/material'
+import { Paper, BottomNavigation, BottomNavigationAction, Badge } from '@mui/material'
+import HomeIcon from '@mui/icons-material/Home'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import HistoryIcon from '@mui/icons-material/History'
 import BarChartIcon from '@mui/icons-material/BarChart'
+import PeopleIcon from '@mui/icons-material/People'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { getFriendRequests } from '../api/friends'
+import { useAuth } from '../contexts/AuthContext'
+
+function FriendsIcon() {
+  const { user } = useAuth()
+  const { data: requests } = useQuery({
+    queryKey: ['friend-requests'],
+    queryFn: getFriendRequests,
+    enabled: !!user?.emailVerified,
+    refetchInterval: 60_000,
+  })
+  const count = requests?.length ?? 0
+  return count > 0
+    ? <Badge badgeContent={count} color="error"><PeopleIcon /></Badge>
+    : <PeopleIcon />
+}
 
 const NAV_ITEMS = [
+  { label: 'Feed', to: '/feed', icon: <HomeIcon /> },
   { label: 'Courses', to: '/courses', icon: <GolfCourseIcon /> },
   { label: 'History', to: '/history', icon: <HistoryIcon /> },
   { label: 'Stats', to: '/stats', icon: <BarChartIcon /> },
+  { label: 'Friends', to: '/friends', icon: <FriendsIcon /> },
 ]
 
 export default function BottomNav() {

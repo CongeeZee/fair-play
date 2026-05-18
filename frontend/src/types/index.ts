@@ -189,3 +189,53 @@ export interface HandicapLookupResult {
   playerName?: string
   clubName?: string
 }
+
+export interface FeedRound {
+  id: number
+  shareId: string | null
+  playerName: string
+  playedAt: string
+  courseName: string
+  totalStrokes: number
+  scoreToPar: number
+  totalHoles: number
+  courseHoles: number
+}
+
+export interface OwnLatestRound {
+  id: number
+  shareId: string | null
+  playedAt: string
+  courseName: string
+  totalStrokes: number
+  scoreToPar: number
+  totalHoles: number
+  courseHoles: number
+}
+
+export interface FeedResponse {
+  feed: FeedRound[]
+  nextCursor: number | null
+  latestOwnRound: OwnLatestRound | null
+}
+
+export interface Friend {
+  id: number
+  friendshipId: string
+  name: string
+  handicapIndex: number | null
+}
+
+export interface FriendRequest {
+  friendshipId: string
+  from: { id: number; name: string }
+  sentAt: string
+}
+
+export interface UserSearchResult {
+  id: number
+  name: string
+  isFriend: boolean
+  isPending: boolean
+  isBlocked: boolean
+}

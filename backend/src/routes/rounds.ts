@@ -96,6 +96,136 @@ router.get("/shared/:shareId", async (req, res: Response) => {
 // All remaining round routes require a valid JWT
 router.use(requireAuth);
 
+// GET /rounds/feed — friends' recent completed rounds
+router.get("/feed", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const limit = Math.min(parseInt(String(req.query.limit || "20"), 10) || 20, 50);
+    const cursor = req.query.cursor ? parseInt(String(req.query.cursor), 10) : undefined;
+
+    // Get accepted friend IDs in one query, excluding blocked relationships
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+
+    const friendIds = friendships.map((f) =>
+      f.requesterId === userId ? f.addresseeId : f.requesterId
+    );
+
+    // Get blocked user IDs (in either direction)
+    const blocks = await prisma.friendship.findMany({
+      where: {
+        status: "BLOCKED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const blockedIds = new Set(
+      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
+    );
+    const activeFriendIds = friendIds.filter((id) => !blockedIds.has(id));
+
+    // Fetch friends' completed rounds
+    const feedRounds = activeFriendIds.length > 0
+      ? await prisma.round.findMany({
+          where: {
+            userId: { in: activeFriendIds },
+            ...(cursor ? { id: { lt: cursor } } : {}),
+          },
+          include: {
+            user: { select: { name: true } },
+            course: {
+              select: {
+                name: true,
+                courseRating: true,
+                slopeRating: true,
+                holes: { select: { par: true } },
+                _count: { select: { holes: true } },
+              },
+            },
+            roundHoles: {
+              select: { strokes: true, hole: { select: { par: true } } },
+            },
+          },
+          orderBy: { id: "desc" },
+          take: limit + 1,
+        })
+      : [];
+
+    const hasMore = feedRounds.length > limit;
+    const page = hasMore ? feedRounds.slice(0, limit) : feedRounds;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+    const feed = page
+      .filter((r) => r.roundHoles.length > 0) // only completed/in-progress rounds with scores
+      .map((r) => {
+        const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+        const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+        return {
+          id: r.id,
+          shareId: r.shareId,
+          playerName: r.user.name,
+          playedAt: r.playedAt,
+          courseName: r.course.name,
+          totalStrokes,
+          scoreToPar: totalStrokes - totalPar,
+          totalHoles: r.roundHoles.length,
+          courseHoles: r.course._count.holes,
+        };
+      });
+
+    // Latest own round (within 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const latestOwn = await prisma.round.findFirst({
+      where: {
+        userId,
+        playedAt: { gte: sevenDaysAgo },
+        roundHoles: { some: {} },
+      },
+      include: {
+        course: {
+          select: {
+            name: true,
+            holes: { select: { par: true } },
+            _count: { select: { holes: true } },
+          },
+        },
+        roundHoles: {
+          select: { strokes: true, hole: { select: { par: true } } },
+        },
+      },
+      orderBy: { playedAt: "desc" },
+    });
+
+    let latestOwnRound = null;
+    if (latestOwn && latestOwn.roundHoles.length > 0) {
+      const totalStrokes = latestOwn.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+      const totalPar = latestOwn.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+      latestOwnRound = {
+        id: latestOwn.id,
+        shareId: latestOwn.shareId,
+        playedAt: latestOwn.playedAt,
+        courseName: latestOwn.course.name,
+        totalStrokes,
+        scoreToPar: totalStrokes - totalPar,
+        totalHoles: latestOwn.roundHoles.length,
+        courseHoles: latestOwn.course._count.holes,
+      };
+    }
+
+    res.json({ feed, nextCursor, latestOwnRound });
+  } catch (err) {
+    console.error("GET /rounds/feed error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // ── OpenStreetMap green coordinate lookup ────────────────────────────────────
 // Queries the Overpass API for golf=green features near the course and matches
 // them to holes using the OSM `ref` tag (hole number). Runs as a background

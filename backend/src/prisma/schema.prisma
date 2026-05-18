@@ -20,6 +20,27 @@ model User {
   rounds            Round[]
   refreshTokens     RefreshToken[]
   linkedHandicap    LinkedHandicap?
+  sentRequests      Friendship[]     @relation("requester")
+  receivedRequests  Friendship[]     @relation("addressee")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId Int
+  addresseeId Int
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  requester   User             @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
 }
 
 model LinkedHandicap {

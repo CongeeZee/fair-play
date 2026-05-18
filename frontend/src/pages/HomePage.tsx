@@ -30,7 +30,7 @@ const features = [
 export default function HomePage() {
   const { user } = useAuth()
 
-  if (user) return <Navigate to="/courses" replace />
+  if (user) return <Navigate to="/feed" replace />
 
   return (
     <Box>
