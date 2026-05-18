@@ -1,11 +1,99 @@
 import { Router, Response } from "express";
 import { z } from "zod";
+import { nanoid } from "nanoid";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
 
 const router = Router();
 
-// All round routes require a valid JWT
+// ── Public endpoints (no auth) ────────────────────────────────────────────────
+
+// GET /rounds/shared/:shareId — public scorecard view
+router.get("/shared/:shareId", async (req, res: Response) => {
+  const shareId = String(req.params.shareId);
+
+  try {
+    const round = await prisma.round.findUnique({
+      where: { shareId },
+      include: {
+        user: { select: { name: true } },
+        course: {
+          select: {
+            name: true,
+            courseRating: true,
+            slopeRating: true,
+            holes: { orderBy: { number: "asc" }, select: { number: true, par: true, distance: true } },
+          },
+        },
+        roundHoles: {
+          include: { hole: { select: { number: true, par: true } } },
+          orderBy: { hole: { number: "asc" } },
+        },
+      },
+    });
+
+    if (!round) {
+      res.status(404).json({ error: "Scorecard not found" });
+      return;
+    }
+
+    const totalHoles = round.course.holes.length;
+    const holesScored = round.roundHoles.length;
+    const inProgress = holesScored < totalHoles;
+
+    const holes = round.course.holes.map((hole) => {
+      const rh = round.roundHoles.find((rh) => rh.hole.number === hole.number);
+      return {
+        number: hole.number,
+        par: hole.par,
+        distance: hole.distance,
+        strokes: rh?.strokes ?? null,
+        putts: rh?.putts ?? null,
+        scoreToPar: rh ? rh.strokes - hole.par : null,
+      };
+    });
+
+    const frontNine = holes.slice(0, 9);
+    const backNine = holes.slice(9);
+
+    const sum = (arr: typeof holes, key: "strokes" | "par") =>
+      arr.reduce((s, h) => s + (key === "par" ? h.par : (h.strokes ?? 0)), 0);
+    const scoredSum = (arr: typeof holes, key: "strokes" | "par") =>
+      arr.filter((h) => h.strokes != null).reduce((s, h) => s + (key === "par" ? h.par : h.strokes!), 0);
+
+    const totalStrokes = scoredSum(holes, "strokes");
+    const totalPar = scoredSum(holes, "par");
+
+    res.json({
+      playerName: round.user.name,
+      courseName: round.course.name,
+      playedAt: round.playedAt,
+      inProgress,
+      holesScored,
+      totalHoles,
+      holes,
+      frontNine: {
+        strokes: scoredSum(frontNine, "strokes"),
+        par: sum(frontNine, "par"),
+      },
+      backNine: backNine.length > 0 ? {
+        strokes: scoredSum(backNine, "strokes"),
+        par: sum(backNine, "par"),
+      } : null,
+      total: {
+        strokes: totalStrokes,
+        par: totalPar,
+        scoreToPar: totalStrokes - totalPar,
+      },
+    });
+  } catch (err) {
+    console.error("GET /rounds/shared/:shareId error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// All remaining round routes require a valid JWT
 router.use(requireAuth);
 
 // ── OpenStreetMap green coordinate lookup ────────────────────────────────────
@@ -267,6 +355,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         userId: req.userId!,
         courseId: resolvedCourseId,
         playedAt: playedAt ?? new Date(),
+        shareId: nanoid(10),
       },
       include: {
         course: { include: { holes: { orderBy: { number: "asc" } } } },
@@ -441,7 +530,6 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
 // Must be defined before /:id
 router.get("/handicap", async (req: AuthRequest, res: Response) => {
   try {
-    // WHS uses the most recent 20 rounds
     const rounds = await prisma.round.findMany({
       where: { userId: req.userId! },
       include: {
@@ -453,85 +541,77 @@ router.get("/handicap", async (req: AuthRequest, res: Response) => {
             _count: { select: { holes: true } },
           },
         },
-        roundHoles: { include: { hole: { select: { par: true } } } },
+        roundHoles: { select: { strokes: true } },
       },
       orderBy: { playedAt: "desc" },
       take: 20,
     });
 
-    // Only use rounds that have rating/slope data and are fully scored
-    const eligible = rounds.filter((r) => {
-      const totalHoles = r.course._count.holes;
-      return (
-        r.roundHoles.length === totalHoles && totalHoles > 0 &&
-        r.course.courseRating != null &&
-        r.course.slopeRating != null
-      );
-    });
+    const differentials = calculateDifferentials(rounds);
 
-    if (eligible.length < 3) {
+    if (differentials.length < 3) {
       res.json({
         handicapIndex: null,
-        totalEligible: eligible.length,
+        totalEligible: differentials.length,
         minimumRequired: 3,
         differentials: [],
       });
       return;
     }
 
-    // Score differential = (113 / slope) × (gross - courseRating)
-    const differentials = eligible.map((r) => {
-      const gross = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
-      const diff = (113 / r.course.slopeRating!) * (gross - r.course.courseRating!);
-      return {
-        roundId: r.id,
-        playedAt: r.playedAt,
-        courseName: r.course.name,
-        gross,
-        courseRating: r.course.courseRating!,
-        slopeRating: r.course.slopeRating!,
-        differential: parseFloat(diff.toFixed(1)),
-      };
-    });
-
-    // WHS lookup table: [minRounds, maxRounds, differentialsToUse, adjustment]
-    const WHS_TABLE: [number, number, number, number][] = [
-      [3, 3, 1, -2.0],
-      [4, 4, 1, -1.0],
-      [5, 5, 1, 0],
-      [6, 6, 2, -1.0],
-      [7, 8, 2, 0],
-      [9, 11, 3, 0],
-      [12, 14, 4, 0],
-      [15, 16, 5, 0],
-      [17, 18, 6, 0],
-      [19, 19, 7, 0],
-      [20, 20, 8, 0],
-    ];
-
-    const n = differentials.length;
-    const [, , use, adj] = WHS_TABLE.find(([min, max]) => n >= min && n <= max)!;
-
-    const sorted = [...differentials].sort((a, b) => a.differential - b.differential);
-    const used = sorted.slice(0, use);
-    const avg = used.reduce((s, d) => s + d.differential, 0) / use;
-
-    // Apply 96% factor and truncate (not round) to 1 decimal — WHS spec
-    const raw = (avg + adj) * 0.96;
-    const handicapIndex = Math.trunc(raw * 10) / 10;
-    // WHS cap: 54.0
-    const cappedIndex = Math.min(handicapIndex, 54.0);
-
-    const usedIds = new Set(used.map((d) => d.roundId));
-
-    res.json({
-      handicapIndex: cappedIndex,
-      differentialsUsed: use,
-      totalEligible: n,
-      differentials: differentials.map((d) => ({ ...d, used: usedIds.has(d.roundId) })),
-    });
+    const result = calculateHandicapIndex(differentials);
+    res.json(result);
   } catch (err) {
     console.error("GET /rounds/handicap error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /rounds/handicap-history — handicap index over time
+router.get("/handicap-history", async (req: AuthRequest, res: Response) => {
+  try {
+    const rounds = await prisma.round.findMany({
+      where: { userId: req.userId! },
+      include: {
+        course: {
+          select: {
+            name: true,
+            courseRating: true,
+            slopeRating: true,
+            _count: { select: { holes: true } },
+          },
+        },
+        roundHoles: { select: { strokes: true } },
+      },
+      orderBy: { playedAt: "asc" },
+    });
+
+    const allDifferentials = calculateDifferentials(rounds);
+
+    const history: Array<{
+      date: string;
+      handicapIndex: number;
+      roundNumber: number;
+      courseName: string;
+    }> = [];
+
+    for (let i = 2; i < allDifferentials.length; i++) {
+      const subset = allDifferentials.slice(0, i + 1);
+      const result = calculateHandicapIndex(subset);
+      if (result) {
+        const diff = allDifferentials[i];
+        history.push({
+          date: diff.playedAt.toISOString(),
+          handicapIndex: result.handicapIndex,
+          roundNumber: i + 1,
+          courseName: diff.courseName,
+        });
+      }
+    }
+
+    res.json(history);
+  } catch (err) {
+    console.error("GET /rounds/handicap-history error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
