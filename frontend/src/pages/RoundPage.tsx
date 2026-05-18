@@ -18,6 +18,8 @@ import GpsNotFixedIcon from '@mui/icons-material/GpsNotFixed'
 import GpsOffIcon from '@mui/icons-material/GpsOff'
 import FlagIcon from '@mui/icons-material/Flag'
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
+import ShareIcon from '@mui/icons-material/Share'
+import Snackbar from '@mui/material/Snackbar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
@@ -462,6 +464,7 @@ export default function RoundPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [scorecardOpen, setScorecardOpen] = useState(false)
   const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
+  const [shareSnackbar, setShareSnackbar] = useState(false)
   const gps = useGPS()
   const { syncState, pendingCount, flush, refreshCount } = useOnlineStatus()
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -597,6 +600,25 @@ export default function RoundPage() {
     navigate('/history')
   }
 
+  const handleShare = async () => {
+    const shareId = (round as { shareId?: string }).shareId
+    if (!shareId) return
+    const url = `${window.location.origin}/scorecard/${shareId}`
+    const courseName = round.course?.name || 'a round'
+    const scoreStr = totalDiff != null
+      ? (totalDiff === 0 ? 'even par' : totalDiff > 0 ? `+${totalDiff}` : `${totalDiff}`)
+      : ''
+    const title = `Check out my round at ${courseName}`
+    const text = scoreStr ? `Shot ${totalStrokes} (${scoreStr}) at ${courseName}` : `Played at ${courseName}`
+
+    if (navigator.share) {
+      try { await navigator.share({ title, text, url }) } catch { /* cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url)
+      setShareSnackbar(true)
+    }
+  }
+
   return (
     <>
     {/* Offline banner — full width above content */}
@@ -609,17 +631,26 @@ export default function RoundPage() {
           <Typography variant="h6" color="primary.main" fontWeight={700} sx={{ flex: 1 }}>
             {round.course?.name}
           </Typography>
-          <Tooltip title="View scorecard">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<TableChartIcon fontSize="small" />}
-              onClick={() => setScorecardOpen(true)}
-              sx={{ flexShrink: 0, fontSize: '0.75rem', py: 0.5 }}
-            >
-              Scorecard
-            </Button>
-          </Tooltip>
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            {(round as { shareId?: string }).shareId && (
+              <Tooltip title="Share scorecard">
+                <IconButton size="small" onClick={handleShare}>
+                  <ShareIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="View scorecard">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<TableChartIcon fontSize="small" />}
+                onClick={() => setScorecardOpen(true)}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Scorecard
+              </Button>
+            </Tooltip>
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
           <Typography variant="caption" color="text.secondary">
@@ -965,6 +996,13 @@ export default function RoundPage() {
         onSelectHole={(idx) => setCurrentHoleIndex(idx)}
       />
     </Container>
+    <Snackbar
+      open={shareSnackbar}
+      autoHideDuration={2000}
+      onClose={() => setShareSnackbar(false)}
+      message="Link copied!"
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    />
     </>
   )
 }

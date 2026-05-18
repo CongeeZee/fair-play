@@ -1,12 +1,17 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const FROM_EMAIL = "Fairplay <noreply@fairplaygolf.app>";
 
 export async function sendVerificationEmail(to: string, token: string) {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
+
+  if (!resend) {
+    console.log("RESEND_API_KEY not set — skipping verification email to", to);
+    return;
+  }
 
   try {
     await resend.emails.send({

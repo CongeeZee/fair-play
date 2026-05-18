@@ -13,6 +13,8 @@ import HistoryIcon from '@mui/icons-material/History'
 import SearchIcon from '@mui/icons-material/Search'
 import ClearIcon from '@mui/icons-material/Clear'
 import AddIcon from '@mui/icons-material/Add'
+import ShareIcon from '@mui/icons-material/Share'
+import Snackbar from '@mui/material/Snackbar'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRounds, getRound, deleteRound } from '../api/rounds'
@@ -24,6 +26,29 @@ export default function HistoryPage() {
   const [confirmRound, setConfirmRound] = useState<Round | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [shareSnackbar, setShareSnackbar] = useState(false)
+
+  const handleShare = async (round: Round) => {
+    if (!round.shareId) return
+    const url = `${window.location.origin}/scorecard/${round.shareId}`
+    const courseName = round.course?.name ? formatCourseName(round.course.name) : 'a round'
+    const scoreStr = round.scoreToPar != null
+      ? (round.scoreToPar === 0 ? 'even par' : round.scoreToPar > 0 ? `+${round.scoreToPar}` : `${round.scoreToPar}`)
+      : ''
+    const title = `Check out my round at ${courseName}`
+    const text = scoreStr ? `Shot ${round.totalStrokes} (${scoreStr}) at ${courseName}` : `Played at ${courseName}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url })
+      } catch {
+        // User cancelled — ignore
+      }
+    } else {
+      await navigator.clipboard.writeText(url)
+      setShareSnackbar(true)
+    }
+  }
 
   const { data: rounds, isLoading, error } = useQuery({
     queryKey: ['rounds'],
@@ -167,6 +192,15 @@ export default function HistoryPage() {
                                 {round.holesCompleted}/{round.course?.holes?.length ?? 18}
                               </Typography>
                             )}
+                            {round.shareId && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => { e.stopPropagation(); handleShare(round) }}
+                                aria-label="share round"
+                              >
+                                <ShareIcon fontSize="small" />
+                              </IconButton>
+                            )}
                             <IconButton
                               size="small"
                               onClick={(e) => { e.stopPropagation(); navigate(`/rounds/${round.id}`) }}
@@ -215,6 +249,14 @@ export default function HistoryPage() {
         </DialogActions>
       </Dialog>
     </Container>
+
+    <Snackbar
+      open={shareSnackbar}
+      autoHideDuration={2000}
+      onClose={() => setShareSnackbar(false)}
+      message="Link copied!"
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    />
 
     {/* Floating action button — quick shortcut to start a new round */}
     <Tooltip title="Start a new round" placement="left">

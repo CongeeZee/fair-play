@@ -2,7 +2,7 @@ import {
   Box, Container, Typography, CircularProgress, Alert,
   Grid, Card, CardContent, Divider, LinearProgress,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip,
-  List, ListItemButton, ListItemText,
+  List, ListItemButton, ListItemText, Button,
 } from '@mui/material'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -14,15 +14,21 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { getStats, getHandicap, getRounds, getCourseStats, getInsights } from '../api/rounds'
+import { getStats, getHandicap, getRounds, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
 import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
+import LinkHandicapDialog from '../components/LinkHandicapDialog'
+import HandicapTrendChart from '../components/HandicapTrendChart'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
 } from 'recharts'
+import { useState } from 'react'
+import LinkIcon from '@mui/icons-material/Link'
+import LinkOffIcon from '@mui/icons-material/LinkOff'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import type { Round, InsightSuggestion } from '../types'
 
 function formatScore(val: number | undefined) {
@@ -222,6 +228,9 @@ function MetricPill({ label, value }: { label: string; value: string }) {
 
 export default function StatsPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['stats'],
@@ -232,6 +241,26 @@ export default function StatsPage() {
     queryKey: ['handicap'],
     queryFn: getHandicap,
   })
+
+  const { data: linkedHandicap } = useQuery({
+    queryKey: ['linked-handicap'],
+    queryFn: getLinkedHandicap,
+  })
+
+  const handleUnlink = async () => {
+    await unlinkHandicap()
+    queryClient.invalidateQueries({ queryKey: ['linked-handicap'] })
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await refreshLinkedHandicap()
+      queryClient.invalidateQueries({ queryKey: ['linked-handicap'] })
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   // Reuses the ['rounds'] cache already populated by HistoryPage
   const { data: rounds } = useQuery({
@@ -295,12 +324,14 @@ export default function StatsPage() {
       ]
     : []
 
-  const hcapIndex = handicap?.handicapIndex
+  // Use linked handicap if available, otherwise use calculated
+  const hasLinked = linkedHandicap != null
+  const displayIndex = hasLinked ? linkedHandicap.handicapIndex : handicap?.handicapIndex
   const hcapDisplay =
-    hcapIndex == null ? '–'
-    : hcapIndex === 0 ? '0.0'
-    : hcapIndex > 0 ? `+${hcapIndex.toFixed(1)}`
-    : hcapIndex.toFixed(1)
+    displayIndex == null ? '–'
+    : displayIndex === 0 ? '0.0'
+    : displayIndex > 0 ? `+${displayIndex.toFixed(1)}`
+    : displayIndex.toFixed(1)
 
   return (
     <Box>
@@ -314,7 +345,7 @@ export default function StatsPage() {
             <Grid size={{ xs: 12, sm: 'auto' }}>
               <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
                 <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>
-                  World Handicap System
+                  {hasLinked ? 'Official Handicap' : 'World Handicap System'}
                 </Typography>
                 <Typography variant="h1" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1, fontSize: { xs: '4rem', sm: '5rem' } }}>
                   {hcapDisplay}
@@ -325,7 +356,49 @@ export default function StatsPage() {
               </Box>
             </Grid>
             <Grid size={{ xs: 12, sm: 'grow' }}>
-              {handicap && hcapIndex != null ? (
+              {hasLinked ? (
+                <Box sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                  <Chip
+                    label={linkedHandicap.source === 'golf_australia' ? 'Golf Australia' : linkedHandicap.source === 'ghin' ? 'GHIN / USGA' : 'Manual'}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600, mb: 0.5 }}
+                  />
+                  {linkedHandicap.playerName && (
+                    <Typography variant="body2">{linkedHandicap.playerName}</Typography>
+                  )}
+                  {linkedHandicap.clubName && (
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block' }}>
+                      {linkedHandicap.clubName}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mt: 0.5 }}>
+                    Last synced: {new Date(linkedHandicap.lastSynced).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+                  </Typography>
+                  <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
+                    {linkedHandicap.source !== 'manual' && (
+                      <Button
+                        size="small"
+                        startIcon={refreshing ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                        variant="outlined"
+                      >
+                        Refresh
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      startIcon={<LinkOffIcon />}
+                      onClick={handleUnlink}
+                      sx={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem' }}
+                      variant="outlined"
+                    >
+                      Unlink
+                    </Button>
+                  </Box>
+                </Box>
+              ) : handicap && handicap.handicapIndex != null ? (
                 <Box sx={{ color: 'rgba(255,255,255,0.85)' }}>
                   <Typography variant="body2">
                     Based on best <strong>{handicap.differentialsUsed}</strong> of last <strong>{handicap.totalEligible}</strong> eligible rounds
@@ -333,6 +406,17 @@ export default function StatsPage() {
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
                     Eligible rounds require course rating &amp; slope data
                   </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      startIcon={<LinkIcon />}
+                      onClick={() => setLinkDialogOpen(true)}
+                      sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                      variant="outlined"
+                    >
+                      Link official handicap
+                    </Button>
+                  </Box>
                 </Box>
               ) : (
                 <Box sx={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -342,12 +426,29 @@ export default function StatsPage() {
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
                     Play courses from the search to get rating &amp; slope data
                   </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      startIcon={<LinkIcon />}
+                      onClick={() => setLinkDialogOpen(true)}
+                      sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                      variant="outlined"
+                    >
+                      Link official handicap
+                    </Button>
+                  </Box>
                 </Box>
               )}
             </Grid>
           </Grid>
         </CardContent>
       </Card>
+
+      <LinkHandicapDialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        onLinked={() => queryClient.invalidateQueries({ queryKey: ['linked-handicap'] })}
+      />
 
       {/* Recent form / improvement trend */}
       <ImprovementCard rounds={rounds ?? []} />
@@ -407,6 +508,9 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Handicap trend chart */}
+      <HandicapTrendChart />
 
       {/* Score trend chart */}
       <ScoreTrendChart rounds={rounds ?? []} />

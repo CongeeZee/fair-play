@@ -9,16 +9,30 @@ datasource db {
 }
 
 model User {
-  id                Int            @id @default(autoincrement())
-  email             String         @unique
+  id                Int              @id @default(autoincrement())
+  email             String           @unique
   passwordHash      String?
-  googleId          String?        @unique
+  googleId          String?          @unique
   name              String
-  emailVerified     Boolean        @default(false)
-  verificationToken String?        @unique
-  createdAt         DateTime       @default(now())
+  emailVerified     Boolean          @default(false)
+  verificationToken String?          @unique
+  createdAt         DateTime         @default(now())
   rounds            Round[]
   refreshTokens     RefreshToken[]
+  linkedHandicap    LinkedHandicap?
+}
+
+model LinkedHandicap {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  source         String   // "golf_australia", "ghin", "manual"
+  externalId     String?  // GolfLink number, GHIN number, etc.
+  handicapIndex  Float
+  playerName     String?  // Name returned from lookup
+  clubName       String?  // Club returned from lookup
+  lastSynced     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
@@ -56,6 +70,7 @@ model Hole {
 
 model Round {
   id         Int         @id @default(autoincrement())
+  shareId    String?     @unique
   playedAt   DateTime    @default(now())
   userId     Int
   courseId   Int

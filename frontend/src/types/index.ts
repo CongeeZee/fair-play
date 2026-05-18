@@ -45,6 +45,7 @@ export interface RoundHole {
 
 export interface Round {
   id: string
+  shareId?: string | null
   playedAt: string
   userId: string
   courseId: string
@@ -53,6 +54,26 @@ export interface Round {
   totalStrokes?: number
   scoreToPar?: number
   holesCompleted?: number
+}
+
+export interface SharedScorecard {
+  playerName: string
+  courseName: string
+  playedAt: string
+  inProgress: boolean
+  holesScored: number
+  totalHoles: number
+  holes: Array<{
+    number: number
+    par: number
+    distance: number
+    strokes: number | null
+    putts: number | null
+    scoreToPar: number | null
+  }>
+  frontNine: { strokes: number; par: number }
+  backNine: { strokes: number; par: number } | null
+  total: { strokes: number; par: number; scoreToPar: number }
 }
 
 export interface HoleBreakdown {
@@ -144,4 +165,27 @@ export interface HandicapResult {
   totalEligible: number
   minimumRequired?: number
   differentials: HandicapDifferential[]
+}
+
+export interface HandicapHistoryPoint {
+  date: string
+  handicapIndex: number
+  roundNumber: number
+  courseName: string
+}
+
+export interface LinkedHandicap {
+  id: number
+  source: 'golf_australia' | 'ghin' | 'manual'
+  externalId?: string | null
+  handicapIndex: number
+  playerName?: string | null
+  clubName?: string | null
+  lastSynced: string
+}
+
+export interface HandicapLookupResult {
+  handicapIndex: number
+  playerName?: string
+  clubName?: string
 }
