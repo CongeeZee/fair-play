@@ -63,19 +63,13 @@ export const getSharedScorecard = (shareId: string) =>
 
 // ── Linked Handicap ─────────────────────────────────────────────────────────
 
-import type { LinkedHandicap, HandicapLookupResult } from '../types'
+import type { LinkedHandicap } from '../types'
 
 export const getLinkedHandicap = () =>
   client.get<LinkedHandicap | null>('/handicap/linked').then((r) => r.data)
 
-export const lookupGolfAustralia = (golfLinkNo: string) =>
-  client.get<HandicapLookupResult>(`/handicap/lookup/golf-australia/${golfLinkNo}`).then((r) => r.data)
-
-export const lookupGHIN = (ghinNumber: string) =>
-  client.get<HandicapLookupResult>(`/handicap/lookup/ghin/${ghinNumber}`).then((r) => r.data)
-
 export const linkHandicap = (data: {
-  source: 'golf_australia' | 'ghin' | 'manual'
+  source: 'manual'
   externalId?: string
   handicapIndex: number
   playerName?: string

@@ -185,12 +185,6 @@ export interface LinkedHandicap {
   lastSynced: string
 }
 
-export interface HandicapLookupResult {
-  handicapIndex: number
-  playerName?: string
-  clubName?: string
-}
-
 export interface FeedRound {
   id: number
   shareId: string | null
