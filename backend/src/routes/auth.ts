@@ -55,6 +55,7 @@ interface AuthUser {
   email: string;
   name: string;
   emailVerified: boolean;
+  hasCompletedOnboarding: boolean;
 }
 
 async function issueTokens(user: AuthUser, res: Response, status = 200) {
@@ -67,6 +68,7 @@ async function issueTokens(user: AuthUser, res: Response, status = 200) {
       email: user.email,
       name: user.name,
       emailVerified: user.emailVerified,
+      hasCompletedOnboarding: user.hasCompletedOnboarding,
     },
     token: accessToken,
     refreshToken,
@@ -100,6 +102,7 @@ router.post("/register", strictLimiter, async (req: Request, res: Response) => {
         email: true,
         name: true,
         emailVerified: true,
+        hasCompletedOnboarding: true,
         createdAt: true,
       },
     });
@@ -217,7 +220,7 @@ router.post("/refresh", strictLimiter, async (req: Request, res: Response) => {
       where: { token: hashed },
       include: {
         user: {
-          select: { id: true, email: true, name: true, emailVerified: true },
+          select: { id: true, email: true, name: true, emailVerified: true, hasCompletedOnboarding: true },
         },
       },
     });
@@ -339,5 +342,19 @@ router.post(
     }
   },
 );
+
+// PATCH /auth/onboarding-complete — mark onboarding done
+router.patch("/onboarding-complete", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data: { hasCompletedOnboarding: true },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("PATCH /auth/onboarding-complete error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 export default router;

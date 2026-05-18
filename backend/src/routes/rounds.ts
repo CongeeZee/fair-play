@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import { sendPushToUser } from "../lib/pushNotification";
 
 const router = Router();
 
@@ -222,6 +223,250 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     res.json({ feed, nextCursor, latestOwnRound });
   } catch (err) {
     console.error("GET /rounds/feed error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /rounds/leaderboard — score leaderboard among friends
+router.get("/leaderboard", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const timeframe = String(req.query.timeframe || "month");
+
+    // Calculate date filter
+    let dateFilter: Date | null = null;
+    if (timeframe === "week") {
+      dateFilter = new Date();
+      dateFilter.setDate(dateFilter.getDate() - 7);
+    } else if (timeframe === "month") {
+      dateFilter = new Date();
+      dateFilter.setDate(dateFilter.getDate() - 30);
+    }
+
+    // Get friend IDs (excluding blocked)
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const friendIds = friendships.map((f) =>
+      f.requesterId === userId ? f.addresseeId : f.requesterId
+    );
+
+    const blocks = await prisma.friendship.findMany({
+      where: {
+        status: "BLOCKED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const blockedIds = new Set(
+      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
+    );
+
+    // All participants = current user + non-blocked friends
+    const participantIds = [userId, ...friendIds.filter((id) => !blockedIds.has(id))];
+
+    // Get user names
+    const users = await prisma.user.findMany({
+      where: { id: { in: participantIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = new Map(users.map((u) => [u.id, u.name]));
+
+    // Fetch all rounds for participants in the timeframe, with hole counts
+    const rounds = await prisma.round.findMany({
+      where: {
+        userId: { in: participantIds },
+        ...(dateFilter ? { playedAt: { gte: dateFilter } } : {}),
+      },
+      include: {
+        course: { select: { _count: { select: { holes: true } } } },
+        roundHoles: {
+          select: { strokes: true, hole: { select: { par: true } } },
+        },
+      },
+    });
+
+    // Aggregate per user
+    const statsMap = new Map<number, { roundsPlayed: number; best: number | null; totalScoreToPar: number; count18: number }>();
+    for (const id of participantIds) {
+      statsMap.set(id, { roundsPlayed: 0, best: null, totalScoreToPar: 0, count18: 0 });
+    }
+
+    for (const r of rounds) {
+      if (r.roundHoles.length === 0) continue;
+      const entry = statsMap.get(r.userId)!;
+      const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+      const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+      const scoreToPar = totalStrokes - totalPar;
+
+      entry.roundsPlayed++;
+
+      // Only count completed 18-hole rounds for averages and best
+      if (r.roundHoles.length === r.course._count.holes && r.course._count.holes >= 18) {
+        entry.count18++;
+        entry.totalScoreToPar += scoreToPar;
+        if (entry.best === null || scoreToPar < entry.best) {
+          entry.best = scoreToPar;
+        }
+      }
+    }
+
+    // Get handicap indexes
+    const handicaps = await prisma.linkedHandicap.findMany({
+      where: { userId: { in: participantIds } },
+      select: { userId: true, handicapIndex: true },
+    });
+    const handicapMap = new Map(handicaps.map((h) => [h.userId, h.handicapIndex]));
+
+    // Calculate handicaps for those without linked ones
+    for (const id of participantIds) {
+      if (handicapMap.has(id)) continue;
+      const userRounds = await prisma.round.findMany({
+        where: { userId: id },
+        include: {
+          course: {
+            select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+          },
+          roundHoles: { select: { strokes: true } },
+        },
+        orderBy: { playedAt: "desc" },
+        take: 20,
+      });
+      const diffs = calculateDifferentials(userRounds);
+      const result = calculateHandicapIndex(diffs);
+      if (result) handicapMap.set(id, result.handicapIndex);
+    }
+
+    const leaderboard = participantIds.map((id) => {
+      const s = statsMap.get(id)!;
+      return {
+        userId: id,
+        name: nameMap.get(id) ?? "Unknown",
+        roundsPlayed: s.roundsPlayed,
+        bestScoreToPar: s.best,
+        avgScoreToPar: s.count18 > 0 ? parseFloat((s.totalScoreToPar / s.count18).toFixed(1)) : null,
+        handicapIndex: handicapMap.get(id) ?? null,
+      };
+    });
+
+    // Sort: users with avgScoreToPar first (ascending), then nulls at bottom
+    leaderboard.sort((a, b) => {
+      if (a.avgScoreToPar === null && b.avgScoreToPar === null) return 0;
+      if (a.avgScoreToPar === null) return 1;
+      if (b.avgScoreToPar === null) return -1;
+      return a.avgScoreToPar - b.avgScoreToPar;
+    });
+
+    res.json(leaderboard);
+  } catch (err) {
+    console.error("GET /rounds/leaderboard error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /rounds/leaderboard/handicap — handicap leaderboard with trend
+router.get("/leaderboard/handicap", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+
+    // Get friend IDs (excluding blocked)
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const friendIds = friendships.map((f) =>
+      f.requesterId === userId ? f.addresseeId : f.requesterId
+    );
+
+    const blocks = await prisma.friendship.findMany({
+      where: {
+        status: "BLOCKED",
+        OR: [{ requesterId: userId }, { addresseeId: userId }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const blockedIds = new Set(
+      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
+    );
+
+    const participantIds = [userId, ...friendIds.filter((id) => !blockedIds.has(id))];
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: participantIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = new Map(users.map((u) => [u.id, u.name]));
+
+    // Calculate current handicap and trend for each participant
+    const results: Array<{
+      userId: number;
+      name: string;
+      handicapIndex: number | null;
+      trend: "improving" | "declining" | "stable" | null;
+    }> = [];
+
+    for (const id of participantIds) {
+      // Check linked handicap first
+      const linked = await prisma.linkedHandicap.findUnique({
+        where: { userId: id },
+        select: { handicapIndex: true },
+      });
+
+      // Fetch rounds for calculation
+      const rounds = await prisma.round.findMany({
+        where: { userId: id },
+        include: {
+          course: {
+            select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+          },
+          roundHoles: { select: { strokes: true } },
+        },
+        orderBy: { playedAt: "asc" },
+      });
+
+      const allDiffs = calculateDifferentials(rounds);
+      const currentResult = calculateHandicapIndex(allDiffs);
+      const currentIndex = linked?.handicapIndex ?? currentResult?.handicapIndex ?? null;
+
+      // Trend: compare current to 5 rounds ago
+      let trend: "improving" | "declining" | "stable" | null = null;
+      if (allDiffs.length >= 8) {
+        const olderDiffs = allDiffs.slice(0, -5);
+        const olderResult = calculateHandicapIndex(olderDiffs);
+        if (olderResult && currentResult) {
+          const diff = currentResult.handicapIndex - olderResult.handicapIndex;
+          if (diff < -0.5) trend = "improving";
+          else if (diff > 0.5) trend = "declining";
+          else trend = "stable";
+        }
+      }
+
+      results.push({
+        userId: id,
+        name: nameMap.get(id) ?? "Unknown",
+        handicapIndex: currentIndex,
+        trend,
+      });
+    }
+
+    // Sort by handicap ascending, nulls at bottom
+    results.sort((a, b) => {
+      if (a.handicapIndex === null && b.handicapIndex === null) return 0;
+      if (a.handicapIndex === null) return 1;
+      if (b.handicapIndex === null) return -1;
+      return a.handicapIndex - b.handicapIndex;
+    });
+
+    res.json(results);
+  } catch (err) {
+    console.error("GET /rounds/leaderboard/handicap error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -559,6 +804,51 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
     });
 
     res.json(roundHole);
+
+    // Check if round just became complete (all holes scored, not previously completed)
+    if (!round.completedAt) {
+      const courseHoleCount = await prisma.hole.count({ where: { courseId: round.courseId } });
+      const scoredCount = await prisma.roundHole.count({ where: { roundId } });
+
+      if (scoredCount === courseHoleCount && courseHoleCount >= 18) {
+        // Mark round complete
+        const completedRound = await prisma.round.update({
+          where: { id: roundId },
+          data: { completedAt: new Date() },
+          include: {
+            user: { select: { name: true } },
+            course: { select: { name: true } },
+            roundHoles: { include: { hole: { select: { par: true } } } },
+          },
+        });
+
+        // Calculate score for notification
+        const totalStrokes = completedRound.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+        const totalPar = completedRound.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+        const scoreToPar = totalStrokes - totalPar;
+        const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
+        const courseName = completedRound.course.name.replace(/\s*—.*$/, "");
+
+        // Notify all accepted friends (fire-and-forget)
+        const friendships = await prisma.friendship.findMany({
+          where: {
+            status: "ACCEPTED",
+            OR: [{ requesterId: req.userId! }, { addresseeId: req.userId! }],
+          },
+          select: { requesterId: true, addresseeId: true },
+        });
+
+        for (const f of friendships) {
+          const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
+          sendPushToUser(
+            friendId,
+            "New round posted",
+            `${completedRound.user.name} shot ${scoreStr} at ${courseName}`,
+            "/feed"
+          ).catch(() => {});
+        }
+      }
+    }
   } catch (err) {
     console.error("PUT /rounds/:id/holes/:holeId error:", err);
     res.status(500).json({ error: "Internal server error" });

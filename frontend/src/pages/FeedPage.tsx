@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box, Typography, Card, CardContent, Chip, Button,
-  CircularProgress, IconButton, Snackbar,
+  CircularProgress, IconButton, Snackbar, Dialog, DialogTitle,
+  DialogContent, Switch, FormControlLabel, CardActions,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ShareIcon from '@mui/icons-material/Share'
 import PeopleIcon from '@mui/icons-material/People'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import SettingsIcon from '@mui/icons-material/Settings'
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
+import CloseIcon from '@mui/icons-material/Close'
 import { Link } from 'react-router-dom'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { getFeed } from '../api/rounds'
 import { formatCourseName, timeAgo } from '../utils'
-import { useState } from 'react'
 import type { FeedRound, OwnLatestRound } from '../types'
 import PageHeader from '../components/PageHeader'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 
 function scoreColor(scoreToPar: number) {
   if (scoreToPar < 0) return '#c9a84c'
@@ -131,9 +135,71 @@ function FeedCard({ round }: { round: FeedRound }) {
   )
 }
 
+const DISMISS_KEY = 'push-prompt-dismissed'
+
+function shouldShowPrompt(): boolean {
+  const dismissed = localStorage.getItem(DISMISS_KEY)
+  if (dismissed) {
+    const dismissedAt = parseInt(dismissed, 10)
+    if (Date.now() - dismissedAt < 30 * 24 * 60 * 60 * 1000) return false
+  }
+  // Show after 2nd visit
+  const visits = parseInt(localStorage.getItem('feed-visits') || '0', 10) + 1
+  localStorage.setItem('feed-visits', String(visits))
+  return visits >= 2
+}
+
+function NotificationPrompt() {
+  const { isSupported, isSubscribed, subscribeToNotifications } = usePushNotifications()
+  const [visible, setVisible] = useState(() => isSupported && !isSubscribed && shouldShowPrompt())
+  const [loading, setLoading] = useState(false)
+
+  if (!visible || isSubscribed) return null
+
+  const handleEnable = async () => {
+    setLoading(true)
+    const ok = await subscribeToNotifications()
+    setLoading(false)
+    if (ok) setVisible(false)
+  }
+
+  const handleDismiss = () => {
+    localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    setVisible(false)
+  }
+
+  return (
+    <Card elevation={1} sx={{ mb: 3, bgcolor: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 2 }}>
+      <CardContent sx={{ pb: '8px !important' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+          <NotificationsActiveIcon sx={{ color: '#c9a84c', mt: 0.25 }} />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Get notified when friends post rounds
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Stay in the loop without opening the app
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={handleDismiss} sx={{ mt: -0.5, mr: -0.5 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </CardContent>
+      <CardActions sx={{ pt: 0, px: 2, pb: 1.5 }}>
+        <Button size="small" variant="contained" onClick={handleEnable} disabled={loading} sx={{ textTransform: 'none' }}>
+          {loading ? 'Enabling...' : 'Enable Notifications'}
+        </Button>
+      </CardActions>
+    </Card>
+  )
+}
+
 export default function FeedPage() {
   const queryClient = useQueryClient()
   const observerRef = useRef<HTMLDivElement>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { isSupported, isSubscribed, subscribeToNotifications, unsubscribeFromNotifications } = usePushNotifications()
 
   const {
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isRefetching,
@@ -148,6 +214,14 @@ export default function FeedPage() {
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['feed'] })
   }, [queryClient])
+
+  const handleToggleNotifications = async () => {
+    if (isSubscribed) {
+      await unsubscribeFromNotifications()
+    } else {
+      await subscribeToNotifications()
+    }
+  }
 
   // Infinite scroll observer
   useEffect(() => {
@@ -167,7 +241,6 @@ export default function FeedPage() {
 
   const latestOwnRound = data?.pages[0]?.latestOwnRound ?? null
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
-  const hasFriends = allFeedRounds.length > 0 || (data?.pages.length ?? 0) > 0
 
   if (isLoading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
@@ -177,10 +250,17 @@ export default function FeedPage() {
     <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <PageHeader title="Activity" />
-        <IconButton onClick={handleRefresh} disabled={isRefetching} size="small">
-          <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
-        </IconButton>
+        <Box>
+          <IconButton onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
+            <SettingsIcon fontSize="small" />
+          </IconButton>
+          <IconButton onClick={handleRefresh} disabled={isRefetching} size="small">
+            <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
+          </IconButton>
+        </Box>
       </Box>
+
+      <NotificationPrompt />
 
       {latestOwnRound && <OwnRoundCard round={latestOwnRound} />}
 
@@ -215,6 +295,23 @@ export default function FeedPage() {
           <CircularProgress size={24} />
         </Box>
       )}
+
+      {/* Settings dialog */}
+      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Settings</DialogTitle>
+        <DialogContent>
+          {isSupported ? (
+            <FormControlLabel
+              control={<Switch checked={isSubscribed} onChange={handleToggleNotifications} />}
+              label="Push notifications"
+            />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Push notifications are not supported in this browser.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   )
 }

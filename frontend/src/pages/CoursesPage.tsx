@@ -17,6 +17,7 @@ import type { TeeOption } from '../api/courses'
 import { createRound, getRounds } from '../api/rounds'
 import { formatCourseName } from '../utils'
 import type { Round } from '../types'
+import FirstTimeTooltip from '../components/FirstTimeTooltip'
 
 interface TeeDialog {
   externalCourseId: string
@@ -133,16 +134,21 @@ export default function CoursesPage() {
     <PageHeader title="Find a Course" subtitle="Search 30,000+ real courses worldwide" />
     <Container maxWidth="md" sx={{ py: 4 }}>
 
-      <TextField
-        fullWidth
-        placeholder="Search any golf course worldwide…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        sx={{ mb: 3 }}
-        InputProps={{
-          startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-        }}
-      />
+      <FirstTimeTooltip
+        storageKey="tooltip_courses_seen"
+        message="Search for a course to start your first round."
+      >
+        <TextField
+          fullWidth
+          placeholder="Search any golf course worldwide…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+          }}
+        />
+      </FirstTimeTooltip>
 
       {/* Recently played courses */}
       {showRecent && (

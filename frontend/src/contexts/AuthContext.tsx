@@ -9,6 +9,7 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>
   googleLogin: (credential: string) => Promise<void>
   markEmailVerified: () => void
+  markOnboardingComplete: () => void
   logout: () => void
 }
 
@@ -76,6 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const markOnboardingComplete = useCallback(() => {
+    setUser((prev) => {
+      if (!prev) return prev
+      const updated = { ...prev, hasCompletedOnboarding: true }
+      localStorage.setItem('user', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
   const logout = useCallback(() => {
     const refreshToken = localStorage.getItem('refreshToken')
     authApi.logout(refreshToken)
@@ -86,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, logout }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, markOnboardingComplete, logout }}>
       {children}
     </AuthContext.Provider>
   )

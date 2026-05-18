@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import { sendPushToUser } from "../lib/pushNotification";
 
 const router = Router();
 
@@ -237,6 +238,20 @@ router.post("/request", async (req: AuthRequest, res: Response) => {
     const friendship = await prisma.friendship.create({
       data: { requesterId: req.userId!, addresseeId },
     });
+
+    // Send push notification to the addressee (fire-and-forget)
+    const sender = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { name: true },
+    });
+    if (sender) {
+      sendPushToUser(
+        addresseeId,
+        "New friend request",
+        `${sender.name} wants to be your friend`,
+        "/friends"
+      ).catch(() => {});
+    }
 
     res.status(201).json({ friendshipId: friendship.id });
   } catch (err) {

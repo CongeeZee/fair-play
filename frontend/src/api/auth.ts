@@ -18,3 +18,6 @@ export const verifyEmail = (token: string) =>
 
 export const resendVerification = () =>
   client.post<{ message: string }>('/auth/resend-verification').then((r) => r.data)
+
+export const completeOnboarding = () =>
+  client.patch('/auth/onboarding-complete').then((r) => r.data)

@@ -104,10 +104,12 @@ export default function HistoryPage() {
       {rounds && rounds.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <HistoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography color="text.secondary">No rounds played yet.</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Head to Courses to start your first round!
+          <Typography color="text.secondary" sx={{ mb: 1 }}>
+            No rounds yet. Find a course and play your first round!
           </Typography>
+          <Button variant="contained" onClick={() => navigate('/courses')} sx={{ mt: 1 }}>
+            Find a Course
+          </Button>
         </Box>
       )}
 

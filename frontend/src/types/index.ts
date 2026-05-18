@@ -3,6 +3,7 @@ export interface User {
   name: string
   email: string
   emailVerified: boolean
+  hasCompletedOnboarding: boolean
   createdAt: string
 }
 
@@ -217,6 +218,22 @@ export interface FeedResponse {
   feed: FeedRound[]
   nextCursor: number | null
   latestOwnRound: OwnLatestRound | null
+}
+
+export interface LeaderboardEntry {
+  userId: number
+  name: string
+  roundsPlayed: number
+  bestScoreToPar: number | null
+  avgScoreToPar: number | null
+  handicapIndex: number | null
+}
+
+export interface HandicapLeaderboardEntry {
+  userId: number
+  name: string
+  handicapIndex: number | null
+  trend: 'improving' | 'declining' | 'stable' | null
 }
 
 export interface Friend {
