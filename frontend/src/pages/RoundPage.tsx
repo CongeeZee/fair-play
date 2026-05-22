@@ -4,7 +4,7 @@ import {
   Paper, Button, ButtonGroup, Chip, IconButton, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableBody, TableCell, TableHead, TableRow,
-  Tooltip, Fade,
+  Tooltip, Fade, useMediaQuery, useTheme,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
@@ -263,28 +263,26 @@ function Stepper({
   max?: number
 }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5 }}>
       <Typography variant="body1" sx={{ fontWeight: 500, flex: 1 }}>
         {label}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <IconButton
-          size="small"
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
-          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, width: 40, height: 40 }}
         >
-          <RemoveIcon fontSize="small" />
+          <RemoveIcon />
         </IconButton>
         <Typography variant="h6" sx={{ minWidth: 28, textAlign: 'center', fontWeight: 700 }}>
           {value || '–'}
         </Typography>
         <IconButton
-          size="small"
           onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
-          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, width: 40, height: 40 }}
         >
-          <AddIcon fontSize="small" />
+          <AddIcon />
         </IconButton>
       </Box>
     </Box>
@@ -301,7 +299,7 @@ interface ScorecardDialogProps {
   onSelectHole: (idx: number) => void
 }
 
-function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, onSelectHole }: ScorecardDialogProps) {
+function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, onSelectHole, isMobile }: ScorecardDialogProps & { isMobile: boolean }) {
   const frontNine = holes.slice(0, 9)
   const backNine = holes.slice(9)
 
@@ -423,7 +421,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
   const totalDiff = totalStrokes > 0 ? totalStrokes - totalPar : null
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6" fontWeight={700}>Scorecard</Typography>
         {totalDiff != null && (
@@ -465,6 +463,8 @@ export default function RoundPage() {
   const [scorecardOpen, setScorecardOpen] = useState(false)
   const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
   const [shareSnackbar, setShareSnackbar] = useState(false)
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const gps = useGPS()
   const { syncState, pendingCount, flush, refreshCount } = useOnlineStatus()
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -775,7 +775,7 @@ export default function RoundPage() {
               </Box>
             </Box>
             {/* Quick-tap number grid */}
-            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 0.75 }, flexWrap: 'wrap', justifyContent: 'center' }}>
               {STROKE_QUICK_VALUES.map((n) => {
                 const isSelected = score.strokes === n
                 const nDiff = n - hole.par
@@ -791,7 +791,7 @@ export default function RoundPage() {
                     key={n}
                     onClick={() => updateStrokes(holeId, n)}
                     sx={{
-                      width: 36, height: 36,
+                      width: { xs: 40, sm: 36 }, height: { xs: 40, sm: 36 },
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       borderRadius: 1, cursor: 'pointer',
                       border: '1px solid',
@@ -927,7 +927,7 @@ export default function RoundPage() {
           startIcon={<ArrowBackIosNewIcon />}
           disabled={currentHoleIndex === 0}
           onClick={() => setCurrentHoleIndex((i) => i - 1)}
-          sx={{ flex: 1 }}
+          sx={{ flex: 1, py: { xs: 1.5, sm: 1 } }}
         >
           Prev
         </Button>
@@ -937,7 +937,7 @@ export default function RoundPage() {
             variant="contained"
             color="primary"
             onClick={handleFinish}
-            sx={{ flex: 1, fontWeight: 700 }}
+            sx={{ flex: 1, fontWeight: 700, py: { xs: 1.5, sm: 1 } }}
           >
             Finish Round
           </Button>
@@ -946,15 +946,15 @@ export default function RoundPage() {
             variant="contained"
             endIcon={<ArrowForwardIosIcon />}
             onClick={() => setCurrentHoleIndex((i) => i + 1)}
-            sx={{ flex: 1 }}
+            sx={{ flex: 1, py: { xs: 1.5, sm: 1 } }}
           >
             Next
           </Button>
         )}
       </Box>
 
-      {/* Hole dots — now colored by score, with tooltips */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 0.5, mt: 2 }}>
+      {/* Hole dots — colored by score, tappable to jump */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 0.75, mt: 2, mb: 1 }}>
         {holes.map((h, idx) => {
           const s = holeScores[h.id]
           const hasScore = s && s.strokes > 0
@@ -972,13 +972,21 @@ export default function RoundPage() {
               <Box
                 onClick={() => setCurrentHoleIndex(idx)}
                 sx={{
-                  width: 12, height: 12,
+                  width: 14, height: 14,
                   borderRadius: '50%',
                   cursor: 'pointer',
                   bgcolor: dotColor,
                   border: isCurrent ? '2px solid' : 'none',
                   borderColor: 'primary.dark',
                   transition: 'all 0.15s',
+                  // Larger tap target on mobile
+                  p: 0,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -6, right: -6, bottom: -6, left: -6,
+                  },
+                  position: 'relative',
                   '&:hover': { transform: 'scale(1.35)' },
                 }}
               />
@@ -994,6 +1002,7 @@ export default function RoundPage() {
         holeScores={holeScores}
         currentHoleIndex={currentHoleIndex}
         onSelectHole={(idx) => setCurrentHoleIndex(idx)}
+        isMobile={isMobile}
       />
     </Container>
     <Snackbar
@@ -1002,6 +1011,7 @@ export default function RoundPage() {
       onClose={() => setShareSnackbar(false)}
       message="Link copied!"
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      sx={{ mb: { xs: '68px', md: 0 } }}
     />
     </>
   )

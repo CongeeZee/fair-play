@@ -56,9 +56,9 @@ export default function OnboardingFlow() {
         },
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: isMobile ? '100vh' : 480 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: isMobile ? '100dvh' : 480 }}>
         {/* Content area */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 4, py: 5, textAlign: 'center' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 3, py: 4, textAlign: 'center', overflow: 'auto' }}>
           {step === 0 && (
             <>
               <GolfCourseIcon sx={{ fontSize: 64, color: '#c9a84c', mb: 3 }} />
@@ -165,24 +165,24 @@ export default function OnboardingFlow() {
         </Box>
 
         {/* Footer with stepper and buttons */}
-        <Box sx={{ px: 3, pb: 3 }}>
+        <Box sx={{ px: 3, pb: `calc(16px + env(safe-area-inset-bottom, 0px))`, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Button onClick={handleSkip} sx={{ textTransform: 'none', color: 'text.secondary', fontSize: '0.95rem' }}>
+              Skip
+            </Button>
+            <Button variant="contained" onClick={handleNext} sx={{ textTransform: 'none', px: 4, py: 1.2, fontSize: '0.95rem' }}>
+              {step === STEPS.length - 1 ? 'Get Started' : 'Next'}
+            </Button>
+          </Box>
           <MobileStepper
             variant="dots"
             steps={STEPS.length}
             position="static"
             activeStep={step}
-            sx={{ bgcolor: 'transparent', justifyContent: 'center', mb: 2 }}
+            sx={{ bgcolor: 'transparent', justifyContent: 'center' }}
             backButton={<div />}
             nextButton={<div />}
           />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Button onClick={handleSkip} sx={{ textTransform: 'none', color: 'text.secondary' }}>
-              Skip
-            </Button>
-            <Button variant="contained" onClick={handleNext} sx={{ textTransform: 'none', px: 4 }}>
-              {step === STEPS.length - 1 ? 'Done' : 'Next'}
-            </Button>
-          </Box>
         </Box>
       </Box>
     </Dialog>

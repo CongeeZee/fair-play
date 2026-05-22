@@ -84,7 +84,7 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
           </Box>
         </CardContent>
       </Card>
-      <Snackbar open={snackbar} autoHideDuration={2000} onClose={() => setSnackbar(false)} message="Link copied!" anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />
+      <Snackbar open={snackbar} autoHideDuration={2000} onClose={() => setSnackbar(false)} message="Link copied!" anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: '68px', md: 0 } }} />
     </>
   )
 }

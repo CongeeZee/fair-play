@@ -52,7 +52,7 @@ function Layout() {
       minHeight: '100vh',
       bgcolor: 'background.default',
       // On mobile, add bottom padding so fixed BottomNav doesn't overlap content
-      pb: showBottomNav ? { xs: '60px', md: 0 } : 0,
+      pb: showBottomNav ? { xs: 'calc(60px + env(safe-area-inset-bottom, 0px))', md: 0 } : 0,
     }}>
       <Navbar />
       {/* Spacer so fixed navbar doesn't overlap content — not needed on home

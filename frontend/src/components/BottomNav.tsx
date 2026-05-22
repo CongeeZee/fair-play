@@ -57,7 +57,8 @@ export default function BottomNav() {
         }}
         sx={{
           bgcolor: '#1a3a2a',
-          height: 60,
+          height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
+          pb: 'env(safe-area-inset-bottom, 0px)',
           '& .MuiBottomNavigationAction-root': {
             color: 'rgba(255,255,255,0.5)',
             minWidth: 0,
