@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Typography, Card, CardContent, CardActionArea, Chip, Button,
-  CircularProgress, IconButton, Fab, Collapse, Alert,
+  CircularProgress, Fab, Collapse, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, List, ListItem, ListItemText, Checkbox, ListItemButton,
   ToggleButton, ToggleButtonGroup, Stepper as MuiStepper, Step, StepLabel,
@@ -29,7 +29,7 @@ import { searchExternalCourses } from '../api/courses'
 import { formatCourseName } from '../utils'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
-import type { CompetitionSummary, CompetitionDetail, EligibleRound, Friend } from '../types'
+import type { CompetitionSummary } from '../types'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
 
