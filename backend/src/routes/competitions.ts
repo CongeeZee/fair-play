@@ -1,0 +1,592 @@
+import { Router, Response } from "express";
+import { z } from "zod";
+import prisma from "../lib/prisma";
+import { requireAuth, AuthRequest } from "../middleware/auth";
+import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import { sendPushToUser } from "../lib/pushNotification";
+
+const router = Router();
+
+router.use(requireAuth);
+
+// Middleware: require email verification
+router.use(async (req: AuthRequest, res: Response, next) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    select: { emailVerified: true },
+  });
+  if (!user?.emailVerified) {
+    res.status(403).json({ error: "Verify your email to use competitions" });
+    return;
+  }
+  next();
+});
+
+// Helper: derive competition status from dates
+function compStatus(startDate: Date, endDate: Date): "UPCOMING" | "ACTIVE" | "COMPLETED" {
+  const now = new Date();
+  if (now < startDate) return "UPCOMING";
+  if (now > endDate) return "COMPLETED";
+  return "ACTIVE";
+}
+
+// Helper: get user's handicap index
+async function getUserHandicapIndex(userId: number): Promise<number | null> {
+  // Check linked handicap first
+  const linked = await prisma.linkedHandicap.findUnique({ where: { userId } });
+  if (linked) return linked.handicapIndex;
+
+  // Calculate from rounds
+  const rounds = await prisma.round.findMany({
+    where: { userId, completedAt: { not: null } },
+    include: {
+      course: { select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } } },
+      roundHoles: { select: { strokes: true } },
+    },
+    orderBy: { playedAt: "desc" },
+    take: 20,
+  });
+
+  const diffs = calculateDifferentials(rounds);
+  const calc = calculateHandicapIndex(diffs);
+  return calc?.handicapIndex ?? null;
+}
+
+// ── POST /competitions — create a competition ─────────────────────────────────
+
+const createSchema = z.object({
+  name: z.string().min(1).max(50),
+  courseId: z.number().int().optional(),
+  startDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
+  endDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
+  scoringType: z.enum(["NET", "GROSS"]).default("NET"),
+  inviteUserIds: z.array(z.number().int()).optional(),
+});
+
+router.post("/", async (req: AuthRequest, res: Response) => {
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+    return;
+  }
+
+  const { name, courseId, startDate: startStr, endDate: endStr, scoringType, inviteUserIds } = parsed.data;
+  const startDate = new Date(startStr);
+  const endDate = new Date(endStr);
+
+  if (endDate <= startDate) {
+    res.status(400).json({ error: "End date must be after start date" });
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (startDate < today) {
+    res.status(400).json({ error: "Start date cannot be in the past" });
+    return;
+  }
+
+  if (courseId) {
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) {
+      res.status(404).json({ error: "Course not found" });
+      return;
+    }
+  }
+
+  try {
+    const comp = await prisma.competition.create({
+      data: {
+        name,
+        creatorId: req.userId!,
+        courseId: courseId ?? null,
+        startDate,
+        endDate,
+        scoringType,
+        participants: {
+          create: { userId: req.userId!, status: "ACCEPTED" },
+        },
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        participants: { select: { userId: true, status: true } },
+      },
+    });
+
+    // Invite friends if provided
+    if (inviteUserIds && inviteUserIds.length > 0) {
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          status: "ACCEPTED",
+          OR: [
+            { requesterId: req.userId!, addresseeId: { in: inviteUserIds } },
+            { addresseeId: req.userId!, requesterId: { in: inviteUserIds } },
+          ],
+        },
+      });
+      const friendIdSet = new Set(
+        friendships.map((f) => (f.requesterId === req.userId! ? f.addresseeId : f.requesterId))
+      );
+      const validIds = inviteUserIds.filter((id) => friendIdSet.has(id));
+
+      if (validIds.length > 0) {
+        await prisma.competitionParticipant.createMany({
+          data: validIds.map((userId) => ({ competitionId: comp.id, userId, status: "INVITED" as const })),
+          skipDuplicates: true,
+        });
+
+        const creator = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+        for (const userId of validIds) {
+          sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${name}`, `/competitions/${comp.id}`).catch(() => {});
+        }
+      }
+    }
+
+    res.status(201).json({ ...comp, status: compStatus(comp.startDate, comp.endDate) });
+  } catch (err) {
+    console.error("POST /competitions error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── POST /competitions/:id/invite ─────────────────────────────────────────────
+
+const inviteSchema = z.object({
+  userIds: z.array(z.number().int()).min(1),
+});
+
+router.post("/:id/invite", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+  const parsed = inviteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: compId },
+    include: { participants: { select: { userId: true } } },
+  });
+
+  if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
+  if (comp.creatorId !== req.userId!) { res.status(403).json({ error: "Only the creator can invite" }); return; }
+
+  const { userIds } = parsed.data;
+  const existingIds = new Set(comp.participants.map((p) => p.userId));
+  const newIds = userIds.filter((id) => !existingIds.has(id));
+
+  // Verify all are accepted friends
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [
+        { requesterId: req.userId!, addresseeId: { in: newIds } },
+        { addresseeId: req.userId!, requesterId: { in: newIds } },
+      ],
+    },
+  });
+  const friendIdSet = new Set(
+    friendships.map((f) => (f.requesterId === req.userId! ? f.addresseeId : f.requesterId))
+  );
+  const validIds = newIds.filter((id) => friendIdSet.has(id));
+
+  if (validIds.length === 0) {
+    res.status(400).json({ error: "No valid friends to invite" });
+    return;
+  }
+
+  await prisma.competitionParticipant.createMany({
+    data: validIds.map((userId) => ({ competitionId: compId, userId, status: "INVITED" as const })),
+    skipDuplicates: true,
+  });
+
+  const creator = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+  for (const userId of validIds) {
+    sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${comp.name}`, `/competitions/${compId}`).catch(() => {});
+  }
+
+  res.json({ invited: validIds.length });
+});
+
+// ── POST /competitions/:id/respond ────────────────────────────────────────────
+
+const respondSchema = z.object({
+  response: z.enum(["ACCEPTED", "DECLINED"]),
+});
+
+router.post("/:id/respond", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+  const parsed = respondSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid response" });
+    return;
+  }
+
+  const participant = await prisma.competitionParticipant.findUnique({
+    where: { competitionId_userId: { competitionId: compId, userId: req.userId! } },
+  });
+
+  if (!participant) { res.status(404).json({ error: "Invitation not found" }); return; }
+  if (participant.status !== "INVITED") { res.status(400).json({ error: "Already responded" }); return; }
+
+  await prisma.competitionParticipant.update({
+    where: { id: participant.id },
+    data: { status: parsed.data.response },
+  });
+
+  res.json({ status: parsed.data.response });
+});
+
+// ── POST /competitions/:id/submit-round ───────────────────────────────────────
+
+const submitSchema = z.object({
+  roundId: z.number().int(),
+});
+
+router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+  const parsed = submitSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: compId },
+    include: { course: { select: { id: true, slopeRating: true } } },
+  });
+  if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
+
+  const status = compStatus(comp.startDate, comp.endDate);
+  if (status !== "ACTIVE") {
+    res.status(400).json({ error: "Competition is not currently active" });
+    return;
+  }
+
+  const participant = await prisma.competitionParticipant.findUnique({
+    where: { competitionId_userId: { competitionId: compId, userId: req.userId! } },
+  });
+  if (!participant || participant.status !== "ACCEPTED") {
+    res.status(403).json({ error: "You must accept the invitation first" });
+    return;
+  }
+
+  // Check if user already submitted
+  const existing = await prisma.competitionRound.findFirst({
+    where: { competitionId: compId, userId: req.userId! },
+  });
+  if (existing) {
+    res.status(400).json({ error: "You already submitted a round to this competition" });
+    return;
+  }
+
+  const round = await prisma.round.findUnique({
+    where: { id: parsed.data.roundId },
+    include: {
+      course: { select: { id: true, slopeRating: true, courseRating: true, holes: { select: { par: true } } } },
+      roundHoles: { select: { strokes: true, hole: { select: { par: true } } } },
+    },
+  });
+
+  if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+  if (round.userId !== req.userId!) { res.status(403).json({ error: "Round does not belong to you" }); return; }
+  if (!round.completedAt) { res.status(400).json({ error: "Round is not completed" }); return; }
+
+  // Check date window
+  const playedAt = new Date(round.playedAt);
+  if (playedAt < comp.startDate || playedAt > comp.endDate) {
+    res.status(400).json({ error: "Round was not played within the competition window" });
+    return;
+  }
+
+  // Check course match
+  if (comp.courseId && round.courseId !== comp.courseId) {
+    res.status(400).json({ error: "Round was played at a different course" });
+    return;
+  }
+
+  // Check not already submitted to this comp
+  const dupCheck = await prisma.competitionRound.findUnique({
+    where: { competitionId_roundId: { competitionId: compId, roundId: round.id } },
+  });
+  if (dupCheck) {
+    res.status(400).json({ error: "This round is already submitted to this competition" });
+    return;
+  }
+
+  // Calculate scores
+  const grossScore = round.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+  const totalPar = round.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+  const scoreToPar = grossScore - totalPar;
+
+  let netScore: number | null = null;
+  let netScoreToPar: number | null = null;
+
+  if (comp.scoringType === "NET") {
+    const handicapIndex = await getUserHandicapIndex(req.userId!);
+    if (handicapIndex != null) {
+      const slope = round.course.slopeRating ?? 113;
+      const courseHandicap = Math.round(handicapIndex * slope / 113);
+      netScore = grossScore - courseHandicap;
+      netScoreToPar = parseFloat((scoreToPar - courseHandicap).toFixed(1));
+    } else {
+      // No handicap — net equals gross
+      netScore = grossScore;
+      netScoreToPar = scoreToPar;
+    }
+  }
+
+  const compRound = await prisma.competitionRound.create({
+    data: {
+      competitionId: compId,
+      roundId: round.id,
+      userId: req.userId!,
+      grossScore,
+      netScore,
+      scoreToPar,
+      netScoreToPar,
+    },
+  });
+
+  // Notify other participants
+  const otherParticipants = await prisma.competitionParticipant.findMany({
+    where: { competitionId: compId, status: "ACCEPTED", userId: { not: req.userId! } },
+    select: { userId: true },
+  });
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+  const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
+  for (const p of otherParticipants) {
+    sendPushToUser(p.userId, comp.name, `${user?.name} posted a ${scoreStr}`, `/competitions/${compId}`).catch(() => {});
+  }
+
+  res.status(201).json(compRound);
+});
+
+// ── GET /competitions — list user's competitions ──────────────────────────────
+
+router.get("/", async (req: AuthRequest, res: Response) => {
+  try {
+    const comps = await prisma.competition.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: req.userId!,
+            status: { in: ["ACCEPTED", "INVITED"] },
+          },
+        },
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        participants: { select: { userId: true, status: true } },
+        rounds: { select: { userId: true } },
+        creator: { select: { name: true } },
+      },
+      orderBy: { startDate: "desc" },
+    });
+
+    // Check for completed comps that haven't sent notifications
+    for (const comp of comps) {
+      if (!comp.notificationSent && compStatus(comp.startDate, comp.endDate) === "COMPLETED") {
+        // Send end-of-comp notification
+        prisma.competition.update({
+          where: { id: comp.id },
+          data: { notificationSent: true },
+        }).then(() => {
+          const accepted = comp.participants.filter((p) => p.status === "ACCEPTED");
+          for (const p of accepted) {
+            sendPushToUser(p.userId, "Competition Ended", `${comp.name} is over! Check the final results`, `/competitions/${comp.id}`).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }
+
+    const myParticipant = (comp: typeof comps[0]) =>
+      comp.participants.find((p) => p.userId === req.userId!);
+
+    const mapped = comps.map((comp) => ({
+      id: comp.id,
+      name: comp.name,
+      creatorName: comp.creator.name,
+      creatorId: comp.creatorId,
+      course: comp.course,
+      startDate: comp.startDate,
+      endDate: comp.endDate,
+      scoringType: comp.scoringType,
+      status: compStatus(comp.startDate, comp.endDate),
+      participantCount: comp.participants.filter((p) => p.status === "ACCEPTED").length,
+      invitedCount: comp.participants.filter((p) => p.status === "INVITED").length,
+      myStatus: myParticipant(comp)?.status ?? null,
+      hasSubmitted: comp.rounds.some((r) => r.userId === req.userId!),
+    }));
+
+    const active = mapped.filter((c) => c.status === "ACTIVE");
+    const upcoming = mapped.filter((c) => c.status === "UPCOMING");
+    const completed = mapped.filter((c) => c.status === "COMPLETED");
+
+    res.json({ active, upcoming, completed });
+  } catch (err) {
+    console.error("GET /competitions error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── GET /competitions/:id — competition detail with leaderboard ───────────────
+
+router.get("/:id", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+
+  try {
+    const comp = await prisma.competition.findUnique({
+      where: { id: compId },
+      include: {
+        course: { select: { id: true, name: true } },
+        creator: { select: { id: true, name: true } },
+        participants: {
+          include: { user: { select: { id: true, name: true } } },
+        },
+        rounds: {
+          include: {
+            user: { select: { id: true, name: true } },
+            round: {
+              select: {
+                playedAt: true,
+                course: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
+
+    // Check user is a participant
+    const myParticipant = comp.participants.find((p) => p.userId === req.userId!);
+    if (!myParticipant) { res.status(403).json({ error: "Not a participant" }); return; }
+
+    const status = compStatus(comp.startDate, comp.endDate);
+
+    // Build leaderboard
+    const sortField = comp.scoringType === "NET" ? "netScoreToPar" : "scoreToPar";
+    const sortedRounds = [...comp.rounds].sort((a, b) => {
+      const aVal = comp.scoringType === "NET" ? (a.netScoreToPar ?? a.scoreToPar) : a.scoreToPar;
+      const bVal = comp.scoringType === "NET" ? (b.netScoreToPar ?? b.scoreToPar) : b.scoreToPar;
+      return aVal - bVal;
+    });
+
+    const leaderboard = sortedRounds.map((cr, idx) => ({
+      rank: idx + 1,
+      userId: cr.userId,
+      name: cr.user.name,
+      grossScore: cr.grossScore,
+      netScore: cr.netScore,
+      scoreToPar: cr.scoreToPar,
+      netScoreToPar: cr.netScoreToPar,
+      courseName: cr.round.course.name,
+      playedAt: cr.round.playedAt,
+    }));
+
+    // Participants who haven't submitted
+    const submittedUserIds = new Set(comp.rounds.map((r) => r.userId));
+    const noSubmission = comp.participants
+      .filter((p) => p.status === "ACCEPTED" && !submittedUserIds.has(p.userId))
+      .map((p) => ({ userId: p.userId, name: p.user.name }));
+
+    const participants = comp.participants.map((p) => ({
+      userId: p.userId,
+      name: p.user.name,
+      status: p.status,
+    }));
+
+    res.json({
+      id: comp.id,
+      name: comp.name,
+      creator: comp.creator,
+      course: comp.course,
+      startDate: comp.startDate,
+      endDate: comp.endDate,
+      scoringType: comp.scoringType,
+      status,
+      participants,
+      leaderboard,
+      noSubmission,
+      myStatus: myParticipant.status,
+      hasSubmitted: submittedUserIds.has(req.userId!),
+    });
+  } catch (err) {
+    console.error("GET /competitions/:id error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── GET /competitions/:id/eligible-rounds — rounds user can submit ────────────
+
+router.get("/:id/eligible-rounds", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+
+  const comp = await prisma.competition.findUnique({ where: { id: compId } });
+  if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
+
+  // Already submitted rounds to this comp
+  const submitted = await prisma.competitionRound.findMany({
+    where: { competitionId: compId },
+    select: { roundId: true },
+  });
+  const submittedIds = new Set(submitted.map((r) => r.roundId));
+
+  const rounds = await prisma.round.findMany({
+    where: {
+      userId: req.userId!,
+      completedAt: { not: null },
+      playedAt: { gte: comp.startDate, lte: comp.endDate },
+      ...(comp.courseId ? { courseId: comp.courseId } : {}),
+    },
+    include: {
+      course: { select: { name: true, holes: { select: { par: true } } } },
+      roundHoles: { select: { strokes: true, hole: { select: { par: true } } } },
+    },
+    orderBy: { playedAt: "desc" },
+  });
+
+  const eligible = rounds
+    .filter((r) => !submittedIds.has(r.id))
+    .map((r) => {
+      const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+      const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+      return {
+        id: r.id,
+        courseName: r.course.name,
+        playedAt: r.playedAt,
+        totalStrokes,
+        scoreToPar: totalStrokes - totalPar,
+        holesPlayed: r.roundHoles.length,
+      };
+    });
+
+  res.json(eligible);
+});
+
+// ── DELETE /competitions/:id ──────────────────────────────────────────────────
+
+router.delete("/:id", async (req: AuthRequest, res: Response) => {
+  const compId = String(req.params.id);
+
+  const comp = await prisma.competition.findUnique({
+    where: { id: compId },
+    include: { rounds: { select: { id: true } } },
+  });
+
+  if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
+  if (comp.creatorId !== req.userId!) { res.status(403).json({ error: "Only the creator can delete" }); return; }
+
+  const status = compStatus(comp.startDate, comp.endDate);
+  if (status !== "UPCOMING") {
+    res.status(400).json({ error: "Can only delete upcoming competitions" });
+    return;
+  }
+
+  await prisma.competition.delete({ where: { id: compId } });
+  res.json({ success: true });
+});
+
+export default router;

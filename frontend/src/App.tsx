@@ -27,6 +27,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import SharedScorecardPage from './pages/SharedScorecardPage'
 import FriendsPage from './pages/FriendsPage'
 import FeedPage from './pages/FeedPage'
+import CompetitionsPage from './pages/CompetitionsPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -84,6 +85,14 @@ function Layout() {
         <Route
           path="/friends"
           element={<ProtectedRoute><FriendsPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/competitions"
+          element={<ProtectedRoute><CompetitionsPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/competitions/:id"
+          element={<ProtectedRoute><CompetitionsPage /></ProtectedRoute>}
         />
         <Route
           path="/stats"

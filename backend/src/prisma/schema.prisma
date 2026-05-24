@@ -9,21 +9,24 @@ datasource db {
 }
 
 model User {
-  id                Int              @id @default(autoincrement())
-  email             String           @unique
-  passwordHash      String?
-  googleId          String?          @unique
-  name              String
-  emailVerified          Boolean          @default(false)
-  verificationToken      String?          @unique
-  hasCompletedOnboarding Boolean          @default(false)
-  createdAt              DateTime         @default(now())
-  rounds            Round[]
-  refreshTokens     RefreshToken[]
-  linkedHandicap    LinkedHandicap?
-  sentRequests      Friendship[]     @relation("requester")
-  receivedRequests  Friendship[]     @relation("addressee")
-  pushSubscriptions PushSubscription[]
+  id                     Int                      @id @default(autoincrement())
+  email                  String                   @unique
+  passwordHash           String?
+  googleId               String?                  @unique
+  name                   String
+  emailVerified          Boolean                  @default(false)
+  verificationToken      String?                  @unique
+  hasCompletedOnboarding Boolean                  @default(false)
+  createdAt              DateTime                 @default(now())
+  rounds                 Round[]
+  refreshTokens          RefreshToken[]
+  linkedHandicap         LinkedHandicap?
+  sentRequests           Friendship[]             @relation("requester")
+  receivedRequests       Friendship[]             @relation("addressee")
+  pushSubscriptions      PushSubscription[]
+  createdCompetitions    Competition[]            @relation("competitionCreator")
+  competitionEntries     CompetitionParticipant[]
+  competitionRounds      CompetitionRound[]
 }
 
 enum FriendshipStatus {
@@ -68,13 +71,14 @@ model RefreshToken {
 }
 
 model Course {
-  id           Int     @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   name         String
   externalId   String? @unique
-  courseRating Float?
+  courseRating  Float?
   slopeRating  Int?
   holes        Hole[]
   rounds       Round[]
+  competitions Competition[]
 }
 
 model Hole {
@@ -92,15 +96,16 @@ model Hole {
 }
 
 model Round {
-  id          Int         @id @default(autoincrement())
-  shareId     String?     @unique
-  playedAt    DateTime    @default(now())
-  completedAt DateTime?
-  userId      Int
-  courseId     Int
-  user        User        @relation(fields: [userId], references: [id])
-  course      Course      @relation(fields: [courseId], references: [id])
-  roundHoles  RoundHole[]
+  id               Int                @id @default(autoincrement())
+  shareId          String?            @unique
+  playedAt         DateTime           @default(now())
+  completedAt      DateTime?
+  userId           Int
+  courseId          Int
+  user             User               @relation(fields: [userId], references: [id])
+  course           Course             @relation(fields: [courseId], references: [id])
+  roundHoles       RoundHole[]
+  competitionRounds CompetitionRound[]
 }
 
 model PushSubscription {
@@ -114,6 +119,66 @@ model PushSubscription {
 
   @@unique([userId, endpoint])
 }
+
+// ── Competitions ──────────────────────────────────────────────────────────────
+
+enum ScoringType {
+  NET
+  GROSS
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+}
+
+model Competition {
+  id               String                   @id @default(uuid())
+  name             String
+  creatorId        Int
+  courseId          Int?
+  startDate        DateTime
+  endDate          DateTime
+  scoringType      ScoringType              @default(NET)
+  notificationSent Boolean                  @default(false)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  creator          User                     @relation("competitionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  course           Course?                  @relation(fields: [courseId], references: [id])
+  participants     CompetitionParticipant[]
+  rounds           CompetitionRound[]
+}
+
+model CompetitionParticipant {
+  id            String            @id @default(uuid())
+  competitionId String
+  userId        Int
+  status        ParticipantStatus @default(INVITED)
+  createdAt     DateTime          @default(now())
+  competition   Competition       @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+}
+
+model CompetitionRound {
+  id            String      @id @default(uuid())
+  competitionId String
+  roundId       Int
+  userId        Int
+  grossScore    Int
+  netScore      Float?
+  scoreToPar    Int
+  netScoreToPar Float?
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, roundId])
+}
+
+// ── Round Scoring ─────────────────────────────────────────────────────────────
 
 model RoundHole {
   id               Int     @id @default(autoincrement())

@@ -250,3 +250,70 @@ export interface UserSearchResult {
   isPending: boolean
   isBlocked: boolean
 }
+
+// ── Competitions ──────────────────────────────────────────────────────────────
+
+export interface CompetitionSummary {
+  id: string
+  name: string
+  creatorName: string
+  creatorId: number
+  course: { id: number; name: string } | null
+  startDate: string
+  endDate: string
+  scoringType: 'NET' | 'GROSS'
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
+  participantCount: number
+  invitedCount: number
+  myStatus: 'INVITED' | 'ACCEPTED' | 'DECLINED' | null
+  hasSubmitted: boolean
+}
+
+export interface CompetitionsListResponse {
+  active: CompetitionSummary[]
+  upcoming: CompetitionSummary[]
+  completed: CompetitionSummary[]
+}
+
+export interface CompetitionLeaderboardEntry {
+  rank: number
+  userId: number
+  name: string
+  grossScore: number
+  netScore: number | null
+  scoreToPar: number
+  netScoreToPar: number | null
+  courseName: string
+  playedAt: string
+}
+
+export interface CompetitionParticipant {
+  userId: number
+  name: string
+  status: 'INVITED' | 'ACCEPTED' | 'DECLINED'
+}
+
+export interface CompetitionDetail {
+  id: string
+  name: string
+  creator: { id: number; name: string }
+  course: { id: number; name: string } | null
+  startDate: string
+  endDate: string
+  scoringType: 'NET' | 'GROSS'
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
+  participants: CompetitionParticipant[]
+  leaderboard: CompetitionLeaderboardEntry[]
+  noSubmission: { userId: number; name: string }[]
+  myStatus: 'INVITED' | 'ACCEPTED' | 'DECLINED'
+  hasSubmitted: boolean
+}
+
+export interface EligibleRound {
+  id: number
+  courseName: string
+  playedAt: string
+  totalStrokes: number
+  scoreToPar: number
+  holesPlayed: number
+}

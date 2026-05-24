@@ -58,7 +58,7 @@ export default function OnboardingFlow() {
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: isMobile ? '100dvh' : 480 }}>
         {/* Content area */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 3, py: 4, textAlign: 'center', overflow: 'auto' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'center' }, px: 3, pt: { xs: 8, sm: 4 }, pb: 4, textAlign: 'center', overflow: 'auto' }}>
           {step === 0 && (
             <>
               <GolfCourseIcon sx={{ fontSize: 64, color: '#c9a84c', mb: 3 }} />

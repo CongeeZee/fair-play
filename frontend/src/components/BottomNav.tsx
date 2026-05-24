@@ -2,7 +2,7 @@ import { Paper, BottomNavigation, BottomNavigationAction, Badge } from '@mui/mat
 import HomeIcon from '@mui/icons-material/Home'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import HistoryIcon from '@mui/icons-material/History'
-import BarChartIcon from '@mui/icons-material/BarChart'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PeopleIcon from '@mui/icons-material/People'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -26,8 +26,8 @@ function FriendsIcon() {
 const NAV_ITEMS = [
   { label: 'Feed', to: '/feed', icon: <HomeIcon /> },
   { label: 'Courses', to: '/courses', icon: <GolfCourseIcon /> },
+  { label: 'Comps', to: '/competitions', icon: <EmojiEventsIcon /> },
   { label: 'History', to: '/history', icon: <HistoryIcon /> },
-  { label: 'Stats', to: '/stats', icon: <BarChartIcon /> },
   { label: 'Friends', to: '/friends', icon: <FriendsIcon /> },
 ]
 
