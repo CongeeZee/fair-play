@@ -405,3 +405,44 @@ export interface TeeTimeDetail {
   myStatus: 'CONFIRMED' | 'INVITED' | 'REQUESTED' | 'DECLINED' | 'WITHDRAWN' | null
   canJoin: boolean
 }
+
+// ── Live Rounds ──────────────────────────────────────────────────────────────
+
+export interface LiveRound {
+  roundId: number
+  shareId: string | null
+  playerName: string
+  courseName: string
+  holesCompleted: number
+  totalHoles: number
+  currentScoreToPar: number
+  lastScoredAt: string
+  currentHoleNumber: number
+}
+
+export interface LiveRoundsResponse {
+  liveRounds: LiveRound[]
+  ownLiveRound: LiveRound | null
+}
+
+export interface LiveScorecardHole {
+  number: number
+  par: number
+  distance: number
+  strokes: number | null
+  scoreToPar: number | null
+}
+
+export interface LiveScorecard {
+  roundId: number
+  shareId: string | null
+  playerName: string
+  courseName: string
+  holes: LiveScorecardHole[]
+  holesCompleted: number
+  totalHoles: number
+  currentScoreToPar: number
+  lastScoredAt: string | null
+  completedAt: string | null
+  playedAt: string
+}

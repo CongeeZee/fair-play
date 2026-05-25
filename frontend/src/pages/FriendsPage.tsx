@@ -14,12 +14,22 @@ import {
   getFriends, getFriendRequests, searchUsers,
   sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend,
 } from '../api/friends'
+import { getLiveRounds } from '../api/live'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 
 function FriendsTab() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { data: friends, isLoading } = useQuery({ queryKey: ['friends'], queryFn: getFriends })
+  const { data: liveData } = useQuery({ queryKey: ['live-rounds'], queryFn: getLiveRounds })
   const [removeTarget, setRemoveTarget] = useState<{ friendshipId: string; name: string } | null>(null)
+
+  // Map friend names to live rounds for badge display
+  const liveByName = new Map<string, { roundId: number; courseName: string }>()
+  for (const r of liveData?.liveRounds ?? []) {
+    liveByName.set(r.playerName, { roundId: r.roundId, courseName: r.courseName })
+  }
 
   const removeMutation = useMutation({
     mutationFn: removeFriend,
@@ -42,22 +52,41 @@ function FriendsTab() {
   return (
     <>
       <List disablePadding>
-        {friends.map((f) => (
-          <ListItem
-            key={f.friendshipId}
-            divider
-            secondaryAction={
-              <IconButton edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
-                <PersonRemoveIcon fontSize="small" />
-              </IconButton>
-            }
-          >
-            <ListItemText
-              primary={f.name}
-              secondary={f.handicapIndex != null ? `Handicap: ${f.handicapIndex.toFixed(1)}` : 'No handicap'}
-            />
-          </ListItem>
-        ))}
+        {friends.map((f) => {
+          const live = liveByName.get(f.name)
+          return (
+            <ListItem
+              key={f.friendshipId}
+              divider
+              secondaryAction={
+                <IconButton edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
+                  <PersonRemoveIcon fontSize="small" />
+                </IconButton>
+              }
+            >
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {f.name}
+                    {live && (
+                      <Chip
+                        label={`Playing`}
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/live/${live.roundId}`) }}
+                        sx={{
+                          height: 20, fontSize: '0.6rem', fontWeight: 700,
+                          bgcolor: 'rgba(76,175,80,0.15)', color: '#2e7d32',
+                          cursor: 'pointer',
+                        }}
+                      />
+                    )}
+                  </Box>
+                }
+                secondary={live ? live.courseName.replace(/\s*—.*$/, '') : (f.handicapIndex != null ? `Handicap: ${f.handicapIndex.toFixed(1)}` : 'No handicap')}
+              />
+            </ListItem>
+          )
+        })}
       </List>
 
       <Dialog open={!!removeTarget} onClose={() => setRemoveTarget(null)}>

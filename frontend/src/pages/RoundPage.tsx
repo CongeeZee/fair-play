@@ -23,6 +23,7 @@ import Snackbar from '@mui/material/Snackbar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
+import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
 import type { RoundHole } from '../types'
@@ -475,6 +476,14 @@ export default function RoundPage() {
     queryFn: () => getRound(id!),
   })
 
+  // Check if user has friends (to show "Live to friends" indicator)
+  const { data: liveData } = useQuery({
+    queryKey: ['live-rounds'],
+    queryFn: getLiveRounds,
+    staleTime: 5 * 60_000,
+  })
+  const hasFriends = (liveData?.liveRounds?.length ?? 0) > 0 || liveData?.ownLiveRound != null
+
   useEffect(() => {
     if (round?.roundHoles) {
       const initial: Record<string, HoleScoreState> = {}
@@ -625,6 +634,20 @@ export default function RoundPage() {
     <OfflineBanner syncState={syncState} pendingCount={pendingCount} />
 
     <Container maxWidth="sm" sx={{ py: 3 }}>
+      {/* Live to friends indicator */}
+      {hasFriends && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, px: 0.5 }}>
+          <Box sx={{
+            width: 7, height: 7, borderRadius: '50%', bgcolor: '#4caf50',
+            animation: 'pulse 2s infinite',
+            '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
+          }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem' }}>
+            Live to friends
+          </Typography>
+        </Box>
+      )}
+
       {/* Header */}
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>

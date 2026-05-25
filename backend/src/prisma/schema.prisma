@@ -101,18 +101,23 @@ model Hole {
 }
 
 model Round {
-  id               Int                @id @default(autoincrement())
-  shareId          String?            @unique
-  playedAt         DateTime           @default(now())
-  completedAt      DateTime?
-  userId           Int
-  courseId          Int
-  user             User               @relation(fields: [userId], references: [id])
-  course           Course             @relation(fields: [courseId], references: [id])
-  roundHoles       RoundHole[]
-  competitionRounds CompetitionRound[]
-  reactions        RoundReaction[]
-  comments         RoundComment[]
+  id                    Int                @id @default(autoincrement())
+  shareId               String?            @unique
+  playedAt              DateTime           @default(now())
+  completedAt           DateTime?
+  lastScoredAt          DateTime?
+  startNotificationSent Boolean            @default(false)
+  userId                Int
+  courseId               Int
+  user                  User               @relation(fields: [userId], references: [id])
+  course                Course             @relation(fields: [courseId], references: [id])
+  roundHoles            RoundHole[]
+  competitionRounds     CompetitionRound[]
+  reactions             RoundReaction[]
+  comments              RoundComment[]
+
+  @@index([userId, completedAt])
+  @@index([lastScoredAt])
 }
 
 // ── Reactions & Comments ─────────────────────────────────────────────────────

@@ -30,6 +30,7 @@ import FeedPage from './pages/FeedPage'
 import CompetitionsPage from './pages/CompetitionsPage'
 import TeeTimesPage from './pages/TeeTimesPage'
 import PlayPage from './pages/PlayPage'
+import LiveScorecardPage from './pages/LiveScorecardPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -91,6 +92,10 @@ function Layout() {
         <Route
           path="/play"
           element={<ProtectedRoute><PlayPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/live/:roundId"
+          element={<ProtectedRoute><LiveScorecardPage /></ProtectedRoute>}
         />
         <Route
           path="/teetimes"

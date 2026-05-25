@@ -99,6 +99,150 @@ router.get("/shared/:shareId", async (req, res: Response) => {
 // All remaining round routes require a valid JWT
 router.use(requireAuth);
 
+// GET /rounds/live — in-progress rounds from friends
+router.get("/live", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+
+    // Get friend IDs (excluding blocked)
+    const friendships = await prisma.friendship.findMany({
+      where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
+
+    const blocks = await prisma.friendship.findMany({
+      where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      select: { requesterId: true, addresseeId: true },
+    });
+    const blockedIds = new Set(blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId)));
+    const activeFriendIds = friendIds.filter((id) => !blockedIds.has(id));
+
+    // Fetch live rounds from friends
+    const liveRounds = activeFriendIds.length > 0
+      ? await prisma.round.findMany({
+          where: {
+            userId: { in: activeFriendIds },
+            completedAt: null,
+            lastScoredAt: { gte: fourHoursAgo },
+          },
+          include: {
+            user: { select: { name: true } },
+            course: { select: { name: true, holes: { select: { number: true, par: true } } } },
+            roundHoles: { select: { strokes: true, hole: { select: { number: true, par: true } } } },
+          },
+          orderBy: { lastScoredAt: "desc" },
+        })
+      : [];
+
+    // Also get user's own in-progress round
+    const ownRound = await prisma.round.findFirst({
+      where: { userId, completedAt: null, lastScoredAt: { gte: fourHoursAgo } },
+      include: {
+        user: { select: { name: true } },
+        course: { select: { name: true, holes: { select: { number: true, par: true } } } },
+        roundHoles: { select: { strokes: true, hole: { select: { number: true, par: true } } } },
+      },
+      orderBy: { lastScoredAt: "desc" },
+    });
+
+    const formatLiveRound = (r: typeof liveRounds[0]) => {
+      const holesCompleted = r.roundHoles.length;
+      const currentScoreToPar = r.roundHoles.reduce((s, rh) => s + (rh.strokes - rh.hole.par), 0);
+      const currentHoleNumber = r.roundHoles.length > 0
+        ? Math.max(...r.roundHoles.map((rh) => rh.hole.number))
+        : 0;
+      return {
+        roundId: r.id,
+        shareId: r.shareId,
+        playerName: r.user.name,
+        courseName: r.course.name,
+        holesCompleted,
+        totalHoles: r.course.holes.length,
+        currentScoreToPar,
+        lastScoredAt: r.lastScoredAt,
+        currentHoleNumber,
+      };
+    };
+
+    const friends = liveRounds.map(formatLiveRound);
+    const own = ownRound ? formatLiveRound(ownRound) : null;
+
+    res.json({ liveRounds: friends, ownLiveRound: own });
+  } catch (err) {
+    console.error("GET /rounds/live error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /rounds/:id/live-scorecard — lightweight in-progress scorecard for spectators
+router.get("/:id/live-scorecard", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const roundId = parseInt(String(req.params.id), 10);
+    if (isNaN(roundId)) { res.status(400).json({ error: "Invalid round ID" }); return; }
+
+    const round = await prisma.round.findUnique({
+      where: { id: roundId },
+      include: {
+        user: { select: { name: true } },
+        course: { select: { name: true, holes: { orderBy: { number: "asc" }, select: { number: true, par: true, distance: true } } } },
+        roundHoles: { include: { hole: { select: { number: true, par: true } } }, orderBy: { hole: { number: "asc" } } },
+      },
+    });
+
+    if (!round) { res.status(404).json({ error: "Round not found" }); return; }
+
+    // Access check: must be friend or self
+    if (round.userId !== userId) {
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          status: "ACCEPTED",
+          OR: [
+            { requesterId: userId, addresseeId: round.userId },
+            { requesterId: round.userId, addresseeId: userId },
+          ],
+        },
+      });
+      if (!friendship) { res.status(403).json({ error: "Not authorized" }); return; }
+    }
+
+    const holes = round.course.holes.map((hole) => {
+      const rh = round.roundHoles.find((rh) => rh.hole.number === hole.number);
+      return {
+        number: hole.number,
+        par: hole.par,
+        distance: hole.distance,
+        strokes: rh?.strokes ?? null,
+        scoreToPar: rh ? rh.strokes - hole.par : null,
+      };
+    });
+
+    const scoredHoles = round.roundHoles;
+    const currentScoreToPar = scoredHoles.reduce((s, rh) => s + (rh.strokes - rh.hole.par), 0);
+    const holesCompleted = scoredHoles.length;
+    const totalHoles = round.course.holes.length;
+
+    res.json({
+      roundId: round.id,
+      shareId: round.shareId,
+      playerName: round.user.name,
+      courseName: round.course.name,
+      holes,
+      holesCompleted,
+      totalHoles,
+      currentScoreToPar,
+      lastScoredAt: round.lastScoredAt,
+      completedAt: round.completedAt,
+      playedAt: round.playedAt,
+    });
+  } catch (err) {
+    console.error("GET /rounds/:id/live-scorecard error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /rounds/feed — friends' recent completed rounds
 router.get("/feed", async (req: AuthRequest, res: Response) => {
   try {
@@ -905,6 +1049,9 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
     const { strokes, putts, teeShotDirection, teeShotDistance, approachResult, sandShots, penalties, hazards } = result.data;
     const holeData = { strokes, putts, teeShotDirection, teeShotDistance, approachResult, sandShots, penalties, hazards };
 
+    // Check scored count before upsert (for start notification)
+    const prevScoredCount = await prisma.roundHole.count({ where: { roundId } });
+
     // Upsert — re-submitting a score corrects it rather than errors
     const roundHole = await prisma.roundHole.upsert({
       where: { roundId_holeId: { roundId, holeId } },
@@ -913,7 +1060,34 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
       include: { hole: true },
     });
 
+    // Update lastScoredAt heartbeat
+    await prisma.round.update({
+      where: { id: roundId },
+      data: { lastScoredAt: new Date() },
+    });
+
     res.json(roundHole);
+
+    // Send "round started" notification on first hole scored
+    if (prevScoredCount === 0 && !round.startNotificationSent) {
+      await prisma.round.update({
+        where: { id: roundId },
+        data: { startNotificationSent: true },
+      });
+      const player = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+      const course = await prisma.course.findUnique({ where: { id: round.courseId }, select: { name: true } });
+      if (player && course) {
+        const courseName = course.name.replace(/\s*—.*$/, "");
+        const friendships = await prisma.friendship.findMany({
+          where: { status: "ACCEPTED", OR: [{ requesterId: req.userId! }, { addresseeId: req.userId! }] },
+          select: { requesterId: true, addresseeId: true },
+        });
+        for (const f of friendships) {
+          const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
+          sendPushToUser(friendId, "Fairplay", `${player.name} just started a round at ${courseName}`, `/live/${roundId}`).catch(() => {});
+        }
+      }
+    }
 
     // Check if round just became complete (all holes scored, not previously completed)
     if (!round.completedAt) {

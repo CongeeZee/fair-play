@@ -14,12 +14,13 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import CloseIcon from '@mui/icons-material/Close'
 import { Link, useNavigate } from 'react-router-dom'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getFeed } from '../api/rounds'
 import { joinTeeTime } from '../api/teetimes'
 import { addComment } from '../api/reactions'
+import { getLiveRounds } from '../api/live'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment } from '../types'
+import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound } from '../types'
 import PageHeader from '../components/PageHeader'
 import ReactionBar from '../components/ReactionBar'
 import { usePushNotifications } from '../hooks/usePushNotifications'
@@ -34,6 +35,61 @@ function scoreColor(scoreToPar: number) {
 function scoreLabel(scoreToPar: number) {
   if (scoreToPar === 0) return 'E'
   return scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`
+}
+
+function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
+  const navigate = useNavigate()
+  if (rounds.length === 0) return null
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        <Box sx={{
+          width: 8, height: 8, borderRadius: '50%', bgcolor: '#4caf50',
+          animation: 'pulse 2s infinite',
+          '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
+        }} />
+        Live Now
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5 }}>
+        {rounds.map((r) => (
+          <Card
+            key={r.roundId}
+            elevation={1}
+            onClick={() => navigate(`/live/${r.roundId}`)}
+            sx={{ minWidth: 200, cursor: 'pointer', borderRadius: 2, border: '1px solid rgba(76,175,80,0.3)', flexShrink: 0 }}
+          >
+            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                <Box sx={{
+                  width: 6, height: 6, borderRadius: '50%', bgcolor: '#4caf50',
+                  animation: 'pulse 2s infinite',
+                }} />
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.playerName}</Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {formatCourseName(r.courseName)}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Through {r.holesCompleted}
+                </Typography>
+                <Chip
+                  label={r.currentScoreToPar === 0 ? 'E' : r.currentScoreToPar > 0 ? `+${r.currentScoreToPar}` : `${r.currentScoreToPar}`}
+                  size="small"
+                  sx={{
+                    height: 20, fontSize: '0.65rem', fontWeight: 700,
+                    bgcolor: r.currentScoreToPar < 0 ? '#c9a84c' : r.currentScoreToPar === 0 ? '#2d5e42' : r.currentScoreToPar <= 5 ? '#1a3a5c' : '#c62828',
+                    color: '#fff',
+                  }}
+                />
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+    </Box>
+  )
 }
 
 function InlineComments({ roundId, shareId, commentCount, recentComments }: {
@@ -395,6 +451,13 @@ export default function FeedPage() {
     refetchOnWindowFocus: true,
   })
 
+  const { data: liveData } = useQuery({
+    queryKey: ['live-rounds'],
+    queryFn: getLiveRounds,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+  })
+
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['feed'] })
   }, [queryClient])
@@ -446,6 +509,8 @@ export default function FeedPage() {
       </Box>
 
       <NotificationPrompt />
+
+      <LiveNowSection rounds={liveData?.liveRounds ?? []} />
 
       {latestOwnRound && <OwnRoundCard round={latestOwnRound} />}
 
