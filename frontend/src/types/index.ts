@@ -208,8 +208,21 @@ export interface OwnLatestRound {
   courseHoles: number
 }
 
+export interface FeedTeeTime {
+  id: string
+  type: 'tee_time'
+  creatorName: string
+  courseName: string | null
+  dateTime: string
+  spotsTotal: number
+  spotsFilled: number
+  notes: string | null
+  createdAt: string
+}
+
 export interface FeedResponse {
   feed: FeedRound[]
+  feedTeeTimes: FeedTeeTime[]
   nextCursor: number | null
   latestOwnRound: OwnLatestRound | null
 }
@@ -316,4 +329,50 @@ export interface EligibleRound {
   totalStrokes: number
   scoreToPar: number
   holesPlayed: number
+}
+
+// ── Tee Times ────────────────────────────────────────────────────────────────
+
+export interface TeeTimeParticipant {
+  userId: number
+  name: string
+  status: 'CONFIRMED' | 'INVITED' | 'REQUESTED' | 'DECLINED' | 'WITHDRAWN'
+}
+
+export interface TeeTimeSummary {
+  id: string
+  creatorId: number
+  creatorName: string
+  course: { id: number; name: string } | null
+  courseName: string | null
+  dateTime: string
+  spotsTotal: number
+  spotsFilled: number
+  notes: string | null
+  visibility: 'FRIENDS' | 'INVITED_ONLY'
+  status: 'OPEN' | 'FULL' | 'CANCELLED' | 'COMPLETED'
+  participants: TeeTimeParticipant[]
+}
+
+export interface TeeTimesListResponse {
+  myUpcoming: TeeTimeSummary[]
+  invitations: TeeTimeSummary[]
+  friendsTeeTimes: TeeTimeSummary[]
+}
+
+export interface TeeTimeDetail {
+  id: string
+  creatorId: number
+  creator: { id: number; name: string }
+  course: { id: number; name: string } | null
+  courseName: string | null
+  dateTime: string
+  spotsTotal: number
+  spotsFilled: number
+  notes: string | null
+  visibility: 'FRIENDS' | 'INVITED_ONLY'
+  status: 'OPEN' | 'FULL' | 'CANCELLED' | 'COMPLETED'
+  participants: TeeTimeParticipant[]
+  myStatus: 'CONFIRMED' | 'INVITED' | 'REQUESTED' | 'DECLINED' | 'WITHDRAWN' | null
+  canJoin: boolean
 }

@@ -1,6 +1,6 @@
 import { Paper, BottomNavigation, BottomNavigationAction, Badge } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
-import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 import HistoryIcon from '@mui/icons-material/History'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PeopleIcon from '@mui/icons-material/People'
@@ -25,7 +25,7 @@ function FriendsIcon() {
 
 const NAV_ITEMS = [
   { label: 'Feed', to: '/feed', icon: <HomeIcon /> },
-  { label: 'Courses', to: '/courses', icon: <GolfCourseIcon /> },
+  { label: 'Play', to: '/play', icon: <SportsGolfIcon /> },
   { label: 'Comps', to: '/competitions', icon: <EmojiEventsIcon /> },
   { label: 'History', to: '/history', icon: <HistoryIcon /> },
   { label: 'Friends', to: '/friends', icon: <FriendsIcon /> },

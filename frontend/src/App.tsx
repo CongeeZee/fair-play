@@ -28,6 +28,8 @@ import SharedScorecardPage from './pages/SharedScorecardPage'
 import FriendsPage from './pages/FriendsPage'
 import FeedPage from './pages/FeedPage'
 import CompetitionsPage from './pages/CompetitionsPage'
+import TeeTimesPage from './pages/TeeTimesPage'
+import PlayPage from './pages/PlayPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -85,6 +87,18 @@ function Layout() {
         <Route
           path="/friends"
           element={<ProtectedRoute><FriendsPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/play"
+          element={<ProtectedRoute><PlayPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/teetimes"
+          element={<ProtectedRoute><TeeTimesPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/teetimes/:id"
+          element={<ProtectedRoute><TeeTimesPage /></ProtectedRoute>}
         />
         <Route
           path="/competitions"

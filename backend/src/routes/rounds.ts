@@ -220,7 +220,46 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
       };
     }
 
-    res.json({ feed, nextCursor, latestOwnRound });
+    // Open tee times from friends (FRIENDS visibility, future, OPEN)
+    const now = new Date();
+    const myTeeTimeIds = await prisma.teeTimeParticipant.findMany({
+      where: { userId },
+      select: { teeTimeId: true },
+    });
+    const myTtIds = new Set(myTeeTimeIds.map((p) => p.teeTimeId));
+
+    const openTeeTimes = activeFriendIds.length > 0
+      ? await prisma.teeTime.findMany({
+          where: {
+            creatorId: { in: activeFriendIds },
+            visibility: "FRIENDS",
+            status: "OPEN",
+            dateTime: { gt: now },
+            id: { notIn: [...myTtIds] },
+          },
+          include: {
+            course: { select: { name: true } },
+            creator: { select: { name: true } },
+            participants: { where: { status: "CONFIRMED" }, select: { userId: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        })
+      : [];
+
+    const feedTeeTimes = openTeeTimes.map((tt) => ({
+      id: tt.id,
+      type: "tee_time" as const,
+      creatorName: tt.creator.name,
+      courseName: tt.courseId && tt.course ? tt.course.name : (tt.courseName ?? null),
+      dateTime: tt.dateTime,
+      spotsTotal: tt.spotsTotal,
+      spotsFilled: tt.participants.length,
+      notes: tt.notes,
+      createdAt: tt.createdAt,
+    }));
+
+    res.json({ feed, feedTeeTimes, nextCursor, latestOwnRound });
   } catch (err) {
     console.error("GET /rounds/feed error:", err);
     res.status(500).json({ error: "Internal server error" });

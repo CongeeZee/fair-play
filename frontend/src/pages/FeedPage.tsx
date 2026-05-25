@@ -11,11 +11,12 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import SettingsIcon from '@mui/icons-material/Settings'
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import CloseIcon from '@mui/icons-material/Close'
-import { Link } from 'react-router-dom'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from 'react-router-dom'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getFeed } from '../api/rounds'
+import { joinTeeTime } from '../api/teetimes'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, OwnLatestRound } from '../types'
+import type { FeedRound, FeedTeeTime, OwnLatestRound } from '../types'
 import PageHeader from '../components/PageHeader'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
@@ -135,6 +136,73 @@ function FeedCard({ round }: { round: FeedRound }) {
   )
 }
 
+function feedRelativeDate(dt: string): string {
+  const d = new Date(dt)
+  const now = new Date()
+  const diffMs = d.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) return 'Today'
+  if (diffDays === 1) return 'Tomorrow'
+  const dayOfWeek = d.toLocaleDateString('en-AU', { weekday: 'long' })
+  if (diffDays <= 6) return dayOfWeek
+  return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const joinMutation = useMutation({
+    mutationFn: () => joinTeeTime(teeTime.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+      queryClient.invalidateQueries({ queryKey: ['teetimes'] })
+    },
+  })
+
+  const spotsLeft = teeTime.spotsTotal - teeTime.spotsFilled
+  const dateLabel = feedRelativeDate(teeTime.dateTime)
+  const timeLabel = new Date(teeTime.dateTime).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
+
+  return (
+    <Card elevation={1} sx={{ mb: 2, borderRadius: 2, border: '1px solid rgba(26,58,42,0.15)' }}>
+      <CardContent sx={{ pb: '12px !important' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 700 }}>
+              {teeTime.creatorName}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.25 }}>
+              Looking for players{teeTime.courseName ? ` at ${formatCourseName(teeTime.courseName)}` : ''}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {dateLabel} · {timeLabel} · {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
+            </Typography>
+          </Box>
+          <Chip label="Tee Time" size="small" sx={{ bgcolor: '#1a3a2a', color: '#fff', fontWeight: 600, fontSize: '0.65rem', height: 22 }} />
+        </Box>
+      </CardContent>
+      <CardActions sx={{ pt: 0, px: 2, pb: 1.5 }}>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => joinMutation.mutate()}
+          disabled={joinMutation.isPending}
+          sx={{ textTransform: 'none', mr: 1 }}
+        >
+          {joinMutation.isPending ? 'Joining...' : 'Join'}
+        </Button>
+        <Button
+          size="small"
+          onClick={() => navigate(`/teetimes/${teeTime.id}`)}
+          sx={{ textTransform: 'none' }}
+        >
+          Details
+        </Button>
+      </CardActions>
+    </Card>
+  )
+}
+
 const DISMISS_KEY = 'push-prompt-dismissed'
 
 function shouldShowPrompt(): boolean {
@@ -240,6 +308,7 @@ export default function FeedPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const latestOwnRound = data?.pages[0]?.latestOwnRound ?? null
+  const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
 
   if (isLoading) {
@@ -264,7 +333,11 @@ export default function FeedPage() {
 
       {latestOwnRound && <OwnRoundCard round={latestOwnRound} />}
 
-      {allFeedRounds.length === 0 && !latestOwnRound && (
+      {feedTeeTimes.map((tt) => (
+        <TeeTimeCard key={tt.id} teeTime={tt} />
+      ))}
+
+      {allFeedRounds.length === 0 && !latestOwnRound && feedTeeTimes.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <PeopleIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
           <Typography color="text.secondary" sx={{ mb: 2 }}>

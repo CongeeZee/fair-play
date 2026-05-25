@@ -30,7 +30,7 @@ export default function Navbar() {
 
   const navLinks = [
     { label: 'Feed', to: '/feed', badge: 0 },
-    { label: 'Courses', to: '/courses', badge: 0 },
+    { label: 'Play', to: '/play', badge: 0 },
     { label: 'Comps', to: '/competitions', badge: 0 },
     { label: 'History', to: '/history', badge: 0 },
     { label: 'Stats', to: '/stats', badge: 0 },

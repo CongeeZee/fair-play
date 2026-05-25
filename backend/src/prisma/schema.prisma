@@ -27,6 +27,8 @@ model User {
   createdCompetitions    Competition[]            @relation("competitionCreator")
   competitionEntries     CompetitionParticipant[]
   competitionRounds      CompetitionRound[]
+  createdTeeTimes        TeeTime[]                @relation("teeTimeCreator")
+  teeTimeEntries         TeeTimeParticipant[]
 }
 
 enum FriendshipStatus {
@@ -79,6 +81,7 @@ model Course {
   holes        Hole[]
   rounds       Round[]
   competitions Competition[]
+  teeTimes     TeeTime[]
 }
 
 model Hole {
@@ -176,6 +179,58 @@ model CompetitionRound {
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([competitionId, roundId])
+}
+
+// ── Tee Times ────────────────────────────────────────────────────────────────
+
+enum TeeTimeVisibility {
+  FRIENDS
+  INVITED_ONLY
+}
+
+enum TeeTimeStatus {
+  OPEN
+  FULL
+  CANCELLED
+  COMPLETED
+}
+
+enum TeeTimeParticipantStatus {
+  CONFIRMED
+  INVITED
+  REQUESTED
+  DECLINED
+  WITHDRAWN
+}
+
+model TeeTime {
+  id           String             @id @default(uuid())
+  creatorId    Int
+  courseId      Int?
+  courseName   String?
+  dateTime     DateTime
+  spotsTotal   Int
+  notes        String?
+  visibility   TeeTimeVisibility  @default(FRIENDS)
+  status       TeeTimeStatus      @default(OPEN)
+  reminderSent Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  creator      User               @relation("teeTimeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  course       Course?            @relation(fields: [courseId], references: [id])
+  participants TeeTimeParticipant[]
+}
+
+model TeeTimeParticipant {
+  id        String                    @id @default(uuid())
+  teeTimeId String
+  userId    Int
+  status    TeeTimeParticipantStatus  @default(INVITED)
+  createdAt DateTime                  @default(now())
+  teeTime   TeeTime                   @relation(fields: [teeTimeId], references: [id], onDelete: Cascade)
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teeTimeId, userId])
 }
 
 // ── Round Scoring ─────────────────────────────────────────────────────────────
