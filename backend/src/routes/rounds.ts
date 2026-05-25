@@ -67,6 +67,8 @@ router.get("/shared/:shareId", async (req, res: Response) => {
     const totalPar = scoredSum(holes, "par");
 
     res.json({
+      roundId: round.id,
+      ownerId: round.userId,
       playerName: round.user.name,
       courseName: round.course.name,
       playedAt: round.playedAt,
@@ -161,11 +163,51 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     const page = hasMore ? feedRounds.slice(0, limit) : feedRounds;
     const nextCursor = hasMore ? page[page.length - 1].id : null;
 
-    const feed = page
-      .filter((r) => r.roundHoles.length > 0) // only completed/in-progress rounds with scores
-      .map((r) => {
+    const scoredRounds = page.filter((r) => r.roundHoles.length > 0);
+    const roundIds = scoredRounds.map((r) => r.id);
+
+    // Batch-fetch reactions and comments for all feed rounds
+    const [allReactions, allComments] = await Promise.all([
+      roundIds.length > 0
+        ? prisma.roundReaction.findMany({
+            where: { roundId: { in: roundIds } },
+            select: { roundId: true, userId: true, emoji: true },
+          })
+        : [],
+      roundIds.length > 0
+        ? prisma.roundComment.findMany({
+            where: { roundId: { in: roundIds } },
+            include: { user: { select: { name: true } } },
+            orderBy: { createdAt: "desc" },
+          })
+        : [],
+    ]);
+
+    // Build per-round reaction summaries
+    const reactionsByRound = new Map<number, { summary: Record<string, number>; userReaction: string | null }>();
+    for (const r of allReactions) {
+      if (!reactionsByRound.has(r.roundId)) reactionsByRound.set(r.roundId, { summary: {}, userReaction: null });
+      const entry = reactionsByRound.get(r.roundId)!;
+      entry.summary[r.emoji] = (entry.summary[r.emoji] || 0) + 1;
+      if (r.userId === userId) entry.userReaction = r.emoji;
+    }
+
+    // Build per-round comment data (count + 2 most recent)
+    const commentsByRound = new Map<number, { commentCount: number; recentComments: { name: string; text: string }[] }>();
+    for (const c of allComments) {
+      if (!commentsByRound.has(c.roundId)) commentsByRound.set(c.roundId, { commentCount: 0, recentComments: [] });
+      const entry = commentsByRound.get(c.roundId)!;
+      entry.commentCount++;
+      if (entry.recentComments.length < 2) entry.recentComments.push({ name: c.user.name, text: c.text });
+    }
+    // Reverse recentComments so oldest-first (they were fetched desc)
+    for (const entry of commentsByRound.values()) entry.recentComments.reverse();
+
+    const feed = scoredRounds.map((r) => {
         const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
         const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+        const reactions = reactionsByRound.get(r.id) || { summary: {}, userReaction: null };
+        const comments = commentsByRound.get(r.id) || { commentCount: 0, recentComments: [] };
         return {
           id: r.id,
           shareId: r.shareId,
@@ -176,6 +218,10 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
           scoreToPar: totalStrokes - totalPar,
           totalHoles: r.roundHoles.length,
           courseHoles: r.course._count.holes,
+          reactionSummary: reactions.summary,
+          userReaction: reactions.userReaction,
+          commentCount: comments.commentCount,
+          recentComments: comments.recentComments,
         };
       });
 
@@ -208,6 +254,27 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     if (latestOwn && latestOwn.roundHoles.length > 0) {
       const totalStrokes = latestOwn.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
       const totalPar = latestOwn.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+
+      // Fetch reactions + comments for own round
+      const [ownReactions, ownComments] = await Promise.all([
+        prisma.roundReaction.findMany({
+          where: { roundId: latestOwn.id },
+          select: { emoji: true, userId: true },
+        }),
+        prisma.roundComment.findMany({
+          where: { roundId: latestOwn.id },
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 2,
+        }),
+      ]);
+      const ownSummary: Record<string, number> = {};
+      let ownUserReaction: string | null = null;
+      for (const r of ownReactions) {
+        ownSummary[r.emoji] = (ownSummary[r.emoji] || 0) + 1;
+        if (r.userId === userId) ownUserReaction = r.emoji;
+      }
+
       latestOwnRound = {
         id: latestOwn.id,
         shareId: latestOwn.shareId,
@@ -217,6 +284,10 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         scoreToPar: totalStrokes - totalPar,
         totalHoles: latestOwn.roundHoles.length,
         courseHoles: latestOwn.course._count.holes,
+        reactionSummary: ownSummary,
+        userReaction: ownUserReaction,
+        commentCount: await prisma.roundComment.count({ where: { roundId: latestOwn.id } }),
+        recentComments: ownComments.reverse().map((c) => ({ name: c.user.name, text: c.text })),
       };
     }
 

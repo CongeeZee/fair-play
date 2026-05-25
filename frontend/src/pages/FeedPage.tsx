@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Box, Typography, Card, CardContent, Chip, Button,
   CircularProgress, IconButton, Snackbar, Dialog, DialogTitle,
-  DialogContent, Switch, FormControlLabel, CardActions,
+  DialogContent, Switch, FormControlLabel, CardActions, TextField,
+  InputAdornment,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ShareIcon from '@mui/icons-material/Share'
+import SendIcon from '@mui/icons-material/Send'
 import PeopleIcon from '@mui/icons-material/People'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -15,9 +17,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getFeed } from '../api/rounds'
 import { joinTeeTime } from '../api/teetimes'
+import { addComment } from '../api/reactions'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, FeedTeeTime, OwnLatestRound } from '../types'
+import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment } from '../types'
 import PageHeader from '../components/PageHeader'
+import ReactionBar from '../components/ReactionBar'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
 function scoreColor(scoreToPar: number) {
@@ -30,6 +34,94 @@ function scoreColor(scoreToPar: number) {
 function scoreLabel(scoreToPar: number) {
   if (scoreToPar === 0) return 'E'
   return scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`
+}
+
+function InlineComments({ roundId, shareId, commentCount, recentComments }: {
+  roundId: number
+  shareId: string | null
+  commentCount: number
+  recentComments: RecentComment[]
+}) {
+  const [showInput, setShowInput] = useState(false)
+  const [text, setText] = useState('')
+  const queryClient = useQueryClient()
+  const [optimisticComments, setOptimisticComments] = useState<RecentComment[]>(recentComments)
+  const [optimisticCount, setOptimisticCount] = useState(commentCount)
+
+  // Sync with props when they change
+  const prevKey = useRef(`${roundId}-${commentCount}`)
+  const key = `${roundId}-${commentCount}`
+  if (key !== prevKey.current) {
+    prevKey.current = key
+    setOptimisticComments(recentComments)
+    setOptimisticCount(commentCount)
+  }
+
+  const commentMutation = useMutation({
+    mutationFn: () => addComment(roundId, text.trim()),
+    onSuccess: (data) => {
+      setOptimisticComments((prev) => [...prev.slice(-1), { name: data.userName, text: data.text }])
+      setOptimisticCount((c) => c + 1)
+      setText('')
+      setShowInput(false)
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
+  })
+
+  return (
+    <Box>
+      {optimisticComments.map((c, i) => (
+        <Typography key={i} variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }} noWrap>
+          <Typography component="span" variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {c.name}
+          </Typography>{' '}
+          {c.text}
+        </Typography>
+      ))}
+
+      {optimisticCount > 2 && shareId && (
+        <Typography
+          component={Link}
+          to={`/scorecard/${shareId}`}
+          variant="caption"
+          sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, display: 'block', mt: 0.25 }}
+        >
+          View all {optimisticCount} comments
+        </Typography>
+      )}
+
+      {!showInput ? (
+        <Typography
+          variant="caption"
+          onClick={() => setShowInput(true)}
+          sx={{ color: 'text.disabled', cursor: 'pointer', display: 'block', mt: 0.5 }}
+        >
+          Add a comment...
+        </Typography>
+      ) : (
+        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, alignItems: 'center' }}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Write a comment..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) commentMutation.mutate() }}
+            autoFocus
+            slotProps={{ input: { sx: { fontSize: '0.8rem', py: 0.5 } } }}
+          />
+          <IconButton
+            size="small"
+            onClick={() => commentMutation.mutate()}
+            disabled={!text.trim() || commentMutation.isPending}
+            color="primary"
+          >
+            <SendIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
+    </Box>
+  )
 }
 
 function OwnRoundCard({ round }: { round: OwnLatestRound }) {
@@ -83,6 +175,19 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
               )}
             </Box>
           </Box>
+          <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+            <ReactionBar
+              roundId={round.id}
+              reactionSummary={round.reactionSummary}
+              userReaction={round.userReaction}
+            />
+            <InlineComments
+              roundId={round.id}
+              shareId={round.shareId}
+              commentCount={round.commentCount}
+              recentComments={round.recentComments}
+            />
+          </Box>
         </CardContent>
       </Card>
       <Snackbar open={snackbar} autoHideDuration={2000} onClose={() => setSnackbar(false)} message="Link copied!" anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: '68px', md: 0 } }} />
@@ -118,19 +223,30 @@ function FeedCard({ round }: { round: FeedRound }) {
             />
           </Box>
         </Box>
-        {round.shareId && (
-          <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          <ReactionBar
+            roundId={round.id}
+            reactionSummary={round.reactionSummary}
+            userReaction={round.userReaction}
+          />
+          <InlineComments
+            roundId={round.id}
+            shareId={round.shareId}
+            commentCount={round.commentCount}
+            recentComments={round.recentComments}
+          />
+          {round.shareId && (
             <Button
               component={Link}
               to={`/scorecard/${round.shareId}`}
               size="small"
               startIcon={<VisibilityIcon />}
-              sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem' }}
+              sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', mt: 0.5 }}
             >
               View Scorecard
             </Button>
-          </Box>
-        )}
+          )}
+        </Box>
       </CardContent>
     </Card>
   )

@@ -29,6 +29,8 @@ model User {
   competitionRounds      CompetitionRound[]
   createdTeeTimes        TeeTime[]                @relation("teeTimeCreator")
   teeTimeEntries         TeeTimeParticipant[]
+  roundReactions         RoundReaction[]
+  roundComments          RoundComment[]
 }
 
 enum FriendshipStatus {
@@ -109,6 +111,32 @@ model Round {
   course           Course             @relation(fields: [courseId], references: [id])
   roundHoles       RoundHole[]
   competitionRounds CompetitionRound[]
+  reactions        RoundReaction[]
+  comments         RoundComment[]
+}
+
+// ── Reactions & Comments ─────────────────────────────────────────────────────
+
+model RoundReaction {
+  id        String   @id @default(uuid())
+  roundId   Int
+  userId    Int
+  emoji     String
+  createdAt DateTime @default(now())
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+}
+
+model RoundComment {
+  id        String   @id @default(uuid())
+  roundId   Int
+  userId    Int
+  text      String
+  createdAt DateTime @default(now())
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PushSubscription {

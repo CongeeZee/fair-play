@@ -58,6 +58,8 @@ export interface Round {
 }
 
 export interface SharedScorecard {
+  roundId: number
+  ownerId: number
   playerName: string
   courseName: string
   playedAt: string
@@ -185,6 +187,11 @@ export interface LinkedHandicap {
   lastSynced: string
 }
 
+export interface RecentComment {
+  name: string
+  text: string
+}
+
 export interface FeedRound {
   id: number
   shareId: string | null
@@ -195,6 +202,10 @@ export interface FeedRound {
   scoreToPar: number
   totalHoles: number
   courseHoles: number
+  reactionSummary: Record<string, number>
+  userReaction: string | null
+  commentCount: number
+  recentComments: RecentComment[]
 }
 
 export interface OwnLatestRound {
@@ -206,6 +217,24 @@ export interface OwnLatestRound {
   scoreToPar: number
   totalHoles: number
   courseHoles: number
+  reactionSummary: Record<string, number>
+  userReaction: string | null
+  commentCount: number
+  recentComments: RecentComment[]
+}
+
+export interface RoundCommentData {
+  id: string
+  userName: string
+  userId: number
+  text: string
+  createdAt: string
+}
+
+export interface ReactionSummary {
+  summary: Record<string, number>
+  userReaction: string | null
+  names?: Record<string, string[]>
 }
 
 export interface FeedTeeTime {

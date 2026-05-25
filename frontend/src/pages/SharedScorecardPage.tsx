@@ -1,14 +1,20 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box, Container, Typography, CircularProgress, Paper,
   Table, TableBody, TableCell, TableHead, TableRow,
-  Button, Chip, Alert,
+  Button, Chip, Alert, TextField, IconButton, Avatar,
 } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import SendIcon from '@mui/icons-material/Send'
+import CloseIcon from '@mui/icons-material/Close'
 import { getSharedScorecard } from '../api/rounds'
-import { formatCourseName } from '../utils'
+import { getReactions, getComments, addComment, deleteComment } from '../api/reactions'
+import { formatCourseName, timeAgo } from '../utils'
 import type { SharedScorecard } from '../types'
+import ReactionBar from '../components/ReactionBar'
+import { useAuth } from '../contexts/AuthContext'
 
 function scoreDiffColor(diff: number | null): string {
   if (diff == null) return '#aaa'
@@ -20,7 +26,7 @@ function scoreDiffColor(diff: number | null): string {
 }
 
 function ScoreCell({ strokes, par }: { strokes: number | null; par: number }) {
-  if (strokes == null) return <TableCell align="center" sx={{ color: 'text.disabled', fontSize: '0.78rem' }}>–</TableCell>
+  if (strokes == null) return <TableCell align="center" sx={{ color: 'text.disabled', fontSize: '0.78rem' }}>-</TableCell>
   const diff = strokes - par
   const isCircle = diff <= -1
   const isBorder = diff >= 1
@@ -97,13 +103,130 @@ function HalfTable({
                   <Box component="span" sx={{ color: scoreDiffColor(subtotalDiff) }}>
                     {subtotalStrokes}
                   </Box>
-                ) : '–'}
+                ) : '-'}
               </TableCell>
             </TableRow>
           </TableBody>
         </Table>
       </Box>
     </Box>
+  )
+}
+
+function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: number }) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
+
+  const { data: reactions } = useQuery({
+    queryKey: ['reaction-detail', roundId],
+    queryFn: () => getReactions(roundId),
+  })
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['comments', roundId],
+    queryFn: () => getComments(roundId),
+  })
+
+  const addMutation = useMutation({
+    mutationFn: () => addComment(roundId, text.trim()),
+    onSuccess: () => {
+      setText('')
+      queryClient.invalidateQueries({ queryKey: ['comments', roundId] })
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (commentId: string) => deleteComment(roundId, commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', roundId] })
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
+  })
+
+  const userId = user ? parseInt(user.id) : null
+  const canComment = !!user
+
+  return (
+    <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+        Reactions & Comments
+      </Typography>
+
+      {/* Reaction bar */}
+      {reactions && (
+        <ReactionBar
+          roundId={roundId}
+          reactionSummary={reactions.summary}
+          userReaction={reactions.userReaction}
+          readOnly={!user}
+        />
+      )}
+
+      {/* Comments list */}
+      {comments.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          {comments.map((c) => (
+            <Box key={c.id} sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
+              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
+                {c.userName.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    {c.userName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                    {timeAgo(c.createdAt)}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: '0.85rem', wordBreak: 'break-word' }}>
+                  {c.text}
+                </Typography>
+              </Box>
+              {(c.userId === userId || ownerId === userId) && (
+                <IconButton
+                  size="small"
+                  onClick={() => deleteMutation.mutate(c.id)}
+                  sx={{ mt: -0.25, opacity: 0.5, '&:hover': { opacity: 1 } }}
+                >
+                  <CloseIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {/* Comment input or CTA */}
+      {canComment ? (
+        <Box sx={{ display: 'flex', gap: 0.5, mt: 1.5, alignItems: 'center' }}>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Write a comment..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) addMutation.mutate() }}
+            slotProps={{ input: { sx: { fontSize: '0.85rem' } } }}
+          />
+          <IconButton
+            onClick={() => addMutation.mutate()}
+            disabled={!text.trim() || addMutation.isPending}
+            color="primary"
+          >
+            <SendIcon />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Button variant="outlined" size="small" href="/register" sx={{ textTransform: 'none' }}>
+            Sign up to join the conversation
+          </Button>
+        </Box>
+      )}
+    </Paper>
   )
 }
 
@@ -169,7 +292,7 @@ export default function SharedScorecardPage() {
 
         {scorecard.inProgress && (
           <Alert severity="info" sx={{ mt: 2, justifyContent: 'center' }}>
-            Round in progress — {scorecard.holesScored} of {scorecard.totalHoles} holes scored
+            Round in progress - {scorecard.holesScored} of {scorecard.totalHoles} holes scored
           </Alert>
         )}
       </Box>
@@ -179,7 +302,7 @@ export default function SharedScorecardPage() {
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 2 }}>
           <Box>
             <Typography variant="h3" sx={{ fontWeight: 800, color: 'primary.main' }}>
-              {total.strokes || '–'}
+              {total.strokes || '-'}
             </Typography>
             <Typography variant="caption" color="text.secondary">Total</Typography>
           </Box>
@@ -221,13 +344,16 @@ export default function SharedScorecardPage() {
             Par: <strong>{total.par}</strong>
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Score: <strong>{total.strokes || '–'}</strong>
+            Score: <strong>{total.strokes || '-'}</strong>
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 700, color: scoreDiffColor(total.scoreToPar) }}>
             {scoreToParStr}
           </Typography>
         </Box>
       </Paper>
+
+      {/* Reactions & Comments */}
+      <CommentsSection roundId={scorecard.roundId} ownerId={scorecard.ownerId} />
 
       {/* CTA */}
       <Box sx={{ textAlign: 'center' }}>
