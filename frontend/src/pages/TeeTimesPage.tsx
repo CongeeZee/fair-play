@@ -27,6 +27,7 @@ import { getFriends } from '../api/friends'
 import { getCourses } from '../api/courses'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
+import ProfileLink from '../components/ProfileLink'
 import type { TeeTimeSummary } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -361,7 +362,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
             {formatDateTime(tt.dateTime)}
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            Organised by {tt.creator.name}
+            Organised by <ProfileLink userId={tt.creator.id} name={tt.creator.name} variant="body2" sx={{ display: 'inline', color: 'rgba(255,255,255,0.9)' }} />
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
             <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#c62828' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
@@ -420,7 +421,10 @@ function TeeTimeDetailView({ id }: { id: string }) {
           <Box key={p.userId}>
             {i > 0 && <Divider />}
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">{p.name} {p.userId === Number(user?.id) ? '(You)' : ''}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ProfileLink userId={p.userId} name={p.name} variant="body2" />
+                {p.userId === Number(user?.id) && <Typography variant="body2" color="text.secondary">(You)</Typography>}
+              </Box>
               <Chip label="Confirmed" size="small" sx={{ bgcolor: '#e8f5e9', color: '#2d5e42', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
@@ -429,7 +433,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
           <Box key={p.userId}>
             <Divider />
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">{p.name}</Typography>
+              <ProfileLink userId={p.userId} name={p.name} variant="body2" />
               <Chip label="Pending" size="small" sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
@@ -438,7 +442,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
           <Box key={p.userId}>
             <Divider />
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2" sx={{ opacity: 0.5 }}>{p.name}</Typography>
+              <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ opacity: 0.5 }} />
               <Chip label={p.status === 'WITHDRAWN' ? 'Withdrew' : 'Declined'} size="small" sx={{ bgcolor: '#fce4ec', color: '#c62828', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>

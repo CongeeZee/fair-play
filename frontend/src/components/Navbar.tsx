@@ -101,7 +101,15 @@ export default function Navbar() {
 
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
-            <Typography variant="body2" sx={{ color: 'secondary.main', fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+            <Typography
+              variant="body2"
+              component={Link}
+              to="/profile/me"
+              sx={{
+                color: 'secondary.main', fontWeight: 600, display: { xs: 'none', sm: 'block' },
+                textDecoration: 'none', '&:hover': { textDecoration: 'underline' },
+              }}
+            >
               {user.name}
             </Typography>
             <Button

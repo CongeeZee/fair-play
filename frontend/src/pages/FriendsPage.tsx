@@ -17,6 +17,7 @@ import {
 import { getLiveRounds } from '../api/live'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import ProfileLink from '../components/ProfileLink'
 
 function FriendsTab() {
   const queryClient = useQueryClient()
@@ -67,7 +68,7 @@ function FriendsTab() {
               <ListItemText
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {f.name}
+                    <ProfileLink userId={f.id} name={f.name} variant="body1" />
                     {live && (
                       <Chip
                         label={`Playing`}
@@ -165,7 +166,7 @@ function RequestsTab() {
           }
         >
           <ListItemText
-            primary={r.from.name}
+            primary={<ProfileLink userId={r.from.id} name={r.from.name} variant="body1" />}
             secondary={`Sent ${new Date(r.sentAt).toLocaleDateString()}`}
           />
         </ListItem>

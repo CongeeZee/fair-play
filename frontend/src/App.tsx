@@ -31,6 +31,7 @@ import CompetitionsPage from './pages/CompetitionsPage'
 import TeeTimesPage from './pages/TeeTimesPage'
 import PlayPage from './pages/PlayPage'
 import LiveScorecardPage from './pages/LiveScorecardPage'
+import ProfilePage from './pages/ProfilePage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -92,6 +93,10 @@ function Layout() {
         <Route
           path="/play"
           element={<ProtectedRoute><PlayPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/profile/:userId"
+          element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
         />
         <Route
           path="/live/:roundId"

@@ -188,6 +188,7 @@ export interface LinkedHandicap {
 }
 
 export interface RecentComment {
+  userId: number
   name: string
   text: string
 }
@@ -195,6 +196,7 @@ export interface RecentComment {
 export interface FeedRound {
   id: number
   shareId: string | null
+  playerId: number
   playerName: string
   playedAt: string
   courseName: string
@@ -234,12 +236,13 @@ export interface RoundCommentData {
 export interface ReactionSummary {
   summary: Record<string, number>
   userReaction: string | null
-  names?: Record<string, string[]>
+  names?: Record<string, Array<{ userId: number; name: string }>>
 }
 
 export interface FeedTeeTime {
   id: string
   type: 'tee_time'
+  creatorId: number
   creatorName: string
   courseName: string | null
   dateTime: string
@@ -406,11 +409,76 @@ export interface TeeTimeDetail {
   canJoin: boolean
 }
 
+// ── Profiles ─────────────────────────────────────────────────────────────────
+
+export interface ProfileRecentRound {
+  roundId: number
+  shareId: string | null
+  courseName: string
+  playedAt: string
+  totalStrokes: number
+  scoreToPar: number
+  holesCompleted: number
+}
+
+export interface UserProfile {
+  id: number
+  name: string
+  handicapIndex: number | null
+  memberSince: string
+  roundsPlayed: number
+  averageScoreToPar: number | null
+  bestScoreToPar: number | null
+  favouriteCourse: string | null
+  recentRounds: ProfileRecentRound[]
+  achievements: unknown[]
+  mutualFriends: number
+  isLive: boolean
+  liveRoundId: number | null
+  liveCourseName: string | null
+}
+
+export interface SharedCourseH2H {
+  courseId: number
+  courseName: string
+  viewerBest: number
+  targetBest: number
+  viewerAvg: number
+  targetAvg: number
+  viewerRounds: number
+  targetRounds: number
+}
+
+export interface RecentMatchup {
+  courseName: string
+  viewerScore: number
+  targetScore: number
+  viewerDate: string
+  targetDate: string
+  winner: 'viewer' | 'target' | 'draw'
+}
+
+export interface HeadToHead {
+  totalRoundsCompared: number
+  viewerWins: number
+  targetWins: number
+  draws: number
+  sharedCourses: SharedCourseH2H[]
+  handicapComparison: {
+    viewerCurrent: number | null
+    targetCurrent: number | null
+    viewerTrend: 'improving' | 'declining' | 'stable' | null
+    targetTrend: 'improving' | 'declining' | 'stable' | null
+  }
+  recentMatchups: RecentMatchup[]
+}
+
 // ── Live Rounds ──────────────────────────────────────────────────────────────
 
 export interface LiveRound {
   roundId: number
   shareId: string | null
+  playerId: number
   playerName: string
   courseName: string
   holesCompleted: number
@@ -436,6 +504,7 @@ export interface LiveScorecardHole {
 export interface LiveScorecard {
   roundId: number
   shareId: string | null
+  playerId: number
   playerName: string
   courseName: string
   holes: LiveScorecardHole[]

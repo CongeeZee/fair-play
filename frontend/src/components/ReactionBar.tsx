@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Box, Chip, Popover, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ALLOWED_EMOJI, toggleReaction, getReactions } from '../api/reactions'
+import ProfileLink from './ProfileLink'
 
 interface Props {
   roundId: number
@@ -112,11 +113,16 @@ export default function ReactionBar({ roundId, reactionSummary, userReaction, re
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Box sx={{ px: 2, py: 1, maxWidth: 200 }}>
-          <Typography variant="body2">
+        <Box sx={{ px: 2, py: 1, maxWidth: 220 }}>
+          <Typography variant="body2" component="div">
             {popoverEmoji}{' '}
             {popoverEmoji && reactionDetail?.names?.[popoverEmoji]
-              ? reactionDetail.names[popoverEmoji].join(', ')
+              ? reactionDetail.names[popoverEmoji].map((p, i) => (
+                  <span key={p.userId}>
+                    {i > 0 && ', '}
+                    <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ display: 'inline' }} />
+                  </span>
+                ))
               : `${summary[popoverEmoji || ''] || 0} reaction${(summary[popoverEmoji || ''] || 0) !== 1 ? 's' : ''}`
             }
           </Typography>

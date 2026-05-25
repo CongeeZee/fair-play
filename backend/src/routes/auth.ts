@@ -357,4 +357,29 @@ router.patch("/onboarding-complete", requireAuth, async (req: AuthRequest, res: 
   }
 });
 
+// PATCH /auth/profile — update display name
+router.patch("/profile", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== "string") {
+      res.status(400).json({ error: "Name is required" });
+      return;
+    }
+    const trimmed = name.trim();
+    if (trimmed.length < 1 || trimmed.length > 50) {
+      res.status(400).json({ error: "Name must be 1-50 characters" });
+      return;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.userId! },
+      data: { name: trimmed },
+      select: { id: true, name: true, email: true, emailVerified: true, hasCompletedOnboarding: true, createdAt: true },
+    });
+    res.json(user);
+  } catch (err) {
+    console.error("PATCH /auth/profile error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

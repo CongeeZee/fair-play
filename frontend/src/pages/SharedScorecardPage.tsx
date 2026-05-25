@@ -13,6 +13,7 @@ import { getSharedScorecard } from '../api/rounds'
 import { getReactions, getComments, addComment, deleteComment } from '../api/reactions'
 import { formatCourseName, timeAgo } from '../utils'
 import type { SharedScorecard } from '../types'
+import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -174,9 +175,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                    {c.userName}
-                  </Typography>
+                  <ProfileLink userId={c.userId} name={c.userName} variant="caption" />
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                     {timeAgo(c.createdAt)}
                   </Typography>
@@ -233,6 +232,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
 export default function SharedScorecardPage() {
   const { shareId } = useParams<{ shareId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const { data: scorecard, isLoading, error } = useQuery({
     queryKey: ['shared-scorecard', shareId],
@@ -280,9 +280,13 @@ export default function SharedScorecardPage() {
           </Typography>
         </Box>
 
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-          {scorecard.playerName}
-        </Typography>
+        {user ? (
+          <ProfileLink userId={scorecard.ownerId} name={scorecard.playerName} variant="h5" sx={{ fontWeight: 700, mb: 0.5 }} />
+        ) : (
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+            {scorecard.playerName}
+          </Typography>
+        )}
         <Typography variant="body1" color="text.secondary" sx={{ mb: 0.5 }}>
           {formatCourseName(scorecard.courseName)}
         </Typography>

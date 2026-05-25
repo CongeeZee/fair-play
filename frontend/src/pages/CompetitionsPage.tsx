@@ -29,6 +29,7 @@ import { searchExternalCourses } from '../api/courses'
 import { formatCourseName } from '../utils'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
+import ProfileLink from '../components/ProfileLink'
 import type { CompetitionSummary } from '../types'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
@@ -491,7 +492,7 @@ function CompetitionDetailView({ id }: { id: string }) {
             </Box>
           }
         >
-          You've been invited to this competition by {comp.creator.name}
+          You've been invited to this competition by <ProfileLink userId={comp.creator.id} name={comp.creator.name} variant="body2" sx={{ display: 'inline' }} />
         </Alert>
       )}
 
@@ -519,7 +520,7 @@ function CompetitionDetailView({ id }: { id: string }) {
             </Box>
           </Box>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-            Created by {comp.creator.name}
+            Created by <ProfileLink userId={comp.creator.id} name={comp.creator.name} variant="caption" sx={{ display: 'inline', color: 'rgba(255,255,255,0.7)' }} />
           </Typography>
         </CardContent>
       </Card>
@@ -568,9 +569,10 @@ function CompetitionDetailView({ id }: { id: string }) {
                     )}
                   </Box>
                   <Box sx={{ flex: 1, ml: 1.5, minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={isMe ? 700 : 500} noWrap>
-                      {entry.name}{isMe ? ' (You)' : ''}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <ProfileLink userId={entry.userId} name={entry.name} variant="body2" sx={{ fontWeight: isMe ? 700 : 500 }} />
+                      {isMe && <Typography variant="body2" color="text.secondary">(You)</Typography>}
+                    </Box>
                     {!comp.course && (
                       <Typography variant="caption" color="text.secondary" noWrap>
                         {formatCourseName(entry.courseName)}
@@ -613,9 +615,10 @@ function CompetitionDetailView({ id }: { id: string }) {
                     <Box sx={{ width: 32, textAlign: 'center', flexShrink: 0 }}>
                       <Typography variant="body2" color="text.disabled">–</Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1.5 }}>
-                      {p.name}{isMe ? ' (You)' : ''}
-                    </Typography>
+                    <Box sx={{ ml: 1.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ color: 'text.secondary' }} />
+                      {isMe && <Typography variant="body2" color="text.disabled">(You)</Typography>}
+                    </Box>
                     <Typography variant="caption" color="text.disabled" sx={{ ml: 'auto' }}>
                       No round submitted
                     </Typography>
@@ -635,7 +638,7 @@ function CompetitionDetailView({ id }: { id: string }) {
             <Box key={p.userId}>
               {idx > 0 && <Divider />}
               <ListItem>
-                <ListItemText primary={p.name} />
+                <ListItemText primary={<ProfileLink userId={p.userId} name={p.name} variant="body2" />} />
                 <Chip
                   label={p.status}
                   size="small"

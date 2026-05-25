@@ -156,6 +156,7 @@ router.get("/live", async (req: AuthRequest, res: Response) => {
       return {
         roundId: r.id,
         shareId: r.shareId,
+        playerId: r.userId,
         playerName: r.user.name,
         courseName: r.course.name,
         holesCompleted,
@@ -227,6 +228,7 @@ router.get("/:id/live-scorecard", async (req: AuthRequest, res: Response) => {
     res.json({
       roundId: round.id,
       shareId: round.shareId,
+      playerId: round.userId,
       playerName: round.user.name,
       courseName: round.course.name,
       holes,
@@ -321,7 +323,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
       roundIds.length > 0
         ? prisma.roundComment.findMany({
             where: { roundId: { in: roundIds } },
-            include: { user: { select: { name: true } } },
+            include: { user: { select: { id: true, name: true } } },
             orderBy: { createdAt: "desc" },
           })
         : [],
@@ -337,12 +339,12 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     }
 
     // Build per-round comment data (count + 2 most recent)
-    const commentsByRound = new Map<number, { commentCount: number; recentComments: { name: string; text: string }[] }>();
+    const commentsByRound = new Map<number, { commentCount: number; recentComments: { userId: number; name: string; text: string }[] }>();
     for (const c of allComments) {
       if (!commentsByRound.has(c.roundId)) commentsByRound.set(c.roundId, { commentCount: 0, recentComments: [] });
       const entry = commentsByRound.get(c.roundId)!;
       entry.commentCount++;
-      if (entry.recentComments.length < 2) entry.recentComments.push({ name: c.user.name, text: c.text });
+      if (entry.recentComments.length < 2) entry.recentComments.push({ userId: c.user.id, name: c.user.name, text: c.text });
     }
     // Reverse recentComments so oldest-first (they were fetched desc)
     for (const entry of commentsByRound.values()) entry.recentComments.reverse();
@@ -355,6 +357,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         return {
           id: r.id,
           shareId: r.shareId,
+          playerId: r.userId,
           playerName: r.user.name,
           playedAt: r.playedAt,
           courseName: r.course.name,
@@ -407,7 +410,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         }),
         prisma.roundComment.findMany({
           where: { roundId: latestOwn.id },
-          include: { user: { select: { name: true } } },
+          include: { user: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
           take: 2,
         }),
@@ -431,7 +434,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         reactionSummary: ownSummary,
         userReaction: ownUserReaction,
         commentCount: await prisma.roundComment.count({ where: { roundId: latestOwn.id } }),
-        recentComments: ownComments.reverse().map((c) => ({ name: c.user.name, text: c.text })),
+        recentComments: ownComments.reverse().map((c) => ({ userId: c.user.id, name: c.user.name, text: c.text })),
       };
     }
 
@@ -465,6 +468,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     const feedTeeTimes = openTeeTimes.map((tt) => ({
       id: tt.id,
       type: "tee_time" as const,
+      creatorId: tt.creatorId,
       creatorName: tt.creator.name,
       courseName: tt.courseId && tt.course ? tt.course.name : (tt.courseName ?? null),
       dateTime: tt.dateTime,

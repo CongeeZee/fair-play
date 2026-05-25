@@ -22,6 +22,7 @@ import { getLiveRounds } from '../api/live'
 import { formatCourseName, timeAgo } from '../utils'
 import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound } from '../types'
 import PageHeader from '../components/PageHeader'
+import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
@@ -65,7 +66,7 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
                   width: 6, height: 6, borderRadius: '50%', bgcolor: '#4caf50',
                   animation: 'pulse 2s infinite',
                 }} />
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.playerName}</Typography>
+                <ProfileLink userId={r.playerId} name={r.playerName} variant="body2" onClick={(e) => e.stopPropagation()} />
               </Box>
               <Typography variant="caption" color="text.secondary" noWrap>
                 {formatCourseName(r.courseName)}
@@ -128,9 +129,7 @@ function InlineComments({ roundId, shareId, commentCount, recentComments }: {
     <Box>
       {optimisticComments.map((c, i) => (
         <Typography key={i} variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }} noWrap>
-          <Typography component="span" variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-            {c.name}
-          </Typography>{' '}
+          <ProfileLink userId={c.userId} name={c.name} variant="caption" sx={{ color: 'text.primary' }} />{' '}
           {c.text}
         </Typography>
       ))}
@@ -257,9 +256,7 @@ function FeedCard({ round }: { round: FeedRound }) {
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 700 }}>
-              {round.playerName}
-            </Typography>
+            <ProfileLink userId={round.playerId} name={round.playerName} variant="subtitle2" />
             <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25 }} noWrap>
               {formatCourseName(round.courseName)}
             </Typography>
@@ -340,9 +337,7 @@ function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 700 }}>
-              {teeTime.creatorName}
-            </Typography>
+            <ProfileLink userId={teeTime.creatorId} name={teeTime.creatorName} variant="subtitle2" />
             <Typography variant="body2" sx={{ mt: 0.25 }}>
               Looking for players{teeTime.courseName ? ` at ${formatCourseName(teeTime.courseName)}` : ''}
             </Typography>

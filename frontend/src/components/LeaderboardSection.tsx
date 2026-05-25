@@ -8,7 +8,7 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import RemoveIcon from '@mui/icons-material/Remove'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getLeaderboard, getHandicapLeaderboard } from '../api/rounds'
 import { useAuth } from '../contexts/AuthContext'
@@ -27,6 +27,7 @@ function formatScoreInt(val: number | null) {
 
 export default function LeaderboardSection() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [timeframe, setTimeframe] = useState('month')
 
   const { data: scoreBoard, isLoading: scoreLoading } = useQuery({
@@ -102,7 +103,8 @@ export default function LeaderboardSection() {
                     return (
                       <TableRow
                         key={entry.userId}
-                        sx={isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : undefined}
+                        onClick={() => navigate(`/profile/${entry.userId}`)}
+                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : {}) }}
                       >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -158,7 +160,8 @@ export default function LeaderboardSection() {
                     return (
                       <TableRow
                         key={entry.userId}
-                        sx={isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : undefined}
+                        onClick={() => navigate(`/profile/${entry.userId}`)}
+                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : {}) }}
                       >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

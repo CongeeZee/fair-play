@@ -51,12 +51,12 @@ async function getReactionSummary(roundId: number, userId: number) {
   });
 
   const summary: Record<string, number> = {};
-  const names: Record<string, string[]> = {};
+  const names: Record<string, Array<{ userId: number; name: string }>> = {};
   let userReaction: string | null = null;
   for (const r of reactions) {
     summary[r.emoji] = (summary[r.emoji] || 0) + 1;
     if (!names[r.emoji]) names[r.emoji] = [];
-    names[r.emoji].push(r.user.name);
+    names[r.emoji].push({ userId: r.userId, name: r.user.name });
     if (r.userId === userId) userReaction = r.emoji;
   }
 

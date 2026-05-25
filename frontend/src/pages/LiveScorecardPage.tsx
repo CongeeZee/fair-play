@@ -9,6 +9,7 @@ import {
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import { getLiveScorecard } from '../api/live'
 import { formatCourseName, timeAgo } from '../utils'
+import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import { getReactions } from '../api/reactions'
 
@@ -77,9 +78,7 @@ export default function LiveScorecardPage() {
           </Typography>
         </Box>
 
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-          {scorecard.playerName}
-        </Typography>
+        <ProfileLink userId={scorecard.playerId} name={scorecard.playerName} variant="h5" sx={{ fontWeight: 700, mb: 0.5 }} />
         <Typography variant="body1" color="text.secondary">
           {formatCourseName(scorecard.courseName)}
         </Typography>
