@@ -4,15 +4,14 @@ import {
   CircularProgress, Fab, Alert, Avatar,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, ToggleButton, ToggleButtonGroup,
-  Switch, FormControlLabel, List, ListItem, ListItemButton, ListItemText, Checkbox,
-  Autocomplete, Divider, IconButton,
+  List, ListItem, ListItemButton, ListItemText, Checkbox,
+  Autocomplete, Divider,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import PersonIcon from '@mui/icons-material/Person'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
-import EditIcon from '@mui/icons-material/Edit'
 import CancelIcon from '@mui/icons-material/Cancel'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -111,7 +110,7 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const [courseSearch, setCourseSearch] = useState('')
-  const [selectedCourse, setSelectedCourse] = useState<{ id: number; name: string } | null>(null)
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null)
   const [dateTime, setDateTime] = useState(getNextSaturday8am())
   const [spotsTotal, setSpotsTotal] = useState(4)
   const [visibility, setVisibility] = useState<'FRIENDS' | 'INVITED_ONLY'>('FRIENDS')
@@ -158,7 +157,7 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
   const handleCreate = () => {
     setError('')
     createMut.mutate({
-      courseId: selectedCourse?.id,
+      courseId: selectedCourse ? parseInt(selectedCourse.id, 10) : undefined,
       dateTime: new Date(dateTime).toISOString(),
       spotsTotal,
       notes: notes.trim() || undefined,
@@ -176,7 +175,7 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
       <DialogTitle sx={{ fontWeight: 700 }}>New Tee Time</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
         <Autocomplete
-          options={courses || []}
+          options={(courses || []).map((c) => ({ id: c.id, name: c.name }))}
           getOptionLabel={(c) => c.name}
           value={selectedCourse}
           onChange={(_, val) => setSelectedCourse(val)}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Box, Container, Typography, CircularProgress, Paper,
@@ -29,7 +29,6 @@ function scoreToParLabel(scoreToPar: number) {
 
 export default function LiveScorecardPage() {
   const { roundId } = useParams<{ roundId: string }>()
-  const navigate = useNavigate()
   const roundIdNum = parseInt(roundId || '', 10)
   const [highlightHole, setHighlightHole] = useState<number | null>(null)
   const prevHolesCompleted = useRef<number>(0)

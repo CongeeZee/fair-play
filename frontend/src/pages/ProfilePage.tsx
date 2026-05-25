@@ -110,8 +110,8 @@ function StatsRow({ profile }: { profile: UserProfile }) {
   )
 }
 
-function HeadToHeadSection({ h2h, viewerName, targetName, targetId }: {
-  h2h: HeadToHead; viewerName: string; targetName: string; targetId: number
+function HeadToHeadSection({ h2h, targetName, targetId }: {
+  h2h: HeadToHead; targetName: string; targetId: number
 }) {
   const navigate = useNavigate()
   const total = h2h.viewerWins + h2h.targetWins + h2h.draws
@@ -150,7 +150,7 @@ function HeadToHeadSection({ h2h, viewerName, targetName, targetId }: {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <Box sx={{ textAlign: 'center', minWidth: 50 }}>
             <Typography variant="h4" sx={{ fontWeight: 800, color: '#2d5e42' }}>{h2h.viewerWins}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>You</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>You</Typography>
           </Box>
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
@@ -168,7 +168,7 @@ function HeadToHeadSection({ h2h, viewerName, targetName, targetId }: {
           </Box>
           <Box sx={{ textAlign: 'center', minWidth: 50 }}>
             <Typography variant="h4" sx={{ fontWeight: 800, color: '#c9a84c' }}>{h2h.targetWins}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>{targetName.split(' ')[0]}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>{targetName.split(' ')[0]}</Typography>
           </Box>
         </Box>
 
@@ -188,7 +188,7 @@ function HeadToHeadSection({ h2h, viewerName, targetName, targetId }: {
               <TableBody>
                 {h2h.sharedCourses.map((sc) => (
                   <TableRow key={sc.courseId}>
-                    <TableCell sx={{ fontSize: '0.75rem', maxWidth: 120 }} noWrap>{formatCourseName(sc.courseName)}</TableCell>
+                    <TableCell sx={{ fontSize: '0.75rem', maxWidth: 120, whiteSpace: 'nowrap' }}>{formatCourseName(sc.courseName)}</TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem', fontWeight: 600,
                       color: sc.viewerBest <= sc.targetBest ? '#2d5e42' : 'text.primary',
@@ -328,7 +328,7 @@ function EditNameDialog({ open, currentName, onClose, onSave }: {
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
 
   const isOwn = userId === 'me' || userId === user?.id
@@ -412,7 +412,7 @@ export default function ProfilePage() {
 
       {/* Head-to-head (friends only) */}
       {!isOwn && h2h && (
-        <HeadToHeadSection h2h={h2h} viewerName={viewerName} targetName={profile.name} targetId={targetId} />
+        <HeadToHeadSection h2h={h2h} targetName={profile.name} targetId={targetId} />
       )}
 
       {/* Handicap comparison chart */}

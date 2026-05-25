@@ -117,7 +117,7 @@ function InlineComments({ roundId, shareId, commentCount, recentComments }: {
   const commentMutation = useMutation({
     mutationFn: () => addComment(roundId, text.trim()),
     onSuccess: (data) => {
-      setOptimisticComments((prev) => [...prev.slice(-1), { name: data.userName, text: data.text }])
+      setOptimisticComments((prev) => [...prev.slice(-1), { userId: data.userId, name: data.userName, text: data.text }])
       setOptimisticCount((c) => c + 1)
       setText('')
       setShowInput(false)

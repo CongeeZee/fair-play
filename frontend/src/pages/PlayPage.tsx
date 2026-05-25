@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import {
   Box, Typography, Card, CardContent, CardActionArea, Button, Chip,
-  CircularProgress, Divider, TextField, InputAdornment,
+  Divider, TextField, InputAdornment,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import PersonIcon from '@mui/icons-material/Person'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import AddIcon from '@mui/icons-material/Add'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
