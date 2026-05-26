@@ -108,7 +108,6 @@ function TeeTimeCard({ tt, onClick, action }: { tt: TeeTimeSummary; onClick?: ()
 
 function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [courseSearch, setCourseSearch] = useState('')
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null)
   const [dateTime, setDateTime] = useState(getNextSaturday8am())
@@ -509,7 +508,6 @@ function TeeTimeDetailView({ id }: { id: string }) {
 function TeeTimesListView() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [joinTarget, setJoinTarget] = useState<TeeTimeSummary | null>(null)
 
