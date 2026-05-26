@@ -193,6 +193,11 @@ export interface RecentComment {
   text: string
 }
 
+export interface FeedRoundReview {
+  rating: number
+  text: string | null
+}
+
 export interface FeedRound {
   id: number
   shareId: string | null
@@ -208,6 +213,7 @@ export interface FeedRound {
   userReaction: string | null
   commentCount: number
   recentComments: RecentComment[]
+  review: FeedRoundReview | null
 }
 
 export interface OwnLatestRound {
@@ -223,6 +229,7 @@ export interface OwnLatestRound {
   userReaction: string | null
   commentCount: number
   recentComments: RecentComment[]
+  review: FeedRoundReview | null
 }
 
 export interface RoundCommentData {

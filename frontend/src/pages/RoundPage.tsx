@@ -26,6 +26,7 @@ import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
 import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
+import ReviewPromptDialog from '../components/ReviewPromptDialog'
 import type { RoundHole } from '../types'
 
 // ── GPS utilities ────────────────────────────────────────────────────────────
@@ -464,6 +465,7 @@ export default function RoundPage() {
   const [scorecardOpen, setScorecardOpen] = useState(false)
   const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
   const [shareSnackbar, setShareSnackbar] = useState(false)
+  const [reviewPromptOpen, setReviewPromptOpen] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const gps = useGPS()
@@ -604,8 +606,22 @@ export default function RoundPage() {
 
   const isLastHole = currentHoleIndex === totalHoles - 1
 
+  const allHolesScored = holes.length > 0 && holes.every((h) => (holeScores[h.id]?.strokes ?? 0) > 0)
+  const roundId = round.id as unknown as number
+  const reviewSkipped = typeof window !== 'undefined' && !!localStorage.getItem(`review_skipped_${roundId}`)
+  const reviewExisting = (round as { review?: unknown }).review != null
+
   const handleFinish = () => {
     queryClient.invalidateQueries({ queryKey: ['rounds'] })
+    if (allHolesScored && !reviewSkipped && !reviewExisting) {
+      setReviewPromptOpen(true)
+    } else {
+      navigate('/history')
+    }
+  }
+
+  const handleReviewClose = () => {
+    setReviewPromptOpen(false)
     navigate('/history')
   }
 
@@ -1026,6 +1042,13 @@ export default function RoundPage() {
         currentHoleIndex={currentHoleIndex}
         onSelectHole={(idx) => setCurrentHoleIndex(idx)}
         isMobile={isMobile}
+      />
+
+      <ReviewPromptDialog
+        open={reviewPromptOpen}
+        roundId={roundId}
+        courseName={round.course?.name || 'this course'}
+        onClose={handleReviewClose}
       />
     </Container>
     <Snackbar

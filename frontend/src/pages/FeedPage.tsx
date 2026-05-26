@@ -23,6 +23,7 @@ import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound }
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
+import StarRating from '../components/StarRating'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
 function scoreColor(scoreToPar: number) {
@@ -241,11 +242,32 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
               commentCount={round.commentCount}
               recentComments={round.recentComments}
             />
+            {round.review && <ReviewLine review={round.review} courseName={round.courseName} />}
           </Box>
         </CardContent>
       </Card>
       <Snackbar open={snackbar} autoHideDuration={2000} onClose={() => setSnackbar(false)} message="Link copied!" anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: '68px', md: 0 } }} />
     </>
+  )
+}
+
+function ReviewLine({ review, courseName }: { review: { rating: number; text: string | null }; courseName: string }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+      <Typography variant="caption" color="text.secondary">
+        Rated {formatCourseName(courseName)}
+      </Typography>
+      <StarRating value={review.rating} readOnly size="small" />
+      {review.text && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ flex: '1 1 100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          “{review.text}”
+        </Typography>
+      )}
+    </Box>
   )
 }
 
@@ -287,6 +309,7 @@ function FeedCard({ round }: { round: FeedRound }) {
             commentCount={round.commentCount}
             recentComments={round.recentComments}
           />
+          {round.review && <ReviewLine review={round.review} courseName={round.courseName} />}
           {round.shareId && (
             <Button
               component={Link}

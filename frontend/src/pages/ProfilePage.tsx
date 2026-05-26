@@ -16,7 +16,9 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts'
 import { getUserProfile, getHeadToHead, getUserHandicapHistory, updateProfile } from '../api/users'
+import { getUserReviews } from '../api/reviews'
 import { removeFriend, blockUser } from '../api/friends'
+import StarRating from '../components/StarRating'
 import { useAuth } from '../contexts/AuthContext'
 import { formatCourseName, timeAgo } from '../utils'
 import PageHeader from '../components/PageHeader'
@@ -302,6 +304,58 @@ function RecentRoundsSection({ rounds }: { rounds: UserProfile['recentRounds'] }
   )
 }
 
+function UserReviewsSection({ userId }: { userId: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const { data, isLoading } = useQuery({
+    queryKey: ['user-reviews', userId],
+    queryFn: () => getUserReviews(userId),
+    enabled: userId > 0,
+  })
+
+  if (isLoading || !data || data.length === 0) return null
+
+  const visible = expanded ? data : data.slice(0, 3)
+
+  return (
+    <Card elevation={1} sx={{ mb: 3, borderRadius: 2 }}>
+      <CardContent>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
+          Reviews
+        </Typography>
+        {visible.map((r) => (
+          <Box
+            key={r.id}
+            sx={{
+              py: 1, borderBottom: '1px solid', borderColor: 'divider',
+              '&:last-child': { borderBottom: 'none' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{formatCourseName(r.courseName)}</Typography>
+              <StarRating value={r.rating} readOnly size="small" />
+            </Box>
+            {r.text && (
+              <Typography variant="caption" color="text.secondary" sx={{
+                display: '-webkit-box', overflow: 'hidden',
+                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              }}>
+                {r.text}
+              </Typography>
+            )}
+          </Box>
+        ))}
+        {data.length > 3 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <Button size="small" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? 'Show less' : `See all ${data.length} reviews`}
+            </Button>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function EditNameDialog({ open, currentName, onClose, onSave }: {
   open: boolean; currentName: string; onClose: () => void; onSave: (name: string) => void
 }) {
@@ -431,6 +485,8 @@ export default function ProfilePage() {
       )}
 
       <RecentRoundsSection rounds={profile.recentRounds} />
+
+      <UserReviewsSection userId={targetId} />
 
       {profile.favouriteCourse && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mb: 2 }}>

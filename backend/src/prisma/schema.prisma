@@ -31,6 +31,7 @@ model User {
   teeTimeEntries         TeeTimeParticipant[]
   roundReactions         RoundReaction[]
   roundComments          RoundComment[]
+  courseReviews          CourseReview[]
 }
 
 enum FriendshipStatus {
@@ -84,6 +85,7 @@ model Course {
   rounds       Round[]
   competitions Competition[]
   teeTimes     TeeTime[]
+  reviews      CourseReview[]
 }
 
 model Hole {
@@ -115,9 +117,29 @@ model Round {
   competitionRounds     CompetitionRound[]
   reactions             RoundReaction[]
   comments              RoundComment[]
+  review                CourseReview?
 
   @@index([userId, completedAt])
   @@index([lastScoredAt])
+}
+
+model CourseReview {
+  id              String   @id @default(uuid())
+  courseId        Int
+  userId          Int
+  roundId         Int      @unique
+  rating          Int
+  conditionRating Int?
+  valueRating     Int?
+  paceRating      Int?
+  text            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  round           Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
 }
 
 // ── Reactions & Comments ─────────────────────────────────────────────────────

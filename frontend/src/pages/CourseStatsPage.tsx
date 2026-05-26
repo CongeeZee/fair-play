@@ -6,8 +6,11 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { getCourseDetailStats } from '../api/rounds'
+import { getCourseDetailStats, getRounds } from '../api/rounds'
+import { getUserReviews } from '../api/reviews'
+import { useAuth } from '../contexts/AuthContext'
 import { formatCourseName } from '../utils'
+import CourseReviewsSection from '../components/CourseReviewsSection'
 import type { CourseHoleStat } from '../types'
 
 function pct(rate: number | null) {
@@ -40,11 +43,34 @@ export default function CourseStatsPage() {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
 
+  const { user } = useAuth()
   const { data, isLoading, error } = useQuery({
     queryKey: ['course-stats', courseId],
     queryFn: () => getCourseDetailStats(courseId!),
     enabled: !!courseId,
   })
+
+  // Find user's most recent completed round at this course without a review
+  const { data: myRounds } = useQuery({
+    queryKey: ['rounds'],
+    queryFn: getRounds,
+    enabled: !!user,
+  })
+  const { data: myReviews } = useQuery({
+    queryKey: ['user-reviews', user?.id],
+    queryFn: () => getUserReviews(Number(user!.id)),
+    enabled: !!user,
+  })
+
+  const promptableRound = (() => {
+    if (!myRounds || !user) return null
+    const reviewedRoundIds = new Set((myReviews || []).map((r) => r.roundId))
+    const candidate = myRounds
+      .filter((r) => String(r.courseId) === String(courseId) && (r.holesCompleted ?? 0) > 0)
+      .find((r) => !reviewedRoundIds.has(Number(r.id)))
+    if (!candidate) return null
+    return { roundId: Number(candidate.id), courseName: candidate.course?.name || 'this course' }
+  })()
 
   if (isLoading) {
     return (
@@ -228,6 +254,13 @@ export default function CourseStatsPage() {
           </Paper>
         </>
       )}
+
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" color="primary.main" fontWeight={700} sx={{ mb: 2 }}>
+          Reviews
+        </Typography>
+        <CourseReviewsSection courseId={courseId!} promptableRound={promptableRound} />
+      </Box>
     </Container>
   )
 }

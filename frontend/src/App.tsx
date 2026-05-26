@@ -32,6 +32,7 @@ import TeeTimesPage from './pages/TeeTimesPage'
 import PlayPage from './pages/PlayPage'
 import LiveScorecardPage from './pages/LiveScorecardPage'
 import ProfilePage from './pages/ProfilePage'
+import CourseReviewsPage from './pages/CourseReviewsPage'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -70,6 +71,7 @@ function Layout() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/scorecard/:shareId" element={<SharedScorecardPage />} />
+        <Route path="/courses/:courseId/reviews" element={<CourseReviewsPage />} />
         <Route
           path="/feed"
           element={<ProtectedRoute><FeedPage /></ProtectedRoute>}

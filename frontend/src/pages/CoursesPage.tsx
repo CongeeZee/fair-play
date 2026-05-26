@@ -10,8 +10,10 @@ import SearchIcon from '@mui/icons-material/Search'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import HistoryIcon from '@mui/icons-material/History'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { searchExternalCourses, getExternalCourseTees } from '../api/courses'
+import { getCourseReviewsSummary } from '../api/reviews'
+import StarRating from '../components/StarRating'
 import PageHeader from '../components/PageHeader'
 import type { TeeOption } from '../api/courses'
 import { createRound, getRounds } from '../api/rounds'
@@ -73,6 +75,30 @@ export default function CoursesPage() {
   })
 
   const recentCourses = useRecentCourses(rounds)
+
+  // Batch summary requests for search results (by externalId) and recent (by local id)
+  const summaryKeys = useMemo(() => {
+    const fromSearch = (courses ?? []).map((c) => String(c.id))
+    const fromRecent = recentCourses.map((c) => c.externalId || c.courseId)
+    return Array.from(new Set([...fromSearch, ...fromRecent]))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses, recentCourses])
+
+  const summaryQueries = useQueries({
+    queries: summaryKeys.map((key) => ({
+      queryKey: ['course-review-summary', key],
+      queryFn: () => getCourseReviewsSummary(key),
+      staleTime: 30 * 60_000,
+    })),
+  })
+  const summaryByKey = useMemo(() => {
+    const map = new Map<string, { averageRating: number | null; totalReviews: number }>()
+    summaryKeys.forEach((k, i) => {
+      const d = summaryQueries[i]?.data
+      if (d) map.set(String(k), d)
+    })
+    return map
+  }, [summaryKeys, summaryQueries])
 
   const fetchTeesAndOpen = useCallback(async (courseId: number | string, overrideName?: string) => {
     setLoadingTees(courseId)
@@ -181,7 +207,25 @@ export default function CoursesPage() {
                     >
                       <ListItemText
                         primary={formatCourseName(c.name)}
-                        secondary={`Last played ${new Date(c.lastPlayed).toLocaleDateString('en-GB', { dateStyle: 'medium' })}`}
+                        secondary={
+                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column' }}>
+                            <span>{`Last played ${new Date(c.lastPlayed).toLocaleDateString('en-GB', { dateStyle: 'medium' })}`}</span>
+                            {(() => {
+                              const key = c.externalId || c.courseId
+                              const s = summaryByKey.get(String(key))
+                              if (!s || s.totalReviews < 1 || s.averageRating == null) return null
+                              return (
+                                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                                  <StarRating value={s.averageRating} size="small" readOnly />
+                                  <Typography component="span" variant="caption" color="text.secondary">
+                                    ({s.totalReviews} review{s.totalReviews === 1 ? '' : 's'})
+                                  </Typography>
+                                </Box>
+                              )
+                            })()}
+                          </Box>
+                        }
+                        secondaryTypographyProps={{ component: 'div' }}
                       />
                     </ListItem>
                   </Box>
@@ -250,7 +294,24 @@ export default function CoursesPage() {
                   >
                     <ListItemText
                       primary={course.course_name}
-                      secondary={secondary || undefined}
+                      secondary={
+                        <Box component="span" sx={{ display: 'flex', flexDirection: 'column' }}>
+                          {secondary && <span>{secondary}</span>}
+                          {(() => {
+                            const s = summaryByKey.get(String(course.id))
+                            if (!s || s.totalReviews < 1 || s.averageRating == null) return null
+                            return (
+                              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                                <StarRating value={s.averageRating} size="small" readOnly />
+                                <Typography component="span" variant="caption" color="text.secondary">
+                                  ({s.totalReviews} review{s.totalReviews === 1 ? '' : 's'})
+                                </Typography>
+                              </Box>
+                            )
+                          })()}
+                        </Box>
+                      }
+                      secondaryTypographyProps={{ component: 'div' }}
                     />
                   </ListItem>
                 </Box>

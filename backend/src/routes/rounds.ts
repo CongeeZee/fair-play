@@ -312,8 +312,8 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     const scoredRounds = page.filter((r) => r.roundHoles.length > 0);
     const roundIds = scoredRounds.map((r) => r.id);
 
-    // Batch-fetch reactions and comments for all feed rounds
-    const [allReactions, allComments] = await Promise.all([
+    // Batch-fetch reactions, comments, and reviews for all feed rounds
+    const [allReactions, allComments, allReviews] = await Promise.all([
       roundIds.length > 0
         ? prisma.roundReaction.findMany({
             where: { roundId: { in: roundIds } },
@@ -327,7 +327,15 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
             orderBy: { createdAt: "desc" },
           })
         : [],
+      roundIds.length > 0
+        ? prisma.courseReview.findMany({
+            where: { roundId: { in: roundIds } },
+            select: { roundId: true, rating: true, text: true },
+          })
+        : [],
     ]);
+    const reviewsByRound = new Map<number, { rating: number; text: string | null }>();
+    for (const rv of allReviews) reviewsByRound.set(rv.roundId, { rating: rv.rating, text: rv.text });
 
     // Build per-round reaction summaries
     const reactionsByRound = new Map<number, { summary: Record<string, number>; userReaction: string | null }>();
@@ -369,6 +377,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
           userReaction: reactions.userReaction,
           commentCount: comments.commentCount,
           recentComments: comments.recentComments,
+          review: reviewsByRound.get(r.id) ?? null,
         };
       });
 
@@ -422,6 +431,10 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         if (r.userId === userId) ownUserReaction = r.emoji;
       }
 
+      const ownReview = await prisma.courseReview.findUnique({
+        where: { roundId: latestOwn.id },
+        select: { rating: true, text: true },
+      });
       latestOwnRound = {
         id: latestOwn.id,
         shareId: latestOwn.shareId,
@@ -435,6 +448,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         userReaction: ownUserReaction,
         commentCount: await prisma.roundComment.count({ where: { roundId: latestOwn.id } }),
         recentComments: ownComments.reverse().map((c) => ({ userId: c.user.id, name: c.user.name, text: c.text })),
+        review: ownReview,
       };
     }
 
