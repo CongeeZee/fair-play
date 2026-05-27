@@ -27,7 +27,8 @@ import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
 import ReviewPromptDialog from '../components/ReviewPromptDialog'
-import type { RoundHole } from '../types'
+import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay'
+import type { RoundHole, NewlyUnlockedAchievement } from '../types'
 
 // ── GPS utilities ────────────────────────────────────────────────────────────
 function haversineYards(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -466,6 +467,7 @@ export default function RoundPage() {
   const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
   const [shareSnackbar, setShareSnackbar] = useState(false)
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false)
+  const [achievementQueue, setAchievementQueue] = useState<NewlyUnlockedAchievement[]>([])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const gps = useGPS()
@@ -511,7 +513,7 @@ export default function RoundPage() {
     clearTimeout(debounceTimers.current[holeId])
     debounceTimers.current[holeId] = setTimeout(async () => {
       try {
-        await scoreHole(id!, holeId, {
+        const response = await scoreHole(id!, holeId, {
           strokes: score.strokes,
           putts: score.putts || undefined,
           teeShotDirection: score.teeShotDirection || undefined,
@@ -525,6 +527,9 @@ export default function RoundPage() {
         if (savedTimer.current) clearTimeout(savedTimer.current)
         savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500)
         refreshCount()
+        if (response.newlyUnlocked && response.newlyUnlocked.length > 0) {
+          setAchievementQueue(response.newlyUnlocked)
+        }
       } catch {
         setSaveStatus('idle')
       }
@@ -646,6 +651,7 @@ export default function RoundPage() {
 
   return (
     <>
+    <AchievementUnlockOverlay queue={achievementQueue} onClear={() => setAchievementQueue([])} />
     {/* Offline banner — full width above content */}
     <OfflineBanner syncState={syncState} pendingCount={pendingCount} />
 

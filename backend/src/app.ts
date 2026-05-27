@@ -10,6 +10,7 @@ import competitionsRouter from "./routes/competitions";
 import teetimesRouter from "./routes/teetimes";
 import reactionsRouter from "./routes/reactions";
 import usersRouter from "./routes/users";
+import achievementsRouter from "./routes/achievements";
 import { authedRouter as reviewsAuthedRouter, publicRouter as reviewsPublicRouter } from "./routes/reviews";
 import { standardLimiter } from "./middleware/rateLimiter";
 import prisma from "./lib/prisma";
@@ -88,6 +89,7 @@ app.use("/teetimes", teetimesRouter);
 app.use("/", reviewsPublicRouter);
 app.use("/", reactionsRouter);
 app.use("/users", usersRouter);
+app.use("/", achievementsRouter);
 app.use("/", reviewsAuthedRouter);
 
 // Catch-all 404

@@ -5,6 +5,7 @@ import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
 import { sendPushToUser } from "../lib/pushNotification";
+import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
 const router = Router();
 
@@ -1046,7 +1047,10 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const round = await prisma.round.findUnique({ where: { id: roundId } });
+    const round = await prisma.round.findUnique({
+      where: { id: roundId },
+      include: { course: { select: { _count: { select: { holes: true } } } } },
+    });
     if (!round) {
       res.status(404).json({ error: "Round not found" });
       return;
@@ -1084,35 +1088,36 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
       data: { lastScoredAt: new Date() },
     });
 
-    res.json(roundHole);
-
-    // Send "round started" notification on first hole scored
+    // Send "round started" notification on first hole scored (fire-and-forget)
     if (prevScoredCount === 0 && !round.startNotificationSent) {
-      await prisma.round.update({
-        where: { id: roundId },
-        data: { startNotificationSent: true },
-      });
-      const player = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-      const course = await prisma.course.findUnique({ where: { id: round.courseId }, select: { name: true } });
-      if (player && course) {
-        const courseName = course.name.replace(/\s*—.*$/, "");
-        const friendships = await prisma.friendship.findMany({
-          where: { status: "ACCEPTED", OR: [{ requesterId: req.userId! }, { addresseeId: req.userId! }] },
-          select: { requesterId: true, addresseeId: true },
+      (async () => {
+        await prisma.round.update({
+          where: { id: roundId },
+          data: { startNotificationSent: true },
         });
-        for (const f of friendships) {
-          const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
-          sendPushToUser(friendId, "Fairplay", `${player.name} just started a round at ${courseName}`, `/live/${roundId}`).catch(() => {});
+        const player = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
+        const course = await prisma.course.findUnique({ where: { id: round.courseId }, select: { name: true } });
+        if (player && course) {
+          const courseName = course.name.replace(/\s*—.*$/, "");
+          const friendships = await prisma.friendship.findMany({
+            where: { status: "ACCEPTED", OR: [{ requesterId: req.userId! }, { addresseeId: req.userId! }] },
+            select: { requesterId: true, addresseeId: true },
+          });
+          for (const f of friendships) {
+            const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
+            sendPushToUser(friendId, "Fairplay", `${player.name} just started a round at ${courseName}`, `/live/${roundId}`).catch(() => {});
+          }
         }
-      }
+      })().catch((e) => console.error("start-notification error:", e));
     }
 
     // Check if round just became complete (all holes scored, not previously completed)
-    if (!round.completedAt) {
-      const courseHoleCount = await prisma.hole.count({ where: { courseId: round.courseId } });
+    let newlyUnlockedAchievements: Awaited<ReturnType<typeof evaluateAchievements>>["newlyUnlocked"] = [];
+    const courseHoleCount = round.course._count.holes;
+    if (!round.completedAt && courseHoleCount >= 18) {
       const scoredCount = await prisma.roundHole.count({ where: { roundId } });
 
-      if (scoredCount === courseHoleCount && courseHoleCount >= 18) {
+      if (scoredCount === courseHoleCount) {
         // Mark round complete
         const completedRound = await prisma.round.update({
           where: { id: roundId },
@@ -1130,6 +1135,10 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
         const scoreToPar = totalStrokes - totalPar;
         const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
         const courseName = completedRound.course.name.replace(/\s*—.*$/, "");
+
+        // Evaluate achievements now that round is complete
+        const evalResult = await evaluateAchievements(req.userId!);
+        newlyUnlockedAchievements = evalResult.newlyUnlocked;
 
         // Notify all accepted friends (fire-and-forget)
         const friendships = await prisma.friendship.findMany({
@@ -1149,8 +1158,40 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
             "/feed"
           ).catch(() => {});
         }
+
+        // If a Personal Best was unlocked/updated, push a special notification to friends
+        const pb = newlyUnlockedAchievements.find((a) => a.type === "PERSONAL_BEST");
+        if (pb) {
+          const pbScore = (pb.metadata as { score?: number } | null)?.score ?? totalStrokes;
+          for (const f of friendships) {
+            const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
+            sendPushToUser(
+              friendId,
+              "New personal best!",
+              `${completedRound.user.name} just set a new PB — ${pbScore} at ${courseName}!`,
+              "/feed"
+            ).catch(() => {});
+          }
+        }
       }
     }
+
+    // Enrich newly-unlocked achievements with display metadata so frontend can show overlay immediately
+    const enrichedNewlyUnlocked = newlyUnlockedAchievements.map((a) => {
+      const def = getAchievementDef(a.type);
+      return {
+        id: a.id,
+        type: a.type,
+        name: def?.name ?? a.type,
+        description: def?.description ?? "",
+        emoji: def?.emoji ?? "🏆",
+        category: def?.category ?? "MILESTONE",
+        unlockedAt: a.unlockedAt,
+        metadata: a.metadata,
+      };
+    });
+
+    res.json({ ...roundHole, newlyUnlocked: enrichedNewlyUnlocked });
   } catch (err) {
     console.error("PUT /rounds/:id/holes/:holeId error:", err);
     res.status(500).json({ error: "Internal server error" });

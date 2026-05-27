@@ -5,7 +5,7 @@ import {
   Box, Typography, Card, CardContent, CircularProgress, Chip, Button,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton,
+  IconButton, Popover,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'
@@ -16,13 +16,14 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts'
 import { getUserProfile, getHeadToHead, getUserHandicapHistory, updateProfile } from '../api/users'
+import { getUserAchievements } from '../api/achievements'
 import { getUserReviews } from '../api/reviews'
 import { removeFriend, blockUser } from '../api/friends'
 import StarRating from '../components/StarRating'
 import { useAuth } from '../contexts/AuthContext'
 import { formatCourseName, timeAgo } from '../utils'
 import PageHeader from '../components/PageHeader'
-import type { UserProfile, HeadToHead } from '../types'
+import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
 
 function avatarColor(userId: number): string {
   const colors = ['#1a3a2a', '#2d5e42', '#c9a84c', '#1a3a5c', '#8B4513', '#4a148c', '#00695c', '#b71c1c']
@@ -109,6 +110,102 @@ function StatsRow({ profile }: { profile: UserProfile }) {
         </Card>
       ))}
     </Box>
+  )
+}
+
+function AchievementsSection({ userId }: { userId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['achievements', userId],
+    queryFn: () => getUserAchievements(userId),
+    enabled: userId > 0,
+  })
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const [selected, setSelected] = useState<UnlockedAchievement | null>(null)
+
+  if (isLoading || !data) return null
+  const total = data.unlocked.length + data.locked.length
+  if (total === 0) return null
+
+  const handleOpen = (e: React.MouseEvent<HTMLElement>, a: UnlockedAchievement) => {
+    setSelected(a)
+    setAnchorEl(e.currentTarget)
+  }
+  const handleClose = () => {
+    setAnchorEl(null)
+    setSelected(null)
+  }
+
+  return (
+    <Card elevation={1} sx={{ mb: 3, borderRadius: 2 }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
+            Achievements
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {data.unlocked.length}/{total} unlocked
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5 }}>
+          {data.unlocked.map((a) => (
+            <Box
+              key={a.type}
+              onClick={(e) => handleOpen(e, a)}
+              sx={{
+                textAlign: 'center', cursor: 'pointer', py: 1, borderRadius: 1.5,
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' },
+              }}
+            >
+              <Typography sx={{ fontSize: '2rem', lineHeight: 1 }}>{a.emoji}</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                {a.name}
+              </Typography>
+            </Box>
+          ))}
+          {data.locked.map((a) => (
+            <Box
+              key={a.type}
+              sx={{
+                textAlign: 'center', opacity: 0.4, py: 1, borderRadius: 1.5, filter: 'grayscale(1)',
+              }}
+            >
+              <Typography sx={{ fontSize: '2rem', lineHeight: 1 }}>{a.emoji}</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                {a.name}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+        <Popover
+          open={!!anchorEl}
+          anchorEl={anchorEl}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          {selected && (
+            <Box sx={{ p: 2, maxWidth: 260 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Typography sx={{ fontSize: '1.5rem' }}>{selected.emoji}</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{selected.name}</Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {selected.description}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Unlocked {new Date(selected.unlockedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+              </Typography>
+              {selected.courseName && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  at {formatCourseName(selected.courseName)}
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Popover>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -463,6 +560,8 @@ export default function ProfilePage() {
 
       <ProfileHeader profile={profile} isOwn={isOwn} onEdit={() => setEditOpen(true)} />
       <StatsRow profile={profile} />
+
+      <AchievementsSection userId={targetId} />
 
       {/* Head-to-head (friends only) */}
       {!isOwn && h2h && (

@@ -445,6 +445,57 @@ export interface UserProfile {
   liveCourseName: string | null
 }
 
+// ── Achievements ─────────────────────────────────────────────────────────────
+
+export type AchievementCategory = 'SCORING' | 'MILESTONE' | 'COURSE'
+
+export interface UnlockedAchievement {
+  type: string
+  name: string
+  description: string
+  emoji: string
+  category: AchievementCategory
+  unlockedAt: string
+  courseName: string | null
+  metadata: Record<string, unknown> | null
+}
+
+export interface LockedAchievement {
+  type: string
+  name: string
+  description: string
+  emoji: string
+  category: AchievementCategory
+}
+
+export interface UserAchievementsResponse {
+  unlocked: UnlockedAchievement[]
+  locked: LockedAchievement[]
+}
+
+export interface RecentAchievement {
+  id: string
+  userId: number
+  userName: string
+  type: string
+  name: string
+  description: string
+  emoji: string
+  unlockedAt: string
+  metadata: Record<string, unknown> | null
+}
+
+export interface NewlyUnlockedAchievement {
+  id: string
+  type: string
+  name: string
+  description: string
+  emoji: string
+  category: AchievementCategory
+  unlockedAt: string
+  metadata: Record<string, unknown> | null
+}
+
 export interface SharedCourseH2H {
   courseId: number
   courseName: string

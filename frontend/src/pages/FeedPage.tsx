@@ -18,8 +18,9 @@ import { getFeed } from '../api/rounds'
 import { joinTeeTime } from '../api/teetimes'
 import { addComment } from '../api/reactions'
 import { getLiveRounds } from '../api/live'
+import { getRecentAchievements } from '../api/achievements'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound } from '../types'
+import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement } from '../types'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
@@ -327,6 +328,28 @@ function FeedCard({ round }: { round: FeedRound }) {
   )
 }
 
+function AchievementFeedCard({ achievement }: { achievement: RecentAchievement }) {
+  const courseName = typeof achievement.metadata?.course === 'string' ? achievement.metadata.course : null
+  return (
+    <Card elevation={1} sx={{ mb: 2, borderRadius: 2, border: '1px solid rgba(201,168,76,0.35)', bgcolor: 'rgba(201,168,76,0.06)' }}>
+      <CardContent sx={{ pb: '12px !important' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography sx={{ fontSize: '2.25rem', lineHeight: 1 }}>{achievement.emoji}</Typography>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <ProfileLink userId={achievement.userId} name={achievement.userName} variant="body2" sx={{ fontWeight: 700 }} />{' '}
+              unlocked {achievement.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {achievement.description}{courseName ? ` · ${formatCourseName(courseName)}` : ''} · {timeAgo(achievement.unlockedAt)}
+            </Typography>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  )
+}
+
 function feedRelativeDate(dt: string): string {
   const d = new Date(dt)
   const now = new Date()
@@ -475,6 +498,11 @@ export default function FeedPage() {
     refetchIntervalInBackground: false,
   })
 
+  const { data: recentAchievements } = useQuery({
+    queryKey: ['recent-achievements'],
+    queryFn: getRecentAchievements,
+  })
+
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['feed'] })
   }, [queryClient])
@@ -555,9 +583,20 @@ export default function FeedPage() {
         </Box>
       )}
 
-      {allFeedRounds.map((round) => (
-        <FeedCard key={round.id} round={round} />
-      ))}
+      {(() => {
+        type RoundItem = { kind: 'round'; date: string; round: FeedRound }
+        type AchievementItem = { kind: 'achievement'; date: string; achievement: RecentAchievement }
+        const items: (RoundItem | AchievementItem)[] = [
+          ...allFeedRounds.map((r) => ({ kind: 'round' as const, date: r.playedAt, round: r })),
+          ...(recentAchievements ?? []).map((a) => ({ kind: 'achievement' as const, date: a.unlockedAt, achievement: a })),
+        ]
+        items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        return items.map((item) =>
+          item.kind === 'round'
+            ? <FeedCard key={`r-${item.round.id}`} round={item.round} />
+            : <AchievementFeedCard key={`a-${item.achievement.id}`} achievement={item.achievement} />
+        )
+      })()}
 
       <div ref={observerRef} />
 
