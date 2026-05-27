@@ -24,18 +24,18 @@ function FriendsIcon() {
 }
 
 const NAV_ITEMS = [
-  { label: 'Feed', to: '/feed', icon: <HomeIcon /> },
-  { label: 'Play', to: '/play', icon: <SportsGolfIcon /> },
-  { label: 'Comps', to: '/competitions', icon: <EmojiEventsIcon /> },
-  { label: 'History', to: '/history', icon: <HistoryIcon /> },
-  { label: 'Friends', to: '/friends', icon: <FriendsIcon /> },
+  { label: 'Feed', to: '/feed', matches: ['/feed'], icon: <HomeIcon /> },
+  { label: 'Play', to: '/play', matches: ['/play', '/courses', '/teetimes'], icon: <SportsGolfIcon /> },
+  { label: 'Comps', to: '/competitions', matches: ['/competitions'], icon: <EmojiEventsIcon /> },
+  { label: 'History', to: '/history', matches: ['/history'], icon: <HistoryIcon /> },
+  { label: 'Friends', to: '/friends', matches: ['/friends'], icon: <FriendsIcon /> },
 ]
 
 export default function BottomNav() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
-  const currentValue = NAV_ITEMS.findIndex((item) => pathname.startsWith(item.to))
+  const currentValue = NAV_ITEMS.findIndex((item) => item.matches.some((p) => pathname.startsWith(p)))
 
   return (
     <Paper

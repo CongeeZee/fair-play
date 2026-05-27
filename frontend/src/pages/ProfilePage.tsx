@@ -482,8 +482,8 @@ export default function ProfilePage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
-  const isOwn = userId === 'me' || userId === user?.id
-  const targetId = isOwn ? parseInt(user?.id ?? '0', 10) : parseInt(userId ?? '0', 10)
+  const isOwn = userId === 'me' || userId === String(user?.id ?? '')
+  const targetId = isOwn ? parseInt(String(user?.id ?? '0'), 10) : parseInt(userId ?? '0', 10)
 
   const [editOpen, setEditOpen] = useState(false)
   const [removeOpen, setRemoveOpen] = useState(false)

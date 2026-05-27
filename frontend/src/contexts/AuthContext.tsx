@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { User, AuthResponse } from '../types'
 import * as authApi from '../api/auth'
-import { setAccessToken } from '../api/client'
+import { setAccessToken, refreshAccessToken } from '../api/client'
 
 interface AuthContextValue {
   user: User | null
@@ -28,27 +28,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : null
   })
 
-  // On mount, if we have a refresh token, try to get a fresh access token
+  // On mount, if we have a refresh token, try to get a fresh access token.
+  // Uses the shared refreshAccessToken so it dedupes with any 401-triggered refresh
+  // that may fire in parallel from other components mounting.
   useEffect(() => {
     const refreshToken = localStorage.getItem('refreshToken')
     if (!refreshToken || !user) return
 
-    // Silent refresh on page load
-    import('../api/client').then(({ default: client }) => {
-      client.post<AuthResponse>('/auth/refresh', { refreshToken })
-        .then((resp) => {
-          setAccessToken(resp.data.token)
-          localStorage.setItem('refreshToken', resp.data.refreshToken)
-          localStorage.setItem('user', JSON.stringify(resp.data.user))
-          setUser(resp.data.user)
-        })
-        .catch(() => {
-          // Refresh failed — clear session
-          setAccessToken(null)
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('user')
-          setUser(null)
-        })
+    refreshAccessToken().then((result) => {
+      if (result) {
+        setUser(result.user)
+      } else {
+        setUser(null)
+      }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

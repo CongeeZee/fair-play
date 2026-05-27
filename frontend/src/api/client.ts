@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { notifyRateLimit } from '../components/RateLimitSnackbar'
 import { queueRequest } from '../lib/offlineQueue'
+import type { User } from '../types'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -25,22 +26,26 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-// Track whether a refresh is already in progress to avoid multiple concurrent refreshes
-let refreshPromise: Promise<string | null> | null = null
+export type RefreshResult = { token: string; user: User } | null
 
-async function doRefresh(): Promise<string | null> {
+// Track whether a refresh is already in progress to avoid multiple concurrent refreshes
+// Shared between the 401 interceptor and AuthContext's silent refresh on page load.
+let refreshPromise: Promise<RefreshResult> | null = null
+
+async function doRefresh(): Promise<RefreshResult> {
   const refreshToken = localStorage.getItem('refreshToken')
   if (!refreshToken) return null
 
   try {
-    const resp = await axios.post<{ token: string; refreshToken: string }>(
+    const resp = await axios.post<{ token: string; refreshToken: string; user: User }>(
       `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`,
       { refreshToken },
     )
-    const { token, refreshToken: newRefreshToken } = resp.data
+    const { token, refreshToken: newRefreshToken, user } = resp.data
     accessToken = token
     localStorage.setItem('refreshToken', newRefreshToken)
-    return token
+    localStorage.setItem('user', JSON.stringify(user))
+    return { token, user }
   } catch {
     // Refresh failed — clear everything
     accessToken = null
@@ -48,6 +53,14 @@ async function doRefresh(): Promise<string | null> {
     localStorage.removeItem('user')
     return null
   }
+}
+
+/** Refresh the access token, deduplicating concurrent callers. */
+export function refreshAccessToken(): Promise<RefreshResult> {
+  if (!refreshPromise) {
+    refreshPromise = doRefresh().finally(() => { refreshPromise = null })
+  }
+  return refreshPromise
 }
 
 /** Check if a request is a mutating round request that should be queued on network failure */
@@ -91,15 +104,10 @@ client.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
-      // Deduplicate concurrent refresh calls
-      if (!refreshPromise) {
-        refreshPromise = doRefresh().finally(() => { refreshPromise = null })
-      }
+      const result = await refreshAccessToken()
 
-      const newToken = await refreshPromise
-
-      if (newToken) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
+      if (result) {
+        originalRequest.headers.Authorization = `Bearer ${result.token}`
         return client(originalRequest)
       }
 

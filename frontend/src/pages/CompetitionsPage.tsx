@@ -25,7 +25,7 @@ import {
   getEligibleRounds, deleteCompetition,
 } from '../api/competitions'
 import { getFriends } from '../api/friends'
-import { searchExternalCourses } from '../api/courses'
+import { getCourses } from '../api/courses'
 import { formatCourseName } from '../utils'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
@@ -138,8 +138,8 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   }, [courseSearch])
 
   const { data: courses, isLoading: coursesLoading } = useQuery({
-    queryKey: ['course-search', debouncedSearch],
-    queryFn: () => searchExternalCourses(debouncedSearch),
+    queryKey: ['course-search-local', debouncedSearch],
+    queryFn: () => getCourses(debouncedSearch),
     enabled: !anyCourse && debouncedSearch.length >= 2,
   })
 
@@ -224,8 +224,8 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
                 {coursesLoading && <CircularProgress size={20} />}
                 {courses && !selectedCourse && (
                   <List dense sx={{ maxHeight: 200, overflow: 'auto' }}>
-                    {courses.map((c: any) => (
-                      <ListItemButton key={c.id} onClick={() => { setSelectedCourse({ id: c.id, name: c.name }); setCourseSearch('') }}>
+                    {courses.map((c) => (
+                      <ListItemButton key={c.id} onClick={() => { setSelectedCourse({ id: String(c.id), name: c.name }); setCourseSearch('') }}>
                         <ListItemText primary={formatCourseName(c.name)} />
                       </ListItemButton>
                     ))}

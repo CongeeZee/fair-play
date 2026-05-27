@@ -29,12 +29,12 @@ export default function Navbar() {
   const pendingCount = friendRequests?.length ?? 0
 
   const navLinks = [
-    { label: 'Feed', to: '/feed', badge: 0 },
-    { label: 'Play', to: '/play', badge: 0 },
-    { label: 'Comps', to: '/competitions', badge: 0 },
-    { label: 'History', to: '/history', badge: 0 },
-    { label: 'Stats', to: '/stats', badge: 0 },
-    { label: 'Friends', to: '/friends', badge: pendingCount },
+    { label: 'Feed', to: '/feed', matches: ['/feed'], badge: 0 },
+    { label: 'Play', to: '/play', matches: ['/play', '/courses', '/teetimes'], badge: 0 },
+    { label: 'Comps', to: '/competitions', matches: ['/competitions'], badge: 0 },
+    { label: 'History', to: '/history', matches: ['/history'], badge: 0 },
+    { label: 'Stats', to: '/stats', matches: ['/stats'], badge: 0 },
+    { label: 'Friends', to: '/friends', matches: ['/friends'], badge: pendingCount },
   ]
 
   const solid = !isHome || scrolled
@@ -72,7 +72,9 @@ export default function Navbar() {
         {/* Desktop nav links — hidden on mobile (BottomNav handles it) */}
         {user && (
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 0.5, flexGrow: 1, alignItems: 'center' }}>
-            {navLinks.map(({ label, to, badge }) => (
+            {navLinks.map(({ label, to, matches, badge }) => {
+              const active = matches.some((p) => pathname.startsWith(p))
+              return (
               <Button
                 key={to}
                 color="inherit"
@@ -80,9 +82,9 @@ export default function Navbar() {
                 to={to}
                 sx={{
                   fontSize: '0.875rem',
-                  fontWeight: pathname === to ? 700 : 400,
-                  opacity: pathname === to ? 1 : 0.75,
-                  borderBottom: pathname === to ? '2px solid #c9a84c' : '2px solid transparent',
+                  fontWeight: active ? 700 : 400,
+                  opacity: active ? 1 : 0.75,
+                  borderBottom: active ? '2px solid #c9a84c' : '2px solid transparent',
                   borderRadius: 0,
                   pb: '2px',
                   '&:hover': { opacity: 1, bgcolor: 'rgba(255,255,255,0.08)' },
@@ -90,7 +92,8 @@ export default function Navbar() {
               >
                 {badge > 0 ? <Badge badgeContent={badge} color="error" sx={{ '& .MuiBadge-badge': { right: -10, top: -2 } }}>{label}</Badge> : label}
               </Button>
-            ))}
+              )
+            })}
           </Box>
         )}
 
