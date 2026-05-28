@@ -55,6 +55,7 @@ export interface Round {
   totalStrokes?: number
   scoreToPar?: number
   holesCompleted?: number
+  partners?: RoundPartner[]
 }
 
 export interface SharedScorecard {
@@ -198,6 +199,11 @@ export interface FeedRoundReview {
   text: string | null
 }
 
+export interface RoundPartner {
+  id: number
+  name: string
+}
+
 export interface FeedRound {
   id: number
   shareId: string | null
@@ -214,6 +220,8 @@ export interface FeedRound {
   commentCount: number
   recentComments: RecentComment[]
   review: FeedRoundReview | null
+  partners: RoundPartner[]
+  viewerTagged: boolean
 }
 
 export interface OwnLatestRound {
@@ -230,6 +238,7 @@ export interface OwnLatestRound {
   commentCount: number
   recentComments: RecentComment[]
   review: FeedRoundReview | null
+  partners: RoundPartner[]
 }
 
 export interface RoundCommentData {

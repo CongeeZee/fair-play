@@ -28,6 +28,7 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
 import ReviewPromptDialog from '../components/ReviewPromptDialog'
 import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay'
+import PlayingPartnersPicker from '../components/PlayingPartnersPicker'
 import type { RoundHole, NewlyUnlockedAchievement } from '../types'
 
 // ── GPS utilities ────────────────────────────────────────────────────────────
@@ -732,6 +733,10 @@ export default function RoundPage() {
             )}
           </Box>
         </Box>
+        <PlayingPartnersPicker
+          roundId={id!}
+          partners={round.partners ?? []}
+        />
       </Box>
 
       {/* Progress */}

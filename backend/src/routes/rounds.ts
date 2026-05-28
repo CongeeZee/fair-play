@@ -279,13 +279,19 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
     );
     const activeFriendIds = friendIds.filter((id) => !blockedIds.has(id));
 
-    // Fetch friends' completed rounds
-    const feedRounds = activeFriendIds.length > 0
+    // Fetch friends' completed rounds, plus rounds where the current user is
+    // tagged as a playing partner (even if owner is not a friend).
+    const feedRoundFilter = {
+      OR: [
+        ...(activeFriendIds.length > 0 ? [{ userId: { in: activeFriendIds } }] : []),
+        { partners: { some: { userId } } },
+      ],
+      ...(cursor ? { id: { lt: cursor } } : {}),
+    };
+
+    const feedRounds = (activeFriendIds.length > 0 || true)
       ? await prisma.round.findMany({
-          where: {
-            userId: { in: activeFriendIds },
-            ...(cursor ? { id: { lt: cursor } } : {}),
-          },
+          where: feedRoundFilter,
           include: {
             user: { select: { name: true } },
             course: {
@@ -299,6 +305,10 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
             },
             roundHoles: {
               select: { strokes: true, hole: { select: { par: true } } },
+            },
+            partners: {
+              include: { user: { select: { id: true, name: true } } },
+              orderBy: { createdAt: "asc" },
             },
           },
           orderBy: { id: "desc" },
@@ -379,6 +389,8 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
           commentCount: comments.commentCount,
           recentComments: comments.recentComments,
           review: reviewsByRound.get(r.id) ?? null,
+          partners: r.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
+          viewerTagged: r.partners.some((p) => p.userId === userId),
         };
       });
 
@@ -402,6 +414,10 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         },
         roundHoles: {
           select: { strokes: true, hole: { select: { par: true } } },
+        },
+        partners: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
         },
       },
       orderBy: { playedAt: "desc" },
@@ -450,6 +466,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
         commentCount: await prisma.roundComment.count({ where: { roundId: latestOwn.id } }),
         recentComments: ownComments.reverse().map((c) => ({ userId: c.user.id, name: c.user.name, text: c.text })),
         review: ownReview,
+        partners: latestOwn.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
       };
     }
 
@@ -1687,6 +1704,107 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
 });
 
 // GET /rounds/:id — single round detail
+// PUT /rounds/:id/partners — replace the set of playing partners for a round.
+// Only the round owner can set partners. Partners must be accepted friends.
+router.put("/:id/partners", async (req: AuthRequest, res: Response) => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid round ID" });
+    return;
+  }
+
+  const schema = z.object({
+    userIds: z.array(z.number().int().positive()).max(7),
+  });
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    return;
+  }
+
+  const userId = req.userId!;
+  const requestedIds = Array.from(new Set(result.data.userIds.filter((id) => id !== userId)));
+
+  try {
+    const round = await prisma.round.findUnique({ where: { id }, select: { userId: true } });
+    if (!round) {
+      res.status(404).json({ error: "Round not found" });
+      return;
+    }
+    if (round.userId !== userId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // Restrict to accepted friends (and exclude blocked relationships)
+    let validIds: number[] = [];
+    if (requestedIds.length > 0) {
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          OR: [{ requesterId: userId }, { addresseeId: userId }],
+        },
+        select: { requesterId: true, addresseeId: true, status: true },
+      });
+      const friendIds = new Set<number>();
+      for (const f of friendships) {
+        if (f.status !== "ACCEPTED") continue;
+        friendIds.add(f.requesterId === userId ? f.addresseeId : f.requesterId);
+      }
+      validIds = requestedIds.filter((id) => friendIds.has(id));
+    }
+
+    // Identify newly-added partners (for notification)
+    const existing = await prisma.roundPartner.findMany({
+      where: { roundId: id },
+      select: { userId: true },
+    });
+    const existingIds = new Set(existing.map((p) => p.userId));
+    const newlyAdded = validIds.filter((id) => !existingIds.has(id));
+
+    // Replace set atomically
+    await prisma.$transaction([
+      prisma.roundPartner.deleteMany({ where: { roundId: id } }),
+      ...(validIds.length > 0
+        ? [prisma.roundPartner.createMany({
+            data: validIds.map((partnerId) => ({ roundId: id, userId: partnerId })),
+          })]
+        : []),
+    ]);
+
+    // Fire-and-forget push to newly tagged users
+    if (newlyAdded.length > 0) {
+      (async () => {
+        const owner = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+        const courseRow = await prisma.round.findUnique({
+          where: { id },
+          select: { course: { select: { name: true } } },
+        });
+        const courseName = courseRow?.course?.name?.replace(/\s*—.*$/, "") ?? "a round";
+        for (const partnerId of newlyAdded) {
+          sendPushToUser(
+            partnerId,
+            "You were tagged in a round",
+            `${owner?.name ?? "Someone"} tagged you in their round at ${courseName}`,
+            "/feed",
+          ).catch(() => {});
+        }
+      })().catch((e) => console.error("partner-tag notification error:", e));
+    }
+
+    // Return the updated partners list with names
+    const partners = await prisma.roundPartner.findMany({
+      where: { roundId: id },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json({ partners: partners.map((p) => ({ id: p.user.id, name: p.user.name })) });
+  } catch (err) {
+    console.error("PUT /rounds/:id/partners error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/:id", async (req: AuthRequest, res: Response) => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
@@ -1702,6 +1820,10 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
         roundHoles: {
           include: { hole: true },
           orderBy: { hole: { number: "asc" } },
+        },
+        partners: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -1724,7 +1846,10 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       })().catch(() => {});
     }
 
-    res.json(round);
+    res.json({
+      ...round,
+      partners: round.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
+    });
   } catch (err) {
     console.error("GET /rounds/:id error:", err);
     res.status(500).json({ error: "Internal server error" });

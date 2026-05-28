@@ -1,6 +1,6 @@
 import client from './client'
 import axios from 'axios'
-import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, Hole, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole } from '../types'
+import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, Hole, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
 
 export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
@@ -28,6 +28,9 @@ export const getRounds = () =>
 
 export const getRound = (id: string) =>
   client.get<Round>(`/rounds/${id}`).then((r) => r.data)
+
+export const setRoundPartners = (id: string | number, userIds: number[]) =>
+  client.put<{ partners: RoundPartner[] }>(`/rounds/${id}/partners`, { userIds }).then((r) => r.data)
 
 export const deleteRound = (id: string) =>
   client.delete(`/rounds/${id}`)

@@ -33,6 +33,7 @@ model User {
   roundComments          RoundComment[]
   courseReviews          CourseReview[]
   achievements           Achievement[]
+  taggedInRounds         RoundPartner[]
 }
 
 enum FriendshipStatus {
@@ -120,9 +121,23 @@ model Round {
   comments              RoundComment[]
   review                CourseReview?
   achievements          Achievement[]
+  partners              RoundPartner[]
 
   @@index([userId, completedAt])
   @@index([lastScoredAt])
+}
+
+model RoundPartner {
+  id        String   @id @default(uuid())
+  roundId   Int
+  userId    Int
+  createdAt DateTime @default(now())
+  round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+  @@index([userId])
+  @@index([roundId])
 }
 
 model Achievement {

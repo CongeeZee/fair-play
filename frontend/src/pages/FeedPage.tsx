@@ -20,7 +20,7 @@ import { addComment } from '../api/reactions'
 import { getLiveRounds } from '../api/live'
 import { getRecentAchievements } from '../api/achievements'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement } from '../types'
+import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement, RoundPartner } from '../types'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
@@ -193,6 +193,24 @@ function InlineComments({ roundId, shareId, commentCount, recentComments }: {
   )
 }
 
+function PartnersLine({ partners }: { partners: RoundPartner[] }) {
+  if (!partners || partners.length === 0) return null
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25, flexWrap: 'wrap' }}>
+      <PeopleIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+        with{' '}
+        {partners.map((p, i) => (
+          <span key={p.id}>
+            <ProfileLink userId={p.id} name={p.name} variant="caption" sx={{ color: 'text.primary', fontWeight: 600 }} />
+            {i < partners.length - 1 ? ', ' : ''}
+          </span>
+        ))}
+      </Typography>
+    </Box>
+  )
+}
+
 function OwnRoundCard({ round }: { round: OwnLatestRound }) {
   const [snackbar, setSnackbar] = useState(false)
 
@@ -217,7 +235,7 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
             Your latest round
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
-            <Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
                 {formatCourseName(round.courseName)}
               </Typography>
@@ -225,6 +243,7 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
                 {timeAgo(round.playedAt)}
                 {round.totalHoles < round.courseHoles && ` · ${round.totalHoles} holes`}
               </Typography>
+              <PartnersLine partners={round.partners} />
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Box sx={{ textAlign: 'right' }}>
@@ -287,8 +306,26 @@ function ReviewLine({ review, courseName }: { review: { rating: number; text: st
 
 function FeedCard({ round }: { round: FeedRound }) {
   return (
-    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2 }}>
+    <Card
+      elevation={1}
+      sx={{
+        mb: 1.5,
+        borderRadius: 2,
+        ...(round.viewerTagged && {
+          border: '1px solid rgba(201,168,76,0.45)',
+          bgcolor: 'rgba(201,168,76,0.04)',
+        }),
+      }}
+    >
       <CardContent sx={{ pb: '12px !important' }}>
+        {round.viewerTagged && (
+          <Typography
+            variant="overline"
+            sx={{ color: '#c9a84c', fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25, lineHeight: 1.2 }}
+          >
+            You were tagged
+          </Typography>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <ProfileLink userId={round.playerId} name={round.playerName} variant="subtitle2" />
@@ -299,6 +336,7 @@ function FeedCard({ round }: { round: FeedRound }) {
               {timeAgo(round.playedAt)}
               {round.totalHoles < round.courseHoles && ` · ${round.totalHoles} holes`}
             </Typography>
+            <PartnersLine partners={round.partners} />
           </Box>
           <Box sx={{ textAlign: 'right', ml: 2, flexShrink: 0 }}>
             <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1 }}>
