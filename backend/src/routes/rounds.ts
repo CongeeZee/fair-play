@@ -595,23 +595,28 @@ router.get("/leaderboard", async (req: AuthRequest, res: Response) => {
     });
     const handicapMap = new Map(handicaps.map((h) => [h.userId, h.handicapIndex]));
 
-    // Calculate handicaps for those without linked ones
-    for (const id of participantIds) {
-      if (handicapMap.has(id)) continue;
-      const userRounds = await prisma.round.findMany({
-        where: { userId: id },
-        include: {
-          course: {
-            select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+    // Calculate handicaps for those without linked ones (parallel)
+    const missingHandicapIds = participantIds.filter((id) => !handicapMap.has(id));
+    const calcResults = await Promise.all(
+      missingHandicapIds.map(async (id) => {
+        const userRounds = await prisma.round.findMany({
+          where: { userId: id },
+          include: {
+            course: {
+              select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+            },
+            roundHoles: { select: { strokes: true } },
           },
-          roundHoles: { select: { strokes: true } },
-        },
-        orderBy: { playedAt: "desc" },
-        take: 20,
-      });
-      const diffs = calculateDifferentials(userRounds);
-      const result = calculateHandicapIndex(diffs);
-      if (result) handicapMap.set(id, result.handicapIndex);
+          orderBy: { playedAt: "desc" },
+          take: 20,
+        });
+        const diffs = calculateDifferentials(userRounds);
+        const result = calculateHandicapIndex(diffs);
+        return { id, index: result?.handicapIndex ?? null };
+      })
+    );
+    for (const { id, index } of calcResults) {
+      if (index != null) handicapMap.set(id, index);
     }
 
     const leaderboard = participantIds.map((id) => {
@@ -677,57 +682,52 @@ router.get("/leaderboard/handicap", async (req: AuthRequest, res: Response) => {
     });
     const nameMap = new Map(users.map((u) => [u.id, u.name]));
 
-    // Calculate current handicap and trend for each participant
-    const results: Array<{
-      userId: number;
-      name: string;
-      handicapIndex: number | null;
-      trend: "improving" | "declining" | "stable" | null;
-    }> = [];
+    // Batch-fetch linked handicaps for all participants
+    const linkedHandicaps = await prisma.linkedHandicap.findMany({
+      where: { userId: { in: participantIds } },
+      select: { userId: true, handicapIndex: true },
+    });
+    const linkedMap = new Map(linkedHandicaps.map((l) => [l.userId, l.handicapIndex]));
 
-    for (const id of participantIds) {
-      // Check linked handicap first
-      const linked = await prisma.linkedHandicap.findUnique({
-        where: { userId: id },
-        select: { handicapIndex: true },
-      });
-
-      // Fetch rounds for calculation
-      const rounds = await prisma.round.findMany({
-        where: { userId: id },
-        include: {
-          course: {
-            select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+    // Calculate current handicap and trend for each participant (parallel)
+    const results = await Promise.all(
+      participantIds.map(async (id) => {
+        const rounds = await prisma.round.findMany({
+          where: { userId: id },
+          include: {
+            course: {
+              select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } },
+            },
+            roundHoles: { select: { strokes: true } },
           },
-          roundHoles: { select: { strokes: true } },
-        },
-        orderBy: { playedAt: "asc" },
-      });
+          orderBy: { playedAt: "asc" },
+        });
 
-      const allDiffs = calculateDifferentials(rounds);
-      const currentResult = calculateHandicapIndex(allDiffs);
-      const currentIndex = linked?.handicapIndex ?? currentResult?.handicapIndex ?? null;
+        const allDiffs = calculateDifferentials(rounds);
+        const currentResult = calculateHandicapIndex(allDiffs);
+        const currentIndex = linkedMap.get(id) ?? currentResult?.handicapIndex ?? null;
 
-      // Trend: compare current to 5 rounds ago
-      let trend: "improving" | "declining" | "stable" | null = null;
-      if (allDiffs.length >= 8) {
-        const olderDiffs = allDiffs.slice(0, -5);
-        const olderResult = calculateHandicapIndex(olderDiffs);
-        if (olderResult && currentResult) {
-          const diff = currentResult.handicapIndex - olderResult.handicapIndex;
-          if (diff < -0.5) trend = "improving";
-          else if (diff > 0.5) trend = "declining";
-          else trend = "stable";
+        // Trend: compare current to 5 rounds ago
+        let trend: "improving" | "declining" | "stable" | null = null;
+        if (allDiffs.length >= 8) {
+          const olderDiffs = allDiffs.slice(0, -5);
+          const olderResult = calculateHandicapIndex(olderDiffs);
+          if (olderResult && currentResult) {
+            const diff = currentResult.handicapIndex - olderResult.handicapIndex;
+            if (diff < -0.5) trend = "improving";
+            else if (diff > 0.5) trend = "declining";
+            else trend = "stable";
+          }
         }
-      }
 
-      results.push({
-        userId: id,
-        name: nameMap.get(id) ?? "Unknown",
-        handicapIndex: currentIndex,
-        trend,
-      });
-    }
+        return {
+          userId: id,
+          name: nameMap.get(id) ?? "Unknown",
+          handicapIndex: currentIndex,
+          trend,
+        };
+      })
+    );
 
     // Sort by handicap ascending, nulls at bottom
     results.sort((a, b) => {

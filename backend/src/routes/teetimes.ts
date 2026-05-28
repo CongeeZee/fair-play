@@ -23,15 +23,17 @@ router.use(async (req: AuthRequest, res: Response, next) => {
 
 // Helper: get accepted friend IDs (excluding blocked)
 async function getFriendIds(userId: number): Promise<number[]> {
-  const friendships = await prisma.friendship.findMany({
-    where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-    select: { requesterId: true, addresseeId: true },
-  });
+  const [friendships, blocks] = await Promise.all([
+    prisma.friendship.findMany({
+      where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      select: { requesterId: true, addresseeId: true },
+    }),
+    prisma.friendship.findMany({
+      where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
+      select: { requesterId: true, addresseeId: true },
+    }),
+  ]);
   const ids = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
-  const blocks = await prisma.friendship.findMany({
-    where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-    select: { requesterId: true, addresseeId: true },
-  });
   const blockedIds = new Set(blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId)));
   return ids.filter((id) => !blockedIds.has(id));
 }
@@ -511,47 +513,48 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const now = new Date();
     const friendIds = await getFriendIds(userId);
 
-    // My upcoming: created by me or I'm CONFIRMED, future, not cancelled
-    const myUpcoming = await prisma.teeTime.findMany({
-      where: {
-        dateTime: { gt: now },
-        status: { not: "CANCELLED" },
-        participants: { some: { userId, status: "CONFIRMED" } },
-      },
-      include: {
-        course: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
-        participants: {
-          where: { status: { in: ["CONFIRMED", "INVITED"] } },
-          include: { user: { select: { id: true, name: true } } },
+    // Run independent queries in parallel
+    const [myUpcoming, invitations, myParticipantTeeTimeIds] = await Promise.all([
+      // My upcoming: created by me or I'm CONFIRMED, future, not cancelled
+      prisma.teeTime.findMany({
+        where: {
+          dateTime: { gt: now },
+          status: { not: "CANCELLED" },
+          participants: { some: { userId, status: "CONFIRMED" } },
         },
-      },
-      orderBy: { dateTime: "asc" },
-    });
-
-    // Invitations: where I'm INVITED
-    const invitations = await prisma.teeTime.findMany({
-      where: {
-        dateTime: { gt: now },
-        status: { not: "CANCELLED" },
-        participants: { some: { userId, status: "INVITED" } },
-      },
-      include: {
-        course: { select: { id: true, name: true } },
-        creator: { select: { id: true, name: true } },
-        participants: {
-          where: { status: "CONFIRMED" },
-          include: { user: { select: { id: true, name: true } } },
+        include: {
+          course: { select: { id: true, name: true } },
+          creator: { select: { id: true, name: true } },
+          participants: {
+            where: { status: { in: ["CONFIRMED", "INVITED"] } },
+            include: { user: { select: { id: true, name: true } } },
+          },
         },
-      },
-      orderBy: { dateTime: "asc" },
-    });
-
-    // Friends' open tee times: OPEN, FRIENDS visibility, by friends, I'm not a participant
-    const myParticipantTeeTimeIds = await prisma.teeTimeParticipant.findMany({
-      where: { userId },
-      select: { teeTimeId: true },
-    });
+        orderBy: { dateTime: "asc" },
+      }),
+      // Invitations: where I'm INVITED
+      prisma.teeTime.findMany({
+        where: {
+          dateTime: { gt: now },
+          status: { not: "CANCELLED" },
+          participants: { some: { userId, status: "INVITED" } },
+        },
+        include: {
+          course: { select: { id: true, name: true } },
+          creator: { select: { id: true, name: true } },
+          participants: {
+            where: { status: "CONFIRMED" },
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
+        orderBy: { dateTime: "asc" },
+      }),
+      // Friends' open tee times: OPEN, FRIENDS visibility, by friends, I'm not a participant
+      prisma.teeTimeParticipant.findMany({
+        where: { userId },
+        select: { teeTimeId: true },
+      }),
+    ]);
     const myTeeTimeIds = new Set(myParticipantTeeTimeIds.map((p) => p.teeTimeId));
 
     const friendsTeeTimes = friendIds.length > 0

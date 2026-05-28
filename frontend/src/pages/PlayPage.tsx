@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Typography, Card, CardContent, CardActionArea, Button, Chip,
-  Divider, TextField, InputAdornment,
+  Divider, CircularProgress, Alert, RadioGroup, FormControlLabel, Radio,
+  FormControl,
 } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
-import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import AddIcon from '@mui/icons-material/Add'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { getTeeTimes } from '../api/teetimes'
+import { getExternalCourseTees } from '../api/courses'
+import { createRound } from '../api/rounds'
 import PageHeader from '../components/PageHeader'
+import CourseSearchInput, { type CourseSearchResult } from '../components/CourseSearchInput'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -26,7 +28,8 @@ function relativeDate(dt: string): string {
 
 export default function PlayPage() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
+  const [selectedCourse, setSelectedCourse] = useState<CourseSearchResult | null>(null)
+  const [selectedTee, setSelectedTee] = useState<string>('')
 
   const { data } = useQuery({
     queryKey: ['teetimes'],
@@ -34,10 +37,47 @@ export default function PlayPage() {
     staleTime: 60_000,
   })
 
+  // Fetch tees when an external course is selected
+  const teesQuery = useQuery({
+    queryKey: ['external-course-tees', selectedCourse?.id],
+    queryFn: () => getExternalCourseTees(selectedCourse!.id),
+    enabled: !!selectedCourse && selectedCourse.source === 'external',
+  })
+
+  const startRoundMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedCourse) throw new Error('No course selected')
+      if (selectedCourse.source === 'external') {
+        return createRound({ externalCourseId: selectedCourse.id, teeName: selectedTee })
+      }
+      return createRound({ courseId: selectedCourse.id })
+    },
+    onSuccess: (round) => {
+      navigate(`/rounds/${round.id}`)
+    },
+  })
+
+  const handleSelectCourse = (c: CourseSearchResult) => {
+    setSelectedCourse(c)
+    setSelectedTee('')
+  }
+
+  const handleClearCourse = () => {
+    setSelectedCourse(null)
+    setSelectedTee('')
+  }
+
   const myUpcoming = data?.myUpcoming?.slice(0, 3) ?? []
   const invitations = data?.invitations?.slice(0, 3) ?? []
   const hasTeeTimeContent = myUpcoming.length > 0 || invitations.length > 0
   const totalUpcoming = (data?.myUpcoming?.length ?? 0) + (data?.invitations?.length ?? 0)
+
+  // Default the tee selection to the first one once loaded
+  useEffect(() => {
+    if (teesQuery.data && teesQuery.data.tees.length > 0 && !selectedTee) {
+      setSelectedTee(teesQuery.data.tees[0].name)
+    }
+  }, [teesQuery.data, selectedTee])
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto' }}>
@@ -106,40 +146,100 @@ export default function PlayPage() {
 
       <Divider sx={{ mb: 3 }} />
 
-      {/* Course Search Section */}
+      {/* Course Search Section — fully inline, never navigates away */}
       <Box>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Find a Course</Typography>
-        <TextField
-          fullWidth
-          size="small"
-          placeholder="Search courses..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && search.trim()) {
-              navigate(`/courses?search=${encodeURIComponent(search.trim())}`)
-            }
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                </InputAdornment>
-              ),
-            },
-          }}
-          sx={{ mb: 1.5 }}
-        />
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<GolfCourseIcon />}
-          onClick={() => navigate(search.trim() ? `/courses?search=${encodeURIComponent(search.trim())}` : '/courses')}
-          sx={{ textTransform: 'none' }}
-        >
-          {search.trim() ? `Search "${search.trim()}"` : 'Browse Courses'}
-        </Button>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Start a Round</Typography>
+
+        {!selectedCourse && (
+          <CourseSearchInput
+            source="external"
+            variant="inline"
+            placeholder="Search any course worldwide…"
+            onSelect={handleSelectCourse}
+          />
+        )}
+
+        {selectedCourse && (
+          <Card variant="outlined" sx={{ borderRadius: 2 }}>
+            <CardContent sx={{ py: 2, px: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                    {selectedCourse.name}
+                  </Typography>
+                  {selectedCourse.subtitle && (
+                    <Typography variant="caption" color="text.secondary">
+                      {selectedCourse.subtitle}
+                    </Typography>
+                  )}
+                </Box>
+                <Button size="small" onClick={handleClearCourse} sx={{ textTransform: 'none', ml: 1 }}>
+                  Change
+                </Button>
+              </Box>
+
+              {selectedCourse.source === 'external' && teesQuery.isLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                  <CircularProgress size={22} />
+                </Box>
+              )}
+
+              {selectedCourse.source === 'external' && teesQuery.error && (
+                <Alert severity="error" sx={{ my: 1 }}>Could not load tees for this course.</Alert>
+              )}
+
+              {selectedCourse.source === 'external' && teesQuery.data && teesQuery.data.tees.length > 0 && (
+                <>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    Tees
+                  </Typography>
+                  <FormControl component="fieldset" fullWidth>
+                    <RadioGroup
+                      value={selectedTee}
+                      onChange={(e) => setSelectedTee(e.target.value)}
+                    >
+                      {teesQuery.data.tees.map((tee, i) => (
+                        <FormControlLabel
+                          key={`${tee.name}-${i}`}
+                          value={tee.name}
+                          control={<Radio size="small" />}
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2">
+                                {tee.name.split(',').map(s => s.trim()).filter(s => !/^\d+$/.test(s) && s.toUpperCase() !== 'USGA').join(' ')}
+                              </Typography>
+                              <Chip label={`${tee.totalYards} yds`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                Par {tee.parTotal}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                </>
+              )}
+
+              {startRoundMut.error && (
+                <Alert severity="error" sx={{ mt: 1 }}>Failed to start round. Try again.</Alert>
+              )}
+
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => startRoundMut.mutate()}
+                disabled={
+                  startRoundMut.isPending ||
+                  (selectedCourse.source === 'external' && (!selectedTee || teesQuery.isLoading))
+                }
+                sx={{ mt: 2, textTransform: 'none' }}
+              >
+                {startRoundMut.isPending ? 'Starting…' : 'Start Round'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </Box>
     </Box>
   )

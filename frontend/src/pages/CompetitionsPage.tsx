@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Box, Typography, Card, CardContent, CardActionArea, Chip, Button,
   CircularProgress, Fab, Collapse, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, List, ListItem, ListItemText, Checkbox, ListItemButton,
   ToggleButton, ToggleButtonGroup, Stepper as MuiStepper, Step, StepLabel,
-  Switch, FormControlLabel, InputAdornment, Divider,
+  Switch, FormControlLabel, Divider,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
@@ -14,7 +14,6 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
-import SearchIcon from '@mui/icons-material/Search'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,11 +24,11 @@ import {
   getEligibleRounds, deleteCompetition,
 } from '../api/competitions'
 import { getFriends } from '../api/friends'
-import { getCourses } from '../api/courses'
 import { formatCourseName } from '../utils'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
+import CourseSearchInput from '../components/CourseSearchInput'
 import type { CompetitionSummary } from '../types'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
@@ -121,8 +120,6 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [anyCourse, setAnyCourse] = useState(true)
-  const [courseSearch, setCourseSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null)
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [endDate, setEndDate] = useState(() => {
@@ -131,17 +128,6 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const [scoringType, setScoringType] = useState<'NET' | 'GROSS'>('NET')
   const [selectedFriends, setSelectedFriends] = useState<number[]>([])
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(courseSearch), 300)
-    return () => clearTimeout(timer)
-  }, [courseSearch])
-
-  const { data: courses, isLoading: coursesLoading } = useQuery({
-    queryKey: ['course-search-local', debouncedSearch],
-    queryFn: () => getCourses(debouncedSearch),
-    enabled: !anyCourse && debouncedSearch.length >= 2,
-  })
 
   const { data: friends } = useQuery({
     queryKey: ['friends'],
@@ -168,7 +154,7 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   })
 
   const handleClose = () => {
-    setStep(0); setName(''); setAnyCourse(true); setCourseSearch(''); setSelectedCourse(null)
+    setStep(0); setName(''); setAnyCourse(true); setSelectedCourse(null)
     setStartDate(new Date().toISOString().slice(0, 10))
     const d = new Date(); d.setDate(d.getDate() + 7); setEndDate(d.toISOString().slice(0, 10))
     setScoringType('NET'); setSelectedFriends([]); setError('')
@@ -212,24 +198,19 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
             />
             {!anyCourse && (
               <>
-                <TextField
-                  fullWidth size="small" placeholder="Search courses..."
-                  value={courseSearch} onChange={(e) => setCourseSearch(e.target.value)}
-                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
-                  sx={{ mb: 1 }}
-                />
-                {selectedCourse && (
-                  <Chip label={formatCourseName(selectedCourse.name)} onDelete={() => setSelectedCourse(null)} sx={{ mb: 1 }} />
-                )}
-                {coursesLoading && <CircularProgress size={20} />}
-                {courses && !selectedCourse && (
-                  <List dense sx={{ maxHeight: 200, overflow: 'auto' }}>
-                    {courses.map((c) => (
-                      <ListItemButton key={c.id} onClick={() => { setSelectedCourse({ id: String(c.id), name: c.name }); setCourseSearch('') }}>
-                        <ListItemText primary={formatCourseName(c.name)} />
-                      </ListItemButton>
-                    ))}
-                  </List>
+                {selectedCourse ? (
+                  <Chip
+                    label={formatCourseName(selectedCourse.name)}
+                    onDelete={() => setSelectedCourse(null)}
+                    sx={{ mb: 1 }}
+                  />
+                ) : (
+                  <CourseSearchInput
+                    source="local"
+                    variant="inline"
+                    placeholder="Search your courses…"
+                    onSelect={(c) => setSelectedCourse({ id: c.id, name: c.name })}
+                  />
                 )}
               </>
             )}

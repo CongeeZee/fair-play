@@ -47,29 +47,34 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     });
     const handicapMap = new Map(handicaps.map((h) => [h.userId, h.handicapIndex]));
 
-    // For friends without linked handicap, calculate from rounds
+    // For friends without linked handicap, calculate from rounds (parallel)
     const missingIds = friendIds.filter((id) => !handicapMap.has(id));
     if (missingIds.length > 0) {
-      for (const friendId of missingIds) {
-        const rounds = await prisma.round.findMany({
-          where: { userId: friendId },
-          include: {
-            course: {
-              select: {
-                name: true,
-                courseRating: true,
-                slopeRating: true,
-                _count: { select: { holes: true } },
+      const calculated = await Promise.all(
+        missingIds.map(async (friendId) => {
+          const rounds = await prisma.round.findMany({
+            where: { userId: friendId },
+            include: {
+              course: {
+                select: {
+                  name: true,
+                  courseRating: true,
+                  slopeRating: true,
+                  _count: { select: { holes: true } },
+                },
               },
+              roundHoles: { select: { strokes: true } },
             },
-            roundHoles: { select: { strokes: true } },
-          },
-          orderBy: { playedAt: "desc" },
-          take: 20,
-        });
-        const diffs = calculateDifferentials(rounds);
-        const result = calculateHandicapIndex(diffs);
-        if (result) handicapMap.set(friendId, result.handicapIndex);
+            orderBy: { playedAt: "desc" },
+            take: 20,
+          });
+          const diffs = calculateDifferentials(rounds);
+          const result = calculateHandicapIndex(diffs);
+          return { friendId, index: result?.handicapIndex ?? null };
+        })
+      );
+      for (const { friendId, index } of calculated) {
+        if (index != null) handicapMap.set(friendId, index);
       }
     }
 

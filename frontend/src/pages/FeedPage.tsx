@@ -53,7 +53,20 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
         }} />
         Live Now
       </Typography>
-      <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1.25,
+          overflowX: 'auto',
+          p: 1.25,
+          mx: -1.25,
+          borderRadius: 2,
+          bgcolor: 'rgba(76,175,80,0.06)',
+          // Hide scrollbars but keep scrolling
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {rounds.map((r) => (
           <Card
             key={r.roundId}
@@ -274,7 +287,7 @@ function ReviewLine({ review, courseName }: { review: { rating: number; text: st
 
 function FeedCard({ round }: { round: FeedRound }) {
   return (
-    <Card elevation={1} sx={{ mb: 2, borderRadius: 2 }}>
+    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2 }}>
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -331,7 +344,7 @@ function FeedCard({ round }: { round: FeedRound }) {
 function AchievementFeedCard({ achievement }: { achievement: RecentAchievement }) {
   const courseName = typeof achievement.metadata?.course === 'string' ? achievement.metadata.course : null
   return (
-    <Card elevation={1} sx={{ mb: 2, borderRadius: 2, border: '1px solid rgba(201,168,76,0.35)', bgcolor: 'rgba(201,168,76,0.06)' }}>
+    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2, border: '1px solid rgba(201,168,76,0.35)', bgcolor: 'rgba(201,168,76,0.06)' }}>
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography sx={{ fontSize: '2.25rem', lineHeight: 1 }}>{achievement.emoji}</Typography>
@@ -378,7 +391,7 @@ function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
   const timeLabel = new Date(teeTime.dateTime).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
 
   return (
-    <Card elevation={1} sx={{ mb: 2, borderRadius: 2, border: '1px solid rgba(26,58,42,0.15)' }}>
+    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2, border: '1px solid rgba(26,58,42,0.15)' }}>
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>

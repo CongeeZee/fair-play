@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, ToggleButton, ToggleButtonGroup,
   List, ListItem, ListItemButton, ListItemText, Checkbox,
-  Autocomplete, Divider,
+  Divider,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -23,10 +23,10 @@ import {
   cancelTeeTime, inviteToTeeTime,
 } from '../api/teetimes'
 import { getFriends } from '../api/friends'
-import { getCourses } from '../api/courses'
 import { useAuth } from '../contexts/AuthContext'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
+import CourseSearchInput from '../components/CourseSearchInput'
 import type { TeeTimeSummary } from '../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,20 +108,13 @@ function TeeTimeCard({ tt, onClick, action }: { tt: TeeTimeSummary; onClick?: ()
 
 function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const [courseSearch, setCourseSearch] = useState('')
-  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null)
+  const [selectedCourse, setSelectedCourse] = useState<{ name: string } | null>(null)
   const [dateTime, setDateTime] = useState(getNextSaturday8am())
   const [spotsTotal, setSpotsTotal] = useState(4)
   const [visibility, setVisibility] = useState<'FRIENDS' | 'INVITED_ONLY'>('FRIENDS')
   const [notes, setNotes] = useState('')
   const [selectedFriends, setSelectedFriends] = useState<number[]>([])
   const [error, setError] = useState('')
-
-  const { data: courses } = useQuery({
-    queryKey: ['courses-search', courseSearch],
-    queryFn: () => getCourses(courseSearch),
-    enabled: courseSearch.length >= 2,
-  })
 
   const { data: friends } = useQuery({
     queryKey: ['friends'],
@@ -144,7 +137,6 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const resetForm = () => {
     setSelectedCourse(null)
-    setCourseSearch('')
     setDateTime(getNextSaturday8am())
     setSpotsTotal(4)
     setVisibility('FRIENDS')
@@ -156,7 +148,7 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
   const handleCreate = () => {
     setError('')
     createMut.mutate({
-      courseId: selectedCourse ? parseInt(selectedCourse.id, 10) : undefined,
+      courseName: selectedCourse?.name,
       dateTime: new Date(dateTime).toISOString(),
       spotsTotal,
       notes: notes.trim() || undefined,
@@ -173,17 +165,23 @@ function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => 
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>New Tee Time</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-        <Autocomplete
-          options={(courses || []).map((c) => ({ id: c.id, name: c.name }))}
-          getOptionLabel={(c) => c.name}
-          value={selectedCourse}
-          onChange={(_, val) => setSelectedCourse(val)}
-          inputValue={courseSearch}
-          onInputChange={(_, val) => setCourseSearch(val)}
-          renderInput={(params) => <TextField {...params} label="Course (optional)" placeholder="Search courses..." size="small" />}
-          noOptionsText={courseSearch.length < 2 ? 'Type to search...' : 'No courses found'}
-          isOptionEqualToValue={(a, b) => a.id === b.id}
-        />
+        <Box>
+          <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 600 }}>Course (optional)</Typography>
+          {selectedCourse ? (
+            <Chip
+              label={selectedCourse.name}
+              onDelete={() => setSelectedCourse(null)}
+              sx={{ maxWidth: '100%' }}
+            />
+          ) : (
+            <CourseSearchInput
+              source="external"
+              variant="inline"
+              placeholder="Search 30,000+ courses…"
+              onSelect={(c) => setSelectedCourse({ name: c.name })}
+            />
+          )}
+        </Box>
 
         <TextField
           label="Date & Time"
@@ -363,7 +361,10 @@ function TeeTimeDetailView({ id }: { id: string }) {
             Organised by <ProfileLink userId={tt.creator.id} name={tt.creator.name} variant="body2" sx={{ display: 'inline', color: 'rgba(255,255,255,0.9)' }} />
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
-            <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#c62828' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+            {/* Show status only when it's a meaningful non-default state — avoids duplicating 'Open' with visibility */}
+            {(tt.status === 'CANCELLED' || tt.status === 'FULL' || tt.status === 'COMPLETED') && (
+              <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#c62828' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+            )}
             <Chip label={tt.visibility === 'FRIENDS' ? 'Open' : 'Invite Only'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.7rem' }} />
           </Box>
         </CardContent>
@@ -537,14 +538,17 @@ function TeeTimesListView() {
   const isEmpty = invitations.length === 0 && myUpcoming.length === 0 && friendsTT.length === 0
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+    <Box>
       <PageHeader title="Tee Times" subtitle="Organise rounds with friends" />
-
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
       {isEmpty ? (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <GolfCourseIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            No upcoming rounds. Create one and invite your mates!
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <GolfCourseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+            No upcoming rounds
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            Create a tee time and invite your mates.
           </Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowCreate(true)} sx={{ textTransform: 'none' }}>
             Create Tee Time
@@ -644,6 +648,7 @@ function TeeTimesListView() {
           <Button variant="contained" onClick={() => joinTarget && joinMut.mutate(joinTarget.id)} disabled={joinMut.isPending}>Join</Button>
         </DialogActions>
       </Dialog>
+      </Box>
     </Box>
   )
 }
