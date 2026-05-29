@@ -698,11 +698,15 @@ function CompetitionsListView() {
         {!isEmpty && (
           <Fab
             color="primary"
+            aria-label="Create competition"
             onClick={() => setCreateOpen(true)}
             sx={{
               position: 'fixed',
               bottom: { xs: 'calc(76px + env(safe-area-inset-bottom, 0px))', md: 24 },
               right: 24,
+              // Above BottomNav (1200) so the affordance to create another
+              // competition is never obscured.
+              zIndex: 1250,
             }}
           >
             <AddIcon />
@@ -710,7 +714,13 @@ function CompetitionsListView() {
         )}
       </Box>
 
-      <CreateCompDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(id) => navigate(`/competitions/${id}`)} />
+      {/* Stay on the list after creating so the FAB remains in reach for
+          additional competitions; user can tap the new card to open detail. */}
+      <CreateCompDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => { /* list re-fetches via cache invalidation */ }}
+      />
     </Box>
   )
 }

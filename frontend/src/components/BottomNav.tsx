@@ -52,9 +52,6 @@ export default function BottomNav() {
     >
       <BottomNavigation
         value={currentValue === -1 ? false : currentValue}
-        onChange={(_, newValue) => {
-          navigate(NAV_ITEMS[newValue].to)
-        }}
         sx={{
           bgcolor: '#1a3a2a',
           height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
@@ -80,6 +77,10 @@ export default function BottomNav() {
             key={item.to}
             label={item.label}
             icon={item.icon}
+            // Always navigate on tap — MUI's parent onChange only fires when the
+            // value changes, which would strand users on detail pages like
+            // /competitions/:id (tapping "Comps" wouldn't return to the list).
+            onClick={() => navigate(item.to)}
           />
         ))}
       </BottomNavigation>
