@@ -53,6 +53,10 @@ model Friendship {
   addressee   User             @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
 
   @@unique([requesterId, addresseeId])
+  // requesterId is already covered by the unique prefix above; addresseeId is
+  // not, yet the friend-graph lookup (OR requesterId/addresseeId) runs on
+  // nearly every authenticated request.
+  @@index([addresseeId])
 }
 
 model LinkedHandicap {
@@ -195,6 +199,10 @@ model RoundComment {
   createdAt DateTime @default(now())
   round     Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Comments are fetched by roundId (feed batch + per-round views) but had no
+  // index, forcing a sequential scan that grows with total comment volume.
+  @@index([roundId])
 }
 
 model PushSubscription {
@@ -317,6 +325,9 @@ model TeeTimeParticipant {
   user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teeTimeId, userId])
+  // "my tee times" lookups filter by userId alone, which the teeTimeId-prefixed
+  // unique above cannot serve.
+  @@index([userId])
 }
 
 // ── Round Scoring ─────────────────────────────────────────────────────────────

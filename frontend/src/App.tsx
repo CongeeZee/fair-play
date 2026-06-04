@@ -1,9 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
-import { Box, Toolbar } from '@mui/material'
+import { Box, Toolbar, CircularProgress } from '@mui/material'
 
 import theme from './theme'
 
@@ -15,26 +16,37 @@ import BottomNav from './components/BottomNav'
 import VerifyEmailBanner from './components/VerifyEmailBanner'
 import { useAuth } from './contexts/AuthContext'
 
+// HomePage is the landing route — keep it eager so first paint isn't gated
+// behind an extra chunk fetch. Every other page is code-split and only
+// downloaded when its route is first visited.
 import HomePage from './pages/HomePage'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import CoursesPage from './pages/CoursesPage'
-import RoundPage from './pages/RoundPage'
-import HistoryPage from './pages/HistoryPage'
-import StatsPage from './pages/StatsPage'
-import CourseStatsPage from './pages/CourseStatsPage'
-import VerifyEmailPage from './pages/VerifyEmailPage'
-import SharedScorecardPage from './pages/SharedScorecardPage'
-import FriendsPage from './pages/FriendsPage'
-import FeedPage from './pages/FeedPage'
-import CompetitionsPage from './pages/CompetitionsPage'
-import TeeTimesPage from './pages/TeeTimesPage'
-import PlayPage from './pages/PlayPage'
-import LiveScorecardPage from './pages/LiveScorecardPage'
-import ProfilePage from './pages/ProfilePage'
-import CourseReviewsPage from './pages/CourseReviewsPage'
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const CoursesPage = lazy(() => import('./pages/CoursesPage'))
+const RoundPage = lazy(() => import('./pages/RoundPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+const CourseStatsPage = lazy(() => import('./pages/CourseStatsPage'))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
+const SharedScorecardPage = lazy(() => import('./pages/SharedScorecardPage'))
+const FriendsPage = lazy(() => import('./pages/FriendsPage'))
+const FeedPage = lazy(() => import('./pages/FeedPage'))
+const CompetitionsPage = lazy(() => import('./pages/CompetitionsPage'))
+const TeeTimesPage = lazy(() => import('./pages/TeeTimesPage'))
+const PlayPage = lazy(() => import('./pages/PlayPage'))
+const LiveScorecardPage = lazy(() => import('./pages/LiveScorecardPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const CourseReviewsPage = lazy(() => import('./pages/CourseReviewsPage'))
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
+
+function PageLoader() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+      <CircularProgress />
+    </Box>
+  )
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +77,7 @@ function Layout() {
           because the hero intentionally sits behind the transparent navbar */}
       {!isHome && <Toolbar />}
       {!isHome && <VerifyEmailBanner />}
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -129,6 +142,7 @@ function Layout() {
           element={<ProtectedRoute><CourseStatsPage /></ProtectedRoute>}
         />
       </Routes>
+      </Suspense>
       {showBottomNav && <BottomNav />}
       <OnboardingFlow />
       <RateLimitSnackbar />
