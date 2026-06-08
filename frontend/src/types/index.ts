@@ -19,8 +19,6 @@ export interface Hole {
   par: number
   distance: number
   courseId: string
-  greenLatitude?: number | null
-  greenLongitude?: number | null
 }
 
 export interface Course {

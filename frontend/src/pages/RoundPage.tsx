@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box, Container, Typography, CircularProgress, Alert,
   Paper, Button, ButtonGroup, Chip, IconButton, Divider,
@@ -13,197 +13,20 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import SyncIcon from '@mui/icons-material/Sync'
-import GpsFixedIcon from '@mui/icons-material/GpsFixed'
-import GpsNotFixedIcon from '@mui/icons-material/GpsNotFixed'
-import GpsOffIcon from '@mui/icons-material/GpsOff'
-import FlagIcon from '@mui/icons-material/Flag'
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import ShareIcon from '@mui/icons-material/Share'
 import Snackbar from '@mui/material/Snackbar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRound, scoreHole, markGreenLocation } from '../api/rounds'
+import { getRound, scoreHole } from '../api/rounds'
 import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
 import ReviewPromptDialog from '../components/ReviewPromptDialog'
 import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay'
 import PlayingPartnersPicker from '../components/PlayingPartnersPicker'
+import { formatCourseName } from '../utils'
 import type { RoundHole, NewlyUnlockedAchievement } from '../types'
-
-// ── GPS utilities ────────────────────────────────────────────────────────────
-function haversineYards(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return Math.round(R * c * 1.09361)
-}
-
-function useGPS() {
-  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
-  const [accuracy, setAccuracy] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [enabled, setEnabled] = useState(false)
-  const watchRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (!enabled) {
-      if (watchRef.current != null) {
-        navigator.geolocation.clearWatch(watchRef.current)
-        watchRef.current = null
-      }
-      return
-    }
-    if (!navigator.geolocation) {
-      setError('GPS not supported on this device')
-      return
-    }
-    watchRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setAccuracy(pos.coords.accuracy)
-        setError(null)
-      },
-      (err) => { setError(err.message) },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 },
-    )
-    return () => {
-      if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current)
-    }
-  }, [enabled])
-
-  return { position, accuracy, error, enabled, setEnabled }
-}
-
-// ── GPS Distance Panel ───────────────────────────────────────────────────────
-function GPSDistancePanel({
-  hole,
-  roundId,
-  gps,
-  onGreenMarked,
-}: {
-  hole: { id: string; number: number; par: number; greenLatitude?: number | null; greenLongitude?: number | null }
-  roundId: string
-  gps: ReturnType<typeof useGPS>
-  onGreenMarked: (holeId: string, lat: number, lng: number) => void
-}) {
-  const [marking, setMarking] = useState(false)
-  const { position, accuracy, error, enabled, setEnabled } = gps
-
-  const hasGreen = hole.greenLatitude != null && hole.greenLongitude != null
-  const distance = useMemo(() => {
-    if (!position || !hasGreen) return null
-    return haversineYards(position.lat, position.lng, hole.greenLatitude!, hole.greenLongitude!)
-  }, [position, hasGreen, hole.greenLatitude, hole.greenLongitude])
-
-  const handleMarkGreen = async () => {
-    if (!position) return
-    setMarking(true)
-    try {
-      await markGreenLocation(roundId, hole.id, position.lat, position.lng)
-      onGreenMarked(hole.id, position.lat, position.lng)
-    } finally {
-      setMarking(false)
-    }
-  }
-
-  // Not enabled — show start button
-  if (!enabled) {
-    return (
-      <Box
-        onClick={() => setEnabled(true)}
-        sx={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1,
-          px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', cursor: 'pointer',
-          borderBottom: '1px solid', borderColor: 'divider',
-          '&:hover': { bgcolor: 'rgba(26,58,42,0.1)' },
-        }}
-      >
-        <GpsOffIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-        <Typography variant="body2" color="text.secondary" fontWeight={500}>
-          Tap to enable GPS distance
-        </Typography>
-      </Box>
-    )
-  }
-
-  // GPS error
-  if (error) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 3, py: 1, bgcolor: 'rgba(198,40,40,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <GpsOffIcon sx={{ fontSize: 18, color: '#c62828' }} />
-        <Typography variant="caption" color="error">{error}</Typography>
-      </Box>
-    )
-  }
-
-  // Waiting for GPS fix
-  if (!position) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <GpsNotFixedIcon sx={{ fontSize: 18, color: 'text.secondary', animation: 'pulse 1.5s ease-in-out infinite', '@keyframes pulse': { '0%,100%': { opacity: 0.4 }, '50%': { opacity: 1 } } }} />
-        <Typography variant="body2" color="text.secondary">Acquiring GPS signal…</Typography>
-      </Box>
-    )
-  }
-
-  // Have position but no green coordinates — offer to mark
-  if (!hasGreen) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, bgcolor: 'rgba(201,168,76,0.08)', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <GpsFixedIcon sx={{ fontSize: 18, color: '#c9a84c' }} />
-          <Typography variant="body2" color="text.secondary">
-            No green location set
-          </Typography>
-        </Box>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<FlagIcon fontSize="small" />}
-          onClick={handleMarkGreen}
-          disabled={marking}
-          sx={{ fontSize: '0.7rem', py: 0.25, textTransform: 'none' }}
-        >
-          {marking ? 'Saving…' : 'Mark Green'}
-        </Button>
-      </Box>
-    )
-  }
-
-  // Full distance display
-  const accuracyYards = accuracy ? Math.round(accuracy * 1.09361) : null
-
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, bgcolor: 'rgba(26,58,42,0.06)', borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <GpsFixedIcon sx={{ fontSize: 18, color: '#2d5e42' }} />
-        <Typography variant="caption" color="text.secondary">
-          To centre of green
-        </Typography>
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', lineHeight: 1 }}>
-          {distance}
-        </Typography>
-        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-          yds
-        </Typography>
-        {accuracyYards != null && (
-          <Tooltip title={`GPS accuracy: ±${accuracyYards} yds`}>
-            <Typography variant="caption" sx={{ color: accuracyYards <= 10 ? '#2d5e42' : accuracyYards <= 30 ? '#e6a817' : '#c62828', ml: 0.5 }}>
-              ±{accuracyYards}
-            </Typography>
-          </Tooltip>
-        )}
-      </Box>
-    </Box>
-  )
-}
 
 const TEE_DIRECTIONS = [
   { value: 'fairway', label: 'Fairway' },
@@ -465,13 +288,11 @@ export default function RoundPage() {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScoreState>>({})
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [scorecardOpen, setScorecardOpen] = useState(false)
-  const [greenOverrides, setGreenOverrides] = useState<Record<string, { lat: number; lng: number }>>({})
   const [shareSnackbar, setShareSnackbar] = useState(false)
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false)
   const [achievementQueue, setAchievementQueue] = useState<NewlyUnlockedAchievement[]>([])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const gps = useGPS()
   const { syncState, pendingCount, flush, refreshCount } = useOnlineStatus()
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -567,10 +388,6 @@ export default function RoundPage() {
     })
   }
 
-  const handleGreenMarked = (holeId: string, lat: number, lng: number) => {
-    setGreenOverrides((prev) => ({ ...prev, [holeId]: { lat, lng } }))
-  }
-
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -593,14 +410,6 @@ export default function RoundPage() {
   const holeId = hole?.id
 
   if (!hole) return null
-
-  // Merge green coordinates: local override takes priority over API data
-  const greenOverride = greenOverrides[holeId]
-  const holeWithGreen = {
-    ...hole,
-    greenLatitude: greenOverride?.lat ?? hole.greenLatitude,
-    greenLongitude: greenOverride?.lng ?? hole.greenLongitude,
-  }
 
   const score = holeScores[holeId] ?? defaultScore()
   const diff = score.strokes ? score.strokes - hole.par : null
@@ -635,7 +444,7 @@ export default function RoundPage() {
     const shareId = (round as { shareId?: string }).shareId
     if (!shareId) return
     const url = `${window.location.origin}/scorecard/${shareId}`
-    const courseName = round.course?.name || 'a round'
+    const courseName = round.course?.name ? formatCourseName(round.course.name) : 'a round'
     const scoreStr = totalDiff != null
       ? (totalDiff === 0 ? 'even par' : totalDiff > 0 ? `+${totalDiff}` : `${totalDiff}`)
       : ''
@@ -675,7 +484,7 @@ export default function RoundPage() {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
           <Typography variant="h6" color="primary.main" fontWeight={700} sx={{ flex: 1 }}>
-            {round.course?.name}
+            {round.course?.name ? formatCourseName(round.course.name) : ''}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             {(round as { shareId?: string }).shareId && (
@@ -790,14 +599,6 @@ export default function RoundPage() {
             )}
           </Box>
         </Box>
-
-        {/* GPS distance to green */}
-        <GPSDistancePanel
-          hole={holeWithGreen}
-          roundId={id!}
-          gps={gps}
-          onGreenMarked={handleGreenMarked}
-        />
 
         <Box sx={{ px: 3, py: 2 }}>
           {/* Strokes — stepper + quick-tap chips */}
@@ -964,8 +765,6 @@ export default function RoundPage() {
           <Divider />
           <Stepper label="Sand Shots" value={score.sandShots} onChange={(v) => updateField(holeId, 'sandShots', v)} />
           <Divider />
-          <Stepper label="Penalty Areas" value={score.hazards} onChange={(v) => updateField(holeId, 'hazards', v)} />
-          <Divider />
           <Stepper label="Penalties" value={score.penalties} onChange={(v) => updateField(holeId, 'penalties', v)} />
         </Box>
       </Paper>
@@ -1058,7 +857,7 @@ export default function RoundPage() {
       <ReviewPromptDialog
         open={reviewPromptOpen}
         roundId={roundId}
-        courseName={round.course?.name || 'this course'}
+        courseName={round.course?.name ? formatCourseName(round.course.name) : 'this course'}
         onClose={handleReviewClose}
       />
     </Container>

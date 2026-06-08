@@ -16,6 +16,8 @@ model User {
   name                   String
   emailVerified          Boolean                  @default(false)
   verificationToken      String?                  @unique
+  passwordResetToken     String?                  @unique
+  passwordResetExpires   DateTime?
   hasCompletedOnboarding Boolean                  @default(false)
   createdAt              DateTime                 @default(now())
   rounds                 Round[]
@@ -95,15 +97,13 @@ model Course {
 }
 
 model Hole {
-  id             Int         @id @default(autoincrement())
-  number         Int
-  par            Int
-  distance       Int
-  courseId        Int
-  greenLatitude  Float?
-  greenLongitude Float?
-  course         Course      @relation(fields: [courseId], references: [id])
-  scores         RoundHole[]
+  id        Int         @id @default(autoincrement())
+  number    Int
+  par       Int
+  distance  Int
+  courseId  Int
+  course    Course      @relation(fields: [courseId], references: [id])
+  scores    RoundHole[]
 
   @@unique([courseId, number])
 }

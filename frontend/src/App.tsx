@@ -28,6 +28,8 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const StatsPage = lazy(() => import('./pages/StatsPage'))
 const CourseStatsPage = lazy(() => import('./pages/CourseStatsPage'))
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const SharedScorecardPage = lazy(() => import('./pages/SharedScorecardPage'))
 const FriendsPage = lazy(() => import('./pages/FriendsPage'))
 const FeedPage = lazy(() => import('./pages/FeedPage'))
@@ -83,6 +85,8 @@ function Layout() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/scorecard/:shareId" element={<SharedScorecardPage />} />
         <Route path="/courses/:courseId/reviews" element={<CourseReviewsPage />} />
         <Route

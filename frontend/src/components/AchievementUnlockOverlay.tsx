@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { Box, Typography } from '@mui/material'
+import { Snackbar, Paper, Box, Typography, IconButton } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
 import type { NewlyUnlockedAchievement } from '../types'
 
 interface Props {
@@ -7,115 +8,94 @@ interface Props {
   onClear: () => void
 }
 
-const DISPLAY_MS = 3000
-const GAP_MS = 2000
+const DISPLAY_MS = 4000
 
 export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
   const [current, setCurrent] = useState<NewlyUnlockedAchievement | null>(null)
-  const [visible, setVisible] = useState(false)
   const indexRef = useRef(0)
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (queue.length === 0) return
-
     indexRef.current = 0
-    timersRef.current.forEach(clearTimeout)
-    timersRef.current = []
-
-    const showNext = () => {
-      if (indexRef.current >= queue.length) {
-        setCurrent(null)
-        setVisible(false)
-        onClear()
-        return
-      }
-      setCurrent(queue[indexRef.current])
-      setVisible(true)
-      timersRef.current.push(setTimeout(() => setVisible(false), DISPLAY_MS))
-      timersRef.current.push(setTimeout(() => {
-        indexRef.current += 1
-        showNext()
-      }, DISPLAY_MS + GAP_MS))
-    }
-    showNext()
-
+    setCurrent(queue[0])
     return () => {
-      timersRef.current.forEach(clearTimeout)
-      timersRef.current = []
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue])
 
-  const handleDismiss = () => {
-    setVisible(false)
-    timersRef.current.forEach(clearTimeout)
-    timersRef.current = []
+  const advance = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
     indexRef.current += 1
     if (indexRef.current >= queue.length) {
       setCurrent(null)
       onClear()
-      return
+    } else {
+      setCurrent(queue[indexRef.current])
     }
-    timersRef.current.push(setTimeout(() => {
-      const next = queue[indexRef.current]
-      setCurrent(next)
-      setVisible(true)
-      timersRef.current.push(setTimeout(() => setVisible(false), DISPLAY_MS))
-      timersRef.current.push(setTimeout(() => {
-        indexRef.current += 1
-        if (indexRef.current >= queue.length) {
-          setCurrent(null)
-          onClear()
-        }
-      }, DISPLAY_MS + GAP_MS))
-    }, GAP_MS / 4))
   }
 
-  if (!current) return null
-
   return (
-    <Box
-      onClick={handleDismiss}
-      sx={{
-        position: 'fixed',
-        inset: 0,
-        bgcolor: 'rgba(0, 0, 0, 0.65)',
-        zIndex: 2000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 250ms ease',
+    <Snackbar
+      open={current != null}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      autoHideDuration={DISPLAY_MS}
+      onClose={(_, reason) => {
+        if (reason === 'clickaway') return
+        advance()
       }}
+      sx={{ mt: { xs: 1, sm: 2 } }}
     >
-      <Box
-        sx={{
-          textAlign: 'center',
-          color: '#fff',
-          px: 3,
-          transform: visible ? 'scale(1)' : 'scale(0.85)',
-          opacity: visible ? 1 : 0,
-          transition: 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease',
-        }}
-      >
-        <Typography
-          variant="overline"
-          sx={{ color: '#c9a84c', fontWeight: 700, letterSpacing: 2 }}
+      {current ? (
+        <Paper
+          elevation={6}
+          onClick={advance}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            px: 1.75,
+            py: 1.25,
+            minWidth: 280,
+            maxWidth: 380,
+            borderRadius: 2,
+            bgcolor: '#1a3a2a',
+            color: '#fff',
+            cursor: 'pointer',
+            borderLeft: '4px solid #c9a84c',
+          }}
         >
-          Achievement Unlocked
-        </Typography>
-        <Typography sx={{ fontSize: '6rem', lineHeight: 1, my: 1.5 }}>
-          {current.emoji}
-        </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          {current.name}
-        </Typography>
-        <Typography variant="body1" sx={{ opacity: 0.85, maxWidth: 320, mx: 'auto' }}>
-          {current.description}
-        </Typography>
-      </Box>
-    </Box>
+          <Box sx={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>
+            {current.emoji}
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              sx={{ color: '#c9a84c', fontWeight: 700, letterSpacing: 1, display: 'block', lineHeight: 1.2 }}
+            >
+              Achievement Unlocked
+            </Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.25 }} noWrap>
+              {current.name}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8, lineHeight: 1.2, display: 'block' }} noWrap>
+              {current.description}
+            </Typography>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); advance() }}
+            sx={{ color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}
+            aria-label="Dismiss achievement"
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Paper>
+      ) : <div />}
+    </Snackbar>
   )
 }

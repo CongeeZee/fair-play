@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 import prisma from "../lib/prisma";
-import { sendVerificationEmail } from "../lib/email";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
 import { strictLimiter } from "../middleware/rateLimiter";
 
@@ -25,6 +25,17 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 function signAccessToken(userId: number): string {
   const secret = process.env.JWT_SECRET;
@@ -342,6 +353,94 @@ router.post(
     }
   },
 );
+
+// POST /auth/forgot-password
+// Always responds 200 to avoid leaking whether the email exists.
+router.post("/forgot-password", strictLimiter, async (req: Request, res: Response) => {
+  const result = forgotPasswordSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    return;
+  }
+
+  const { email } = result.data;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Only send a real reset link if the user exists AND has a password
+    // (Google-only accounts have no passwordHash and can't reset).
+    if (user && user.passwordHash) {
+      const resetToken = crypto.randomUUID();
+      const passwordResetExpires = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetToken: resetToken, passwordResetExpires },
+      });
+
+      sendPasswordResetEmail(user.email, resetToken);
+    }
+
+    res.json({
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    // Still respond 200 to preserve the no-leak guarantee
+    res.json({
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    });
+  }
+});
+
+// POST /auth/reset-password
+router.post("/reset-password", strictLimiter, async (req: Request, res: Response) => {
+  const result = resetPasswordSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    return;
+  }
+
+  const { token, newPassword } = result.data;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { passwordResetToken: token },
+    });
+
+    if (
+      !user ||
+      !user.passwordResetExpires ||
+      user.passwordResetExpires < new Date()
+    ) {
+      res.status(400).json({ error: "Invalid or expired reset link" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+        },
+      }),
+      // Invalidate all existing sessions
+      prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
+    ]);
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // PATCH /auth/onboarding-complete — mark onboarding done
 router.patch("/onboarding-complete", requireAuth, async (req: AuthRequest, res: Response) => {

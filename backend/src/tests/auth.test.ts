@@ -5,6 +5,7 @@ import { createTestUser, createVerifiedTestUser, prisma } from "./setup";
 // Mock email sending
 vi.mock("../lib/email", () => ({
   sendVerificationEmail: vi.fn(),
+  sendPasswordResetEmail: vi.fn(),
 }));
 
 // Disable rate limiting for functional tests
@@ -186,6 +187,167 @@ describe("GET /auth/verify-email/:token", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("Invalid");
+  });
+});
+
+describe("POST /auth/forgot-password", () => {
+  it("returns 200 with generic message when the email does not exist (no leak)", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "nobody@test.com",
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/if an account exists/i);
+    // Critically: no field like `exists`, `found`, or different wording for hits vs misses
+    expect(res.body).not.toHaveProperty("exists");
+  });
+
+  it("returns the same generic message when the email DOES exist (no leak)", async () => {
+    await createTestUser({ email: "exists@test.com" });
+
+    const hitRes = await request(app).post("/auth/forgot-password").send({
+      email: "exists@test.com",
+    });
+    const missRes = await request(app).post("/auth/forgot-password").send({
+      email: "missing@test.com",
+    });
+
+    expect(hitRes.status).toBe(200);
+    expect(missRes.status).toBe(200);
+    expect(hitRes.body).toEqual(missRes.body);
+  });
+
+  it("sets a reset token + expiry on the user when email exists", async () => {
+    const user = await createTestUser({ email: "reset-me@test.com" });
+
+    const before = Date.now();
+    await request(app).post("/auth/forgot-password").send({
+      email: "reset-me@test.com",
+    });
+    const after = Date.now();
+
+    const updated = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(updated?.passwordResetToken).toBeTruthy();
+    expect(updated?.passwordResetExpires).toBeTruthy();
+    const expiresMs = updated!.passwordResetExpires!.getTime();
+    // ~1 hour expiry
+    expect(expiresMs).toBeGreaterThanOrEqual(before + 60 * 60 * 1000 - 1000);
+    expect(expiresMs).toBeLessThanOrEqual(after + 60 * 60 * 1000 + 1000);
+  });
+
+  it("does NOT set a reset token for Google-only users (no passwordHash)", async () => {
+    const googleUser = await prisma.user.create({
+      data: {
+        email: "google@test.com",
+        name: "Google User",
+        googleId: "google-id-123",
+        emailVerified: true,
+      },
+    });
+
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "google@test.com",
+    });
+    expect(res.status).toBe(200);
+
+    const updated = await prisma.user.findUnique({ where: { id: googleUser.id } });
+    expect(updated?.passwordResetToken).toBeNull();
+    expect(updated?.passwordResetExpires).toBeNull();
+  });
+
+  it("returns 400 for invalid email format", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "not-an-email",
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /auth/reset-password", () => {
+  it("resets the password with a valid token and invalidates refresh tokens", async () => {
+    const user = await createTestUser({ email: "rp@test.com", password: "oldpass1" });
+
+    // Seed reset token directly
+    const token = "valid-reset-token-abc";
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+
+    const res = await request(app).post("/auth/reset-password").send({
+      token,
+      newPassword: "brandnewpass",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/reset/i);
+
+    // Token fields cleared
+    const updated = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(updated?.passwordResetToken).toBeNull();
+    expect(updated?.passwordResetExpires).toBeNull();
+
+    // New password works for login
+    const loginRes = await request(app).post("/auth/login").send({
+      email: "rp@test.com",
+      password: "brandnewpass",
+    });
+    expect(loginRes.status).toBe(200);
+
+    // Existing refresh token invalidated
+    const refreshRes = await request(app).post("/auth/refresh").send({
+      refreshToken: user.refreshToken,
+    });
+    expect(refreshRes.status).toBe(401);
+  });
+
+  it("rejects an expired token", async () => {
+    const user = await createTestUser({ email: "expired@test.com" });
+
+    const token = "expired-token-xyz";
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: new Date(Date.now() - 60 * 1000), // 1 min in the past
+      },
+    });
+
+    const res = await request(app).post("/auth/reset-password").send({
+      token,
+      newPassword: "shouldnotwork",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid or expired/i);
+
+    // Password unchanged: original "password123" still works
+    const loginRes = await request(app).post("/auth/login").send({
+      email: "expired@test.com",
+      password: "password123",
+    });
+    expect(loginRes.status).toBe(200);
+  });
+
+  it("rejects an unknown token", async () => {
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "does-not-exist",
+      newPassword: "whatever123",
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid or expired/i);
+  });
+
+  it("rejects a password shorter than 8 characters", async () => {
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "anything",
+      newPassword: "short",
+    });
+
+    expect(res.status).toBe(400);
   });
 });
 

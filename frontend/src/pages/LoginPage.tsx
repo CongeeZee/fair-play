@@ -76,6 +76,11 @@ export default function LoginPage() {
               ),
             }}
           />
+          <Box sx={{ textAlign: 'right', mt: -1 }}>
+            <MuiLink component={Link} to="/forgot-password" variant="body2">
+              Forgot password?
+            </MuiLink>
+          </Box>
           <Button type="submit" variant="contained" color="primary" size="large" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </Button>

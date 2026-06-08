@@ -21,3 +21,13 @@ export const resendVerification = () =>
 
 export const completeOnboarding = () =>
   client.patch('/auth/onboarding-complete').then((r) => r.data)
+
+export const forgotPassword = (email: string) =>
+  client
+    .post<{ message: string }>('/auth/forgot-password', { email })
+    .then((r) => r.data)
+
+export const resetPassword = (token: string, newPassword: string) =>
+  client
+    .post<{ message: string }>('/auth/reset-password', { token, newPassword })
+    .then((r) => r.data)

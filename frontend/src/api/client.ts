@@ -68,7 +68,7 @@ function isQueueableRoundRequest(config: InternalAxiosRequestConfig): boolean {
   const url = config.url || ''
   const method = (config.method || '').toUpperCase()
   if (method !== 'PUT' && method !== 'POST') return false
-  // Match: /rounds, /rounds/:id/holes/:holeId, /rounds/:id/mark-green/:holeId
+  // Match: /rounds, /rounds/:id/holes/:holeId
   return /^\/rounds(\/|$)/.test(url)
 }
 

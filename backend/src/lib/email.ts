@@ -32,3 +32,32 @@ export async function sendVerificationEmail(to: string, token: string) {
     console.error("Failed to send verification email:", err);
   }
 }
+
+export async function sendPasswordResetEmail(to: string, token: string) {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+  if (!resend) {
+    console.log("RESEND_API_KEY not set — skipping password reset email to", to);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: "Reset your Fairplay password",
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 16px;">
+          <h2 style="color: #1a3a2a; margin-bottom: 16px;">Reset your password</h2>
+          <p style="color: #444; line-height: 1.6;">We received a request to reset the password for your Fairplay account. Click the button below to choose a new one. This link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display: inline-block; background: #1a3a2a; color: #fff; padding: 12px 32px; border-radius: 6px; text-decoration: none; margin: 24px 0; font-weight: 600;">Reset Password</a>
+          <p style="color: #888; font-size: 14px; line-height: 1.5;">If you didn't request a password reset, you can safely ignore this email — your password won't change.</p>
+          <p style="color: #888; font-size: 12px; margin-top: 32px;">Or copy this link: ${resetUrl}</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send password reset email:", err);
+  }
+}

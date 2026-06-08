@@ -1,6 +1,6 @@
 import client from './client'
 import axios from 'axios'
-import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, Hole, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
+import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
 
 export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
@@ -61,9 +61,6 @@ export const getLeaderboard = (timeframe: string) =>
 
 export const getHandicapLeaderboard = () =>
   client.get<HandicapLeaderboardEntry[]>('/rounds/leaderboard/handicap').then((r) => r.data)
-
-export const markGreenLocation = (roundId: string, holeId: string, latitude: number, longitude: number) =>
-  client.put<Hole>(`/rounds/${roundId}/mark-green/${holeId}`, { latitude, longitude }).then((r) => r.data)
 
 export const getSharedScorecard = (shareId: string) =>
   axios.get<SharedScorecard>(`${import.meta.env.VITE_API_URL || '/api'}/rounds/shared/${shareId}`).then((r) => r.data)

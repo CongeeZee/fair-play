@@ -761,117 +761,6 @@ router.get("/leaderboard/handicap", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// ── OpenStreetMap green coordinate lookup ────────────────────────────────────
-// Queries the Overpass API for golf=green features near the course and matches
-// them to holes using the OSM `ref` tag (hole number). Runs as a background
-// fire-and-forget — never blocks course creation.
-
-async function geocodeCourse(courseName: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const q = courseName.replace(/\s*—.*$/, ""); // strip tee suffix
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + " golf")}&format=json&limit=1`,
-      { headers: { "User-Agent": "FairplayGolfApp/1.0" }, signal: AbortSignal.timeout(10000) },
-    );
-    if (!resp.ok) return null;
-    const results = (await resp.json()) as Array<{ lat: string; lon: string }>;
-    if (results.length === 0) return null;
-    return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
-  } catch {
-    return null;
-  }
-}
-
-async function lookupOSMGreens(courseId: number, lat: number, lng: number) {
-  try {
-    // Search for golf greens within 2 km of the course coordinates
-    const query = `[out:json][timeout:15];(way["golf"="green"](around:2000,${lat},${lng});relation["golf"="green"](around:2000,${lat},${lng}););out body center;`;
-
-    const resp = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: `data=${encodeURIComponent(query)}`,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!resp.ok) return;
-
-    const data = (await resp.json()) as {
-      elements: Array<{
-        center?: { lat: number; lon: number };
-        tags?: { ref?: string };
-      }>;
-    };
-
-    const greens = data.elements
-      .filter((e) => e.center && !isNaN(e.center.lat) && !isNaN(e.center.lon))
-      .map((e) => ({
-        lat: e.center!.lat,
-        lng: e.center!.lon,
-        ref: e.tags?.ref ? parseInt(e.tags.ref, 10) : null,
-      }))
-      .filter((g) => g.ref == null || !isNaN(g.ref));
-
-    if (greens.length === 0) return;
-
-    // Only update holes that don't already have green coordinates
-    const holes = await prisma.hole.findMany({
-      where: { courseId, greenLatitude: null },
-      orderBy: { number: "asc" },
-    });
-    if (holes.length === 0) return;
-
-    // Strategy 1: match by OSM ref tag (hole number)
-    const refMatched = new Set<number>();
-    for (const hole of holes) {
-      const match = greens.find((g) => g.ref === hole.number);
-      if (match) {
-        await prisma.hole.update({
-          where: { id: hole.id },
-          data: { greenLatitude: match.lat, greenLongitude: match.lng },
-        });
-        refMatched.add(hole.number);
-      }
-    }
-
-    // Strategy 2: if no ref tags but green count matches remaining holes,
-    // sort geographically and assign in order (nearest-neighbor chain)
-    const unmatched = holes.filter((h) => !refMatched.has(h.number));
-    const unusedGreens = greens.filter((g) => g.ref == null || !refMatched.has(g.ref));
-
-    if (unmatched.length > 0 && unusedGreens.length === unmatched.length) {
-      // Build a nearest-neighbor chain starting from the green closest to the course center
-      const assigned: typeof unusedGreens = [];
-      const pool = [...unusedGreens];
-
-      // Start with the green closest to the course center (likely near hole 1)
-      let current = { lat, lng };
-      while (pool.length > 0) {
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < pool.length; i++) {
-          const d = (pool[i].lat - current.lat) ** 2 + (pool[i].lng - current.lng) ** 2;
-          if (d < bestDist) { bestDist = d; bestIdx = i; }
-        }
-        const next = pool.splice(bestIdx, 1)[0];
-        assigned.push(next);
-        current = { lat: next.lat, lng: next.lng };
-      }
-
-      for (let i = 0; i < unmatched.length; i++) {
-        await prisma.hole.update({
-          where: { id: unmatched[i].id },
-          data: { greenLatitude: assigned[i].lat, greenLongitude: assigned[i].lng },
-        });
-      }
-    }
-
-    console.log(`OSM: matched ${refMatched.size + (unmatched.length === unusedGreens.length && unmatched.length > 0 ? unmatched.length : 0)} green locations for course ${courseId}`);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.log(`OSM green lookup skipped (non-fatal): ${msg}`);
-  }
-}
-
 // Fetch a course from golfcourseapi.com and upsert it into our DB.
 // Returns the local Course record (with holes).
 async function importExternalCourse(externalId: string, teeName?: string) {
@@ -898,10 +787,6 @@ async function importExternalCourse(externalId: string, teeName?: string) {
   type ExternalHole = {
     par: number;
     yardage: number;
-    green_latitude?: number;
-    green_longitude?: number;
-    latitude?: number;
-    longitude?: number;
   };
   type ExternalTeeSet = {
     tee_name: string;
@@ -913,8 +798,6 @@ async function importExternalCourse(externalId: string, teeName?: string) {
     id: number;
     course_name: string;
     club_name?: string;
-    latitude?: number;
-    longitude?: number;
     tees?: { male?: ExternalTeeSet[]; female?: ExternalTeeSet[] };
   };
 
@@ -950,31 +833,12 @@ async function importExternalCourse(externalId: string, teeName?: string) {
           number: idx + 1,
           par: h.par,
           distance: h.yardage,
-          greenLatitude: h.green_latitude ?? h.latitude ?? null,
-          greenLongitude: h.green_longitude ?? h.longitude ?? null,
         })),
       },
     },
     update: {},
     include: { holes: { orderBy: { number: "asc" } } },
   });
-
-  // Fire-and-forget: try to populate green coordinates from OpenStreetMap.
-  // Uses course coordinates from the API, or geocodes the course name as fallback.
-  const hasGreens = course.holes.some((h) => h.greenLatitude != null);
-  if (!hasGreens) {
-    (async () => {
-      let loc: { lat: number; lng: number } | null = null;
-      if (data.latitude != null && data.longitude != null) {
-        loc = { lat: data.latitude, lng: data.longitude };
-      } else {
-        loc = await geocodeCourse(data.course_name + (data.club_name ? ` ${data.club_name}` : ""));
-      }
-      if (loc) {
-        await lookupOSMGreens(course.id, loc.lat, loc.lng);
-      }
-    })().catch((err) => console.error("Background green lookup error:", err));
-  }
 
   return course;
 }
@@ -1629,53 +1493,6 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// PUT /rounds/:id/mark-green/:holeId — save green center GPS coordinates
-router.put("/:id/mark-green/:holeId", async (req: AuthRequest, res: Response) => {
-  const roundId = parseInt(String(req.params.id));
-  const holeId = parseInt(String(req.params.holeId));
-
-  if (isNaN(roundId) || isNaN(holeId)) {
-    res.status(400).json({ error: "Invalid round or hole ID" });
-    return;
-  }
-
-  const schema = z.object({
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
-  });
-
-  const result = schema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
-    return;
-  }
-
-  try {
-    const round = await prisma.round.findUnique({ where: { id: roundId } });
-    if (!round) { res.status(404).json({ error: "Round not found" }); return; }
-    if (round.userId !== req.userId) { res.status(403).json({ error: "Forbidden" }); return; }
-
-    const hole = await prisma.hole.findUnique({ where: { id: holeId } });
-    if (!hole || hole.courseId !== round.courseId) {
-      res.status(404).json({ error: "Hole not found on this course" });
-      return;
-    }
-
-    const updated = await prisma.hole.update({
-      where: { id: holeId },
-      data: {
-        greenLatitude: result.data.latitude,
-        greenLongitude: result.data.longitude,
-      },
-    });
-
-    res.json(updated);
-  } catch (err) {
-    console.error("PUT /rounds/:id/mark-green/:holeId error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 // DELETE /rounds/:id — delete a round and all its scores
 router.delete("/:id", async (req: AuthRequest, res: Response) => {
   const id = parseInt(String(req.params.id));
@@ -1835,15 +1652,6 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
     if (round.userId !== req.userId) {
       res.status(403).json({ error: "Forbidden" });
       return;
-    }
-
-    // Background: if no holes have green coordinates, try to fetch them from OSM
-    const hasGreens = round.course.holes.some((h) => h.greenLatitude != null);
-    if (!hasGreens && round.course.holes.length > 0) {
-      (async () => {
-        const loc = await geocodeCourse(round.course.name);
-        if (loc) await lookupOSMGreens(round.course.id, loc.lat, loc.lng);
-      })().catch(() => {});
     }
 
     res.json({
