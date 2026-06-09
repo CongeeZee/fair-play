@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import client from '../api/client'
+import { registerServiceWorker } from '../registerSW'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -22,13 +23,15 @@ export function usePushNotifications() {
     setIsSupported(supported)
     if (!supported) return
 
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
+    const promise = registerServiceWorker()
+    if (!promise) return
+    promise.then((reg) => {
       setRegistration(reg)
       reg.pushManager.getSubscription().then((sub) => {
         setIsSubscribed(!!sub)
       })
-    }).catch((err) => {
-      console.error('SW registration failed:', err)
+    }).catch(() => {
+      // registerServiceWorker already logs the error.
     })
   }, [])
 

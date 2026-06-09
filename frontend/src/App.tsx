@@ -45,6 +45,7 @@ const CourseReviewsPage = lazy(() => import('./pages/CourseReviewsPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
+import InstallPrompt from './components/InstallPrompt'
 
 function PageLoader() {
   return (
@@ -155,6 +156,7 @@ function Layout() {
       {showBottomNav && <BottomNav />}
       <OnboardingFlow />
       <RateLimitSnackbar />
+      <InstallPrompt />
     </Box>
   )
 }
