@@ -35,7 +35,9 @@ export default function OnboardingFlow() {
 
   const handleNext = () => {
     if (step < STEPS.length - 1) setStep(step + 1)
-    else handleComplete()
+    // On the final step, drop the user straight into course search so the
+    // first action is teeing up their first round — not a blank page.
+    else handleNavigate('/courses')
   }
 
   const handleNavigate = (path: string) => {
@@ -148,17 +150,17 @@ export default function OnboardingFlow() {
                 <PeopleIcon sx={{ fontSize: 40, color: '#c9a84c' }} />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a3a2a', mb: 1.5 }}>
-                Add friends
+                Bring your mates
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 3 }}>
-                Find your mates and see how you stack up. Compare handicaps, see who's improving, and check out each other's rounds.
+                Share one invite link with your golf society — everyone who joins gets auto-connected so the leaderboards and feed light up from day one.
               </Typography>
               <Button
                 variant="outlined"
                 onClick={() => handleNavigate('/friends')}
                 sx={{ textTransform: 'none', fontWeight: 600 }}
               >
-                Add Friends
+                Invite my mates
               </Button>
             </>
           )}

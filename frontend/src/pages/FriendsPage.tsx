@@ -21,8 +21,10 @@ import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import InviteFriendsDialog from '../components/InviteFriendsDialog'
 import { capture, AnalyticsEvent } from '../analytics'
+import EmptyState from '../components/EmptyState'
+import GroupAddIcon from '@mui/icons-material/GroupAdd'
 
-function FriendsTab() {
+function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindFriends: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: friends, isLoading } = useQuery({ queryKey: ['friends'], queryFn: getFriends })
@@ -47,9 +49,13 @@ function FriendsTab() {
 
   if (!friends?.length) {
     return (
-      <Box sx={{ textAlign: 'center', py: 6 }}>
-        <Typography color="text.secondary">No friends yet. Use the Find Friends tab to connect with others.</Typography>
-      </Box>
+      <EmptyState
+        icon={<GroupAddIcon sx={{ fontSize: 36 }} />}
+        title="Bring your golf mates along"
+        description="Share an invite link with your group — anyone who joins gets auto-connected to everyone else."
+        primary={{ label: 'Invite with a link', onClick: onInvite, icon: <LinkIcon /> }}
+        secondary={{ label: 'Find by name', onClick: onFindFriends }}
+      />
     )
   }
 
@@ -138,7 +144,7 @@ function RequestsTab() {
   if (!requests?.length) {
     return (
       <Box sx={{ textAlign: 'center', py: 6 }}>
-        <Typography color="text.secondary">No pending friend requests.</Typography>
+        <Typography color="text.secondary">No pending requests right now.</Typography>
       </Box>
     )
   }
@@ -313,7 +319,7 @@ export default function FriendsPage() {
         <Tab label="Find Friends" />
       </Tabs>
 
-      {tab === 0 && <FriendsTab />}
+      {tab === 0 && <FriendsTab onInvite={() => setInviteOpen(true)} onFindFriends={() => setTab(2)} />}
       {tab === 1 && <RequestsTab />}
       {tab === 2 && <FindFriendsTab />}
     </Box>

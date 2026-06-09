@@ -26,6 +26,8 @@ import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import StarRating from '../components/StarRating'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import EmptyState from '../components/EmptyState'
+import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 function scoreColor(scoreToPar: number) {
   if (scoreToPar < 0) return '#c9a84c'
@@ -618,23 +620,22 @@ export default function FeedPage() {
       ))}
 
       {allFeedRounds.length === 0 && !latestOwnRound && feedTeeTimes.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <PeopleIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            Add friends to see their rounds
-          </Typography>
-          <Button variant="contained" component={Link} to="/friends">
-            Find Friends
-          </Button>
-        </Box>
+        <EmptyState
+          icon={<PeopleIcon sx={{ fontSize: 36 }} />}
+          title="Your feed is quiet — for now"
+          description="Tee off a round or invite your golf mates to fill this with scores, comments, and tee times."
+          primary={{ label: 'Start a round', to: '/courses', icon: <SportsGolfIcon /> }}
+          secondary={{ label: 'Invite mates', to: '/friends' }}
+        />
       )}
 
       {allFeedRounds.length === 0 && latestOwnRound && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <Typography color="text.secondary">
-            No recent rounds from your friends.
-          </Typography>
-        </Box>
+        <EmptyState
+          icon={<PeopleIcon sx={{ fontSize: 36 }} />}
+          title="No rounds from your mates yet"
+          description="Share an invite link so the rest of the group can post their scores too."
+          primary={{ label: 'Invite mates', to: '/friends' }}
+        />
       )}
 
       {(() => {

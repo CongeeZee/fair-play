@@ -19,6 +19,8 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRounds, getRound, deleteRound } from '../api/rounds'
 import type { Round } from '../types'
+import EmptyState from '../components/EmptyState'
+import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 export default function HistoryPage() {
   const navigate = useNavigate()
@@ -102,15 +104,13 @@ export default function HistoryPage() {
     <Container maxWidth="md" sx={{ py: 4 }}>
 
       {rounds && rounds.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <HistoryIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography color="text.secondary" sx={{ mb: 1 }}>
-            No rounds yet. Find a course and play your first round!
-          </Typography>
-          <Button variant="contained" onClick={() => navigate('/courses')} sx={{ mt: 1 }}>
-            Find a Course
-          </Button>
-        </Box>
+        <EmptyState
+          icon={<HistoryIcon sx={{ fontSize: 36 }} />}
+          title="Your card is blank"
+          description="Score your first round and it'll live here forever — every hole, every birdie, every blow-up."
+          primary={{ label: 'Start your first round', to: '/courses', icon: <SportsGolfIcon /> }}
+          secondary={{ label: 'Invite mates', to: '/friends' }}
+        />
       )}
 
       {rounds && rounds.length > 0 && (

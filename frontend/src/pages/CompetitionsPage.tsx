@@ -31,6 +31,7 @@ import ProfileLink from '../components/ProfileLink'
 import CourseSearchInput from '../components/CourseSearchInput'
 import type { CompetitionSummary } from '../types'
 import { capture, AnalyticsEvent } from '../analytics'
+import EmptyState from '../components/EmptyState'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ function Section({ title, comps, onSelect, defaultOpen = true }: {
 
 function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (id: string) => void }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [anyCourse, setAnyCourse] = useState(true)
@@ -262,9 +264,19 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
               Select friends to invite (you can invite more later).
             </Typography>
             {!friends?.length ? (
-              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 3 }}>
-                No friends yet. You can invite them after creating.
-              </Typography>
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  No mates added yet — create the competition first, then share an invite link.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => { handleClose(); navigate('/friends') }}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Invite friends now
+                </Button>
+              </Box>
             ) : (
               <List dense sx={{ maxHeight: 250, overflow: 'auto' }}>
                 {friends.map((f) => (
@@ -687,15 +699,13 @@ function CompetitionsListView() {
       <PageHeader title="Competitions" subtitle="Compete with friends" />
       <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3, position: 'relative' }}>
         {isEmpty ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <EmojiEventsIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-            <Typography color="text.secondary" sx={{ mb: 2 }}>
-              No competitions yet. Create one and invite your friends!
-            </Typography>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-              Create Competition
-            </Button>
-          </Box>
+          <EmptyState
+            icon={<EmojiEventsIcon sx={{ fontSize: 36 }} />}
+            title="Crown a champion"
+            description="Set up a weekend showdown or a long-running club ladder — pick the format, invite your mates, and let the leaderboard do the talking."
+            primary={{ label: 'Create a competition', onClick: () => setCreateOpen(true), icon: <AddIcon /> }}
+            secondary={{ label: 'Invite mates first', to: '/friends' }}
+          />
         ) : (
           <>
             <Section title="Active" comps={active} onSelect={(id) => navigate(`/competitions/${id}`)} />

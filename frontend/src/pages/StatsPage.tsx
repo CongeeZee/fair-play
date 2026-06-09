@@ -15,7 +15,9 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
+import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 import { getStats, getHandicap, getRounds, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
 import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
@@ -297,18 +299,18 @@ export default function StatsPage() {
 
   if (!stats || stats.roundsPlayed === 0) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Typography variant="h4" color="primary.main" gutterBottom>Stats</Typography>
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <BarChartIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography color="text.secondary" sx={{ mb: 1 }}>
-            Play your first round to start tracking your game.
-          </Typography>
-          <Button variant="contained" component={Link} to="/courses" sx={{ mt: 1 }}>
-            Find a Course
-          </Button>
-        </Box>
-      </Container>
+      <Box>
+        <PageHeader title="Stats" subtitle="Your performance at a glance" />
+        <Container maxWidth="md" sx={{ py: 4 }}>
+          <EmptyState
+            icon={<BarChartIcon sx={{ fontSize: 36 }} />}
+            title="Stats unlock with your first round"
+            description="Pick a course and score a round — handicap, trends, and insights will appear right here."
+            primary={{ label: 'Start your first round', to: '/courses', icon: <SportsGolfIcon /> }}
+            secondary={{ label: 'Invite mates', to: '/friends' }}
+          />
+        </Container>
+      </Box>
     )
   }
 
