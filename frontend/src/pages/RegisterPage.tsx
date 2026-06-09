@@ -5,13 +5,18 @@ import {
 } from '@mui/material'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function RegisterPage() {
   const { register, googleLogin } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const pendingInvite = localStorage.getItem('pendingInviteCode')
+  const postAuthDest =
+    (location.state as { from?: string })?.from ??
+    (pendingInvite ? `/invite/${pendingInvite}` : '/courses')
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -35,7 +40,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await register(name, email, password)
-      navigate('/courses')
+      navigate(postAuthDest, { replace: true })
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setError(msg ?? 'Registration failed. Please try again.')
@@ -116,7 +121,7 @@ export default function RegisterPage() {
                 setError('')
                 setLoading(true)
                 googleLogin(response.credential)
-                  .then(() => navigate('/courses'))
+                  .then(() => navigate(postAuthDest, { replace: true }))
                   .catch(() => setError('Google sign-up failed. Please try again.'))
                   .finally(() => setLoading(false))
               }

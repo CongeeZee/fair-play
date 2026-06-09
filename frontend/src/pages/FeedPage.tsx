@@ -12,7 +12,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import SettingsIcon from '@mui/icons-material/Settings'
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import CloseIcon from '@mui/icons-material/Close'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getFeed } from '../api/rounds'
 import { joinTeeTime } from '../api/teetimes'
@@ -530,6 +530,9 @@ export default function FeedPage() {
   const queryClient = useQueryClient()
   const observerRef = useRef<HTMLDivElement>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const location = useLocation()
+  const inviteToast = (location.state as { inviteToast?: string } | null)?.inviteToast ?? null
+  const [inviteSnack, setInviteSnack] = useState(!!inviteToast)
   const { isSupported, isSubscribed, subscribeToNotifications, unsubscribeFromNotifications } = usePushNotifications()
 
   const {
@@ -673,6 +676,14 @@ export default function FeedPage() {
           )}
         </DialogContent>
       </Dialog>
+      <Snackbar
+        open={inviteSnack}
+        autoHideDuration={4000}
+        onClose={() => setInviteSnack(false)}
+        message={inviteToast ?? ''}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ mb: { xs: '68px', md: 0 } }}
+      />
     </Box>
   )
 }

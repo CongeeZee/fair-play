@@ -297,6 +297,28 @@ The Vite dev server proxies `/api` requests to `http://localhost:3001`.
 
 ---
 
+## Shareable Invite Links
+
+Invite links let one user onboard a whole society in a single share — anyone
+who accepts a link is auto-friended with the creator and (when a `label` is
+set) the rest of the cluster.
+
+- `POST /invites` (auth) — create a link. Optional `label`, `maxUses`,
+  `expiresInDays`.
+- `GET /invites/:code` (public) — preview the inviter + label for the
+  landing page. Reports `expired` / `exhausted` / `valid` flags.
+- `POST /invites/:code/accept` (auth) — idempotent. On first accept,
+  creates `ACCEPTED` friendships with the inviter and every prior
+  acceptor of the same link, plus every acceptor of any other link with
+  the same `(creatorId, label)`. Existing `BLOCKED` pairs are respected;
+  existing `PENDING` requests are auto-promoted.
+
+Unauthenticated invitees land on `/invite/:code`, the code is stashed in
+`localStorage.pendingInviteCode`, and Login/Register redirect back to
+`/invite/:code` after auth so the accept happens on first sign-in.
+
+---
+
 ## Product Analytics
 
 Lightweight product analytics via [PostHog](https://posthog.com). All capture

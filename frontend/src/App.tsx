@@ -42,6 +42,7 @@ const PlayPage = lazy(() => import('./pages/PlayPage'))
 const LiveScorecardPage = lazy(() => import('./pages/LiveScorecardPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const CourseReviewsPage = lazy(() => import('./pages/CourseReviewsPage'))
+const InvitePage = lazy(() => import('./pages/InvitePage'))
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 
@@ -91,6 +92,7 @@ function Layout() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/scorecard/:shareId" element={<SharedScorecardPage />} />
+        <Route path="/invite/:code" element={<InvitePage />} />
         <Route path="/courses/:courseId/reviews" element={<CourseReviewsPage />} />
         <Route
           path="/feed"

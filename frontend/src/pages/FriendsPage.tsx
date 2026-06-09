@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
+import LinkIcon from '@mui/icons-material/Link'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import SearchIcon from '@mui/icons-material/Search'
@@ -18,6 +19,7 @@ import { getLiveRounds } from '../api/live'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
+import InviteFriendsDialog from '../components/InviteFriendsDialog'
 import { capture, AnalyticsEvent } from '../analytics'
 
 function FriendsTab() {
@@ -271,6 +273,7 @@ function FindFriendsTab() {
 
 export default function FriendsPage() {
   const [tab, setTab] = useState(0)
+  const [inviteOpen, setInviteOpen] = useState(false)
   const { data: requests } = useQuery({
     queryKey: ['friend-requests'],
     queryFn: getFriendRequests,
@@ -281,6 +284,19 @@ export default function FriendsPage() {
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
       <PageHeader title="Friends" />
+
+      <Box sx={{ mb: 2 }}>
+        <Button
+          variant="outlined"
+          startIcon={<LinkIcon />}
+          fullWidth
+          onClick={() => setInviteOpen(true)}
+        >
+          Invite friends with a link
+        </Button>
+      </Box>
+
+      <InviteFriendsDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <Tabs
         value={tab}

@@ -13,7 +13,10 @@ export default function LoginPage() {
   const { login, googleLogin } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string })?.from ?? '/'
+  const pendingInvite = localStorage.getItem('pendingInviteCode')
+  const from =
+    (location.state as { from?: string })?.from ??
+    (pendingInvite ? `/invite/${pendingInvite}` : '/')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

@@ -36,6 +36,8 @@ model User {
   courseReviews          CourseReview[]
   achievements           Achievement[]
   taggedInRounds         RoundPartner[]
+  createdInviteLinks     InviteLink[]             @relation("inviteLinkCreator")
+  inviteAcceptances      InviteAcceptance[]       @relation("inviteAcceptances")
 }
 
 enum FriendshipStatus {
@@ -331,6 +333,36 @@ model TeeTimeParticipant {
 }
 
 // ── Round Scoring ─────────────────────────────────────────────────────────────
+
+// ── Invite Links ─────────────────────────────────────────────────────────────
+
+model InviteLink {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  creatorId   Int
+  label       String?
+  maxUses     Int?
+  uses        Int                @default(0)
+  expiresAt   DateTime?
+  createdAt   DateTime           @default(now())
+  creator     User               @relation("inviteLinkCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  acceptances InviteAcceptance[]
+
+  @@index([creatorId])
+  @@index([creatorId, label])
+}
+
+model InviteAcceptance {
+  id           String     @id @default(uuid())
+  inviteLinkId String
+  userId       Int
+  createdAt    DateTime   @default(now())
+  inviteLink   InviteLink @relation(fields: [inviteLinkId], references: [id], onDelete: Cascade)
+  user         User       @relation("inviteAcceptances", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteLinkId, userId])
+  @@index([userId])
+}
 
 model RoundHole {
   id               Int     @id @default(autoincrement())

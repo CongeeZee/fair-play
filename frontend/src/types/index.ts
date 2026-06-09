@@ -302,6 +302,33 @@ export interface FriendRequest {
   sentAt: string
 }
 
+export interface InviteLink {
+  id: string
+  code: string
+  label: string | null
+  maxUses: number | null
+  uses: number
+  expiresAt: string | null
+  createdAt: string
+}
+
+export interface InvitePreview {
+  code: string
+  label: string | null
+  inviter: { id: number; name: string }
+  expired: boolean
+  exhausted: boolean
+  valid: boolean
+}
+
+export interface InviteAcceptResult {
+  success: boolean
+  alreadyAccepted: boolean
+  inviter: { id: number }
+  friendsAdded: number
+  totalFriends: number
+}
+
 export interface UserSearchResult {
   id: number
   name: string

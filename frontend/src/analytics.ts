@@ -41,7 +41,9 @@ export interface AnalyticsEventProps {
     invitedCount: number
   }
   [AnalyticsEvent.CompetitionJoined]: { competitionId: string }
-  [AnalyticsEvent.InviteLinkCreated]: { kind: 'scorecard'; roundId: number }
+  [AnalyticsEvent.InviteLinkCreated]:
+    | { kind: 'scorecard'; roundId: number }
+    | { kind: 'friend'; label?: string; hasMaxUses: boolean; hasExpiry: boolean }
 }
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined
