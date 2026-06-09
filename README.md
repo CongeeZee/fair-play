@@ -332,6 +332,43 @@ events there first so dashboards and code stay in sync.
 
 ---
 
+## Error Monitoring (Sentry)
+
+Optional [Sentry](https://sentry.io) integration on both frontend and backend.
+When the DSN env var is unset, the SDK is never initialised and all error
+hooks are silent no-ops — safe to leave blank in dev.
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `VITE_SENTRY_DSN` | No | unset | If unset, Sentry is not initialised. |
+| `VITE_SENTRY_ENVIRONMENT` | No | `import.meta.env.MODE` | Override per deploy target. |
+| `VITE_SENTRY_RELEASE` | No | unset | E.g. the build commit SHA. |
+
+The React `<App />` is wrapped in `Sentry.ErrorBoundary` in
+`frontend/src/main.tsx`, so any uncaught render error is reported (when
+enabled) and a fallback message is shown.
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `SENTRY_DSN` | No | unset | If unset, Sentry is not initialised. |
+| `SENTRY_ENVIRONMENT` | No | `NODE_ENV` | Override per deploy target. |
+| `SENTRY_RELEASE` | No | unset | E.g. the build commit SHA. |
+
+Errors that escape a route handler are captured by the
+`sentryErrorHandler` Express middleware registered after all routes in
+`backend/src/app.ts`. `beforeSend` scrubs `Authorization`, `Cookie`, and
+related auth headers from events, plus body fields like `password`,
+`refreshToken`, `credential`, `token`, and the verification/reset tokens — so
+secrets never reach Sentry.
+
+No performance tracing is enabled (`tracesSampleRate: 0`).
+
+---
+
 ## License
 
 MIT

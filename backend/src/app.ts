@@ -14,6 +14,7 @@ import achievementsRouter from "./routes/achievements";
 import { authedRouter as reviewsAuthedRouter, publicRouter as reviewsPublicRouter } from "./routes/reviews";
 import { standardLimiter } from "./middleware/rateLimiter";
 import prisma from "./lib/prisma";
+import { sentryErrorHandler } from "./lib/sentry";
 
 const app = express();
 
@@ -96,5 +97,8 @@ app.use("/", reviewsAuthedRouter);
 app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
+
+// Sentry error-handling middleware — must come after all routes.
+app.use(sentryErrorHandler);
 
 export default app;
