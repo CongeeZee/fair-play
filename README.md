@@ -297,6 +297,41 @@ The Vite dev server proxies `/api` requests to `http://localhost:3001`.
 
 ---
 
+## Product Analytics
+
+Lightweight product analytics via [PostHog](https://posthog.com). All capture
+calls go through a single typed wrapper at `frontend/src/analytics.ts`.
+
+### Setup
+
+Set these in the **frontend** environment (`frontend/.env.local`):
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `VITE_POSTHOG_KEY` | No | unset | PostHog project API key. If unset, all analytics calls are no-ops (no script loaded, nothing sent). Leave unset for dev/local. |
+| `VITE_POSTHOG_HOST` | No | `https://us.i.posthog.com` | Override for EU cloud (`https://eu.i.posthog.com`) or self-hosted instances. |
+
+### What gets tracked
+
+The user is **identified by numeric user id only** on login/register and
+`reset()` is called on logout. Email and other PII are never sent as
+properties.
+
+| Event | When it fires | Properties |
+|---|---|---|
+| `signup_completed` | Account is created (first email/password registration, or first Google sign-in on this device) | `method: 'email' \| 'google'` |
+| `round_started` | A new round is created on a course | `courseId?`, `externalCourseId?` |
+| `round_completed` | The user finishes a round with every hole scored | `roundId`, `holes` |
+| `friend_added` | A pending friend request is accepted | — |
+| `competition_created` | A new competition is created | `competitionId`, `scoringType`, `invitedCount` |
+| `competition_joined` | An invite to a competition is accepted | `competitionId` |
+| `invite_link_created` | A shareable scorecard link is opened via the share button | `kind: 'scorecard'`, `roundId` |
+
+Event names live in `AnalyticsEvent` in `frontend/src/analytics.ts` — add new
+events there first so dashboards and code stay in sync.
+
+---
+
 ## License
 
 MIT

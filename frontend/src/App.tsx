@@ -7,6 +7,9 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Box, Toolbar, CircularProgress } from '@mui/material'
 
 import theme from './theme'
+import { initAnalytics } from './analytics'
+
+initAnalytics()
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '385243330154-m8dse9gevr7bvkm0kpk21grgu5cq14lk.apps.googleusercontent.com'
 import { AuthProvider } from './contexts/AuthContext'

@@ -30,6 +30,7 @@ import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import CourseSearchInput from '../components/CourseSearchInput'
 import type { CompetitionSummary } from '../types'
+import { capture, AnalyticsEvent } from '../analytics'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
 
@@ -144,6 +145,11 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
       inviteUserIds: selectedFriends.length > 0 ? selectedFriends : undefined,
     }),
     onSuccess: (data) => {
+      capture(AnalyticsEvent.CompetitionCreated, {
+        competitionId: data.id,
+        scoringType,
+        invitedCount: selectedFriends.length,
+      })
       queryClient.invalidateQueries({ queryKey: ['competitions'] })
       onCreated(data.id)
       handleClose()
@@ -429,7 +435,10 @@ function CompetitionDetailView({ id }: { id: string }) {
 
   const respondMutation = useMutation({
     mutationFn: (response: 'ACCEPTED' | 'DECLINED') => respondToCompetition(id, response),
-    onSuccess: () => {
+    onSuccess: (_data, response) => {
+      if (response === 'ACCEPTED') {
+        capture(AnalyticsEvent.CompetitionJoined, { competitionId: id })
+      }
       queryClient.invalidateQueries({ queryKey: ['competition', id] })
       queryClient.invalidateQueries({ queryKey: ['competitions'] })
     },

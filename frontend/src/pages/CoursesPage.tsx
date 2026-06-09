@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader'
 import CourseSearchInput, { type CourseSearchResult } from '../components/CourseSearchInput'
 import type { TeeOption } from '../api/courses'
 import { createRound, getRounds } from '../api/rounds'
+import { capture, AnalyticsEvent } from '../analytics'
 import { formatCourseName } from '../utils'
 import type { Round } from '../types'
 import FirstTimeTooltip from '../components/FirstTimeTooltip'
@@ -112,6 +113,7 @@ export default function CoursesPage() {
     setPlayAgainLoading(courseId)
     try {
       const round = await createRound({ courseId })
+      capture(AnalyticsEvent.RoundStarted, { courseId: Number(courseId) })
       navigate(`/rounds/${round.id}`)
     } catch {
       setPlayAgainLoading(null)
@@ -125,6 +127,9 @@ export default function CoursesPage() {
       const round = await createRound({
         externalCourseId: teeDialog.externalCourseId,
         teeName: selectedTee,
+      })
+      capture(AnalyticsEvent.RoundStarted, {
+        externalCourseId: teeDialog.externalCourseId,
       })
       navigate(`/rounds/${round.id}`)
     } catch {

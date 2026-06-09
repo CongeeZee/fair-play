@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { getTeeTimes } from '../api/teetimes'
 import { getExternalCourseTees } from '../api/courses'
 import { createRound } from '../api/rounds'
+import { capture, AnalyticsEvent } from '../analytics'
 import PageHeader from '../components/PageHeader'
 import CourseSearchInput, { type CourseSearchResult } from '../components/CourseSearchInput'
 
@@ -53,6 +54,10 @@ export default function PlayPage() {
       return createRound({ courseId: selectedCourse.id })
     },
     onSuccess: (round) => {
+      capture(AnalyticsEvent.RoundStarted, {
+        courseId: selectedCourse?.source === 'local' ? Number(selectedCourse.id) : undefined,
+        externalCourseId: selectedCourse?.source === 'external' ? selectedCourse.id : undefined,
+      })
       navigate(`/rounds/${round.id}`)
     },
   })

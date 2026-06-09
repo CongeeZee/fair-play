@@ -27,6 +27,7 @@ import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay'
 import PlayingPartnersPicker from '../components/PlayingPartnersPicker'
 import { formatCourseName } from '../utils'
 import type { RoundHole, NewlyUnlockedAchievement } from '../types'
+import { capture, AnalyticsEvent } from '../analytics'
 
 const TEE_DIRECTIONS = [
   { value: 'fairway', label: 'Fairway' },
@@ -428,6 +429,12 @@ export default function RoundPage() {
 
   const handleFinish = () => {
     queryClient.invalidateQueries({ queryKey: ['rounds'] })
+    if (allHolesScored) {
+      capture(AnalyticsEvent.RoundCompleted, {
+        roundId,
+        holes: totalHoles,
+      })
+    }
     if (allHolesScored && !reviewSkipped && !reviewExisting) {
       setReviewPromptOpen(true)
     } else {
@@ -443,6 +450,7 @@ export default function RoundPage() {
   const handleShare = async () => {
     const shareId = (round as { shareId?: string }).shareId
     if (!shareId) return
+    capture(AnalyticsEvent.InviteLinkCreated, { kind: 'scorecard', roundId })
     const url = `${window.location.origin}/scorecard/${shareId}`
     const courseName = round.course?.name ? formatCourseName(round.course.name) : 'a round'
     const scoreStr = totalDiff != null

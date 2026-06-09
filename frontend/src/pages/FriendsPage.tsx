@@ -18,6 +18,7 @@ import { getLiveRounds } from '../api/live'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
+import { capture, AnalyticsEvent } from '../analytics'
 
 function FriendsTab() {
   const queryClient = useQueryClient()
@@ -117,6 +118,7 @@ function RequestsTab() {
   const acceptMutation = useMutation({
     mutationFn: acceptFriendRequest,
     onSuccess: () => {
+      capture(AnalyticsEvent.FriendAdded, {})
       queryClient.invalidateQueries({ queryKey: ['friend-requests'] })
       queryClient.invalidateQueries({ queryKey: ['friends'] })
     },

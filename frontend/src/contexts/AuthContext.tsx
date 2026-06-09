@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { User, AuthResponse } from '../types'
 import * as authApi from '../api/auth'
 import { setAccessToken, refreshAccessToken } from '../api/client'
+import { identify, resetAnalytics, capture, AnalyticsEvent } from '../analytics'
 
 interface AuthContextValue {
   user: User | null
@@ -20,6 +21,7 @@ function handleAuthResponse(data: AuthResponse, setUser: (u: User | null) => voi
   localStorage.setItem('refreshToken', data.refreshToken)
   localStorage.setItem('user', JSON.stringify(data.user))
   setUser(data.user)
+  identify(data.user.id)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -32,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Uses the shared refreshAccessToken so it dedupes with any 401-triggered refresh
   // that may fire in parallel from other components mounting.
   useEffect(() => {
+    // Re-identify on every reload for already-signed-in sessions
+    if (user) identify(user.id)
+
     const refreshToken = localStorage.getItem('refreshToken')
     if (!refreshToken || !user) return
 
@@ -53,11 +58,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (name: string, email: string, password: string) => {
     const data = await authApi.register(name, email, password)
     handleAuthResponse(data, setUser)
+    capture(AnalyticsEvent.SignupCompleted, { method: 'email' })
   }, [])
 
   const googleLogin = useCallback(async (credential: string) => {
+    // We can't tell from the response alone whether this Google sign-in created
+    // a new user or signed an existing one in. We treat the first ever Google
+    // sign-in for this browser as a signup (good enough for activation funnels)
+    // by checking whether we'd previously stored a user.
+    const isFirstAuth = !localStorage.getItem('user')
     const data = await authApi.googleLogin(credential)
     handleAuthResponse(data, setUser)
+    if (isFirstAuth) {
+      capture(AnalyticsEvent.SignupCompleted, { method: 'google' })
+    }
   }, [])
 
   const markEmailVerified = useCallback(() => {
@@ -85,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     setUser(null)
+    resetAnalytics()
   }, [])
 
   return (
