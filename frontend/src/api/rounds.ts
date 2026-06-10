@@ -1,6 +1,6 @@
 import client from './client'
 import axios from 'axios'
-import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
+import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, StrokesGainedResult, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
 
 export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
@@ -49,6 +49,9 @@ export const getCourseDetailStats = (courseId: string) =>
 
 export const getInsights = () =>
   client.get<InsightsResult>('/rounds/insights').then((r) => r.data)
+
+export const getStrokesGained = () =>
+  client.get<StrokesGainedResult>('/rounds/strokes-gained').then((r) => r.data)
 
 export const getHandicapHistory = () =>
   client.get<HandicapHistoryPoint[]>('/rounds/handicap-history').then((r) => r.data)

@@ -9,7 +9,13 @@ export async function sendVerificationEmail(to: string, token: string) {
   const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
 
   if (!resend) {
-    console.log("RESEND_API_KEY not set — skipping verification email to", to);
+    // Dev fallback: without an email provider the user has no way to verify,
+    // which silently locks them out of all social features (friends routes
+    // 403 for unverified accounts). Print the actual link so devs can verify.
+    console.log(
+      `RESEND_API_KEY not set — verification email NOT sent to ${to}.\n` +
+        `  Open this link to verify manually: ${verifyUrl}`,
+    );
     return;
   }
 
@@ -38,7 +44,10 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
   if (!resend) {
-    console.log("RESEND_API_KEY not set — skipping password reset email to", to);
+    console.log(
+      `RESEND_API_KEY not set — password reset email NOT sent to ${to}.\n` +
+        `  Open this link to reset manually: ${resetUrl}`,
+    );
     return;
   }
 

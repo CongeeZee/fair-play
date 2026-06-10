@@ -607,3 +607,45 @@ export interface LiveScorecard {
   completedAt: string | null
   playedAt: string
 }
+
+// ── Strokes Gained (simplified model — see backend/src/lib/strokesGained.ts) ─
+
+export type SGCategoryKey = 'offTheTee' | 'approach' | 'aroundGreen' | 'putting'
+
+export interface SGCategoryRoundResult {
+  /** Estimated SG for the round; null when no holes tracked the inputs. */
+  value: number | null
+  trackedHoles: number
+}
+
+export interface SGSeriesPoint {
+  roundId: number
+  playedAt: string
+  courseName: string
+  holesPlayed: number
+  totalVsBaseline: number
+  offTheTee: SGCategoryRoundResult
+  approach: SGCategoryRoundResult
+  aroundGreen: SGCategoryRoundResult
+  putting: SGCategoryRoundResult
+}
+
+export interface SGCategorySummary {
+  averagePerRound: number | null
+  dataCompleteness: {
+    trackedHoles: number
+    totalHoles: number
+    roundsWithData: number
+    /** false = too few tracked holes to trust this category's number */
+    sufficient: boolean
+  }
+}
+
+export interface StrokesGainedResult {
+  hasData: boolean
+  band?: 'low' | 'mid' | 'high'
+  handicapIndex?: number | null
+  roundsAnalysed?: number
+  categories?: Record<SGCategoryKey, SGCategorySummary>
+  series?: SGSeriesPoint[]
+}

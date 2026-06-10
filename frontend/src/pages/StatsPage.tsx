@@ -24,6 +24,8 @@ import PageHeader from '../components/PageHeader'
 import LinkHandicapDialog from '../components/LinkHandicapDialog'
 import HandicapTrendChart from '../components/HandicapTrendChart'
 import LeaderboardSection from '../components/LeaderboardSection'
+import FeatureGate from '../components/FeatureGate'
+import StrokesGainedSection from '../components/StrokesGainedSection'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
@@ -594,6 +596,11 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Strokes Gained (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="strokesGained">
+        <StrokesGainedSection />
+      </FeatureGate>
 
       {/* ── Game Insights ─────────────────────────────────────────────── */}
       {insights?.hasData && insights.suggestions && insights.suggestions.length > 0 && (

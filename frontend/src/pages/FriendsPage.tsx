@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   Box, Typography, Tabs, Tab, Badge, List, ListItem, ListItemText,
   IconButton, Button, TextField, InputAdornment, CircularProgress,
@@ -23,11 +23,27 @@ import InviteFriendsDialog from '../components/InviteFriendsDialog'
 import { capture, AnalyticsEvent } from '../analytics'
 import EmptyState from '../components/EmptyState'
 import GroupAddIcon from '@mui/icons-material/GroupAdd'
+import MarkEmailUnreadIcon from '@mui/icons-material/MarkEmailUnread'
+import { useAuth } from '../contexts/AuthContext'
+import { resendVerification } from '../api/auth'
+
+/** Extract a human-readable message from an axios error. */
+const apiError = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback
+
+/** Shared inline error state for the three tab queries. */
+function QueryError({ error, fallback }: { error: unknown; fallback: string }) {
+  return (
+    <Alert severity="error" sx={{ my: 2 }}>
+      {apiError(error, fallback)}
+    </Alert>
+  )
+}
 
 function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindFriends: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { data: friends, isLoading } = useQuery({ queryKey: ['friends'], queryFn: getFriends })
+  const { data: friends, isLoading, isError, error } = useQuery({ queryKey: ['friends'], queryFn: getFriends })
   const { data: liveData } = useQuery({ queryKey: ['live-rounds'], queryFn: getLiveRounds })
   const [removeTarget, setRemoveTarget] = useState<{ friendshipId: string; name: string } | null>(null)
 
@@ -46,6 +62,10 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
   })
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>
+
+  // Previously errors fell through to the empty state, which made server
+  // failures look like "you have no friends". Surface them explicitly.
+  if (isError) return <QueryError error={error} fallback="Couldn't load your friends. Please try again." />
 
   if (!friends?.length) {
     return (
@@ -121,7 +141,7 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
 
 function RequestsTab() {
   const queryClient = useQueryClient()
-  const { data: requests, isLoading } = useQuery({ queryKey: ['friend-requests'], queryFn: getFriendRequests })
+  const { data: requests, isLoading, isError, error } = useQuery({ queryKey: ['friend-requests'], queryFn: getFriendRequests })
 
   const acceptMutation = useMutation({
     mutationFn: acceptFriendRequest,
@@ -140,6 +160,8 @@ function RequestsTab() {
   })
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>
+
+  if (isError) return <QueryError error={error} fallback="Couldn't load friend requests. Please try again." />
 
   if (!requests?.length) {
     return (
@@ -189,17 +211,18 @@ function FindFriendsTab() {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+  // useRef (not useState) for the timer: storing it in state caused a re-render
+  // per keystroke just to remember the handle, and the stale-closure cleanup
+  // could let two timers race.
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleChange = useCallback((value: string) => {
     setQuery(value)
-    if (debounceTimer) clearTimeout(debounceTimer)
-    const timer = setTimeout(() => setDebouncedQuery(value), 300)
-    setDebounceTimer(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounceTimer])
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => setDebouncedQuery(value), 300)
+  }, [])
 
-  const { data: results, isLoading } = useQuery({
+  const { data: results, isLoading, isError, error } = useQuery({
     queryKey: ['friend-search', debouncedQuery],
     queryFn: () => searchUsers(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
@@ -235,18 +258,28 @@ function FindFriendsTab() {
 
       {addMutation.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {(addMutation.error as any)?.response?.data?.error || 'Failed to send request'}
+          {apiError(addMutation.error, 'Failed to send request')}
         </Alert>
       )}
+
+      {/* Search failures used to render as nothing at all — the #1 cause of
+          "friend search doesn't work" reports. Show the server's message. */}
+      {isError && <QueryError error={error} fallback="Search failed. Please try again." />}
 
       {isLoading && debouncedQuery.length >= 2 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>
       )}
 
       {results && results.length === 0 && debouncedQuery.length >= 2 && (
-        <Typography color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-          No users found matching "{debouncedQuery}"
-        </Typography>
+        <Box sx={{ textAlign: 'center', py: 4 }}>
+          <Typography color="text.secondary">
+            No users found matching "{debouncedQuery}"
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Search matches names of verified accounts only — if your friend just
+            signed up, ask them to verify their email, or send them an invite link.
+          </Typography>
+        </Box>
       )}
 
       {results && results.length > 0 && (
@@ -280,12 +313,51 @@ function FindFriendsTab() {
 export default function FriendsPage() {
   const [tab, setTab] = useState(0)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const { user } = useAuth()
+  // Every /friends endpoint returns 403 until the email is verified, so don't
+  // fire requests that are guaranteed to fail — and tell the user why the page
+  // is locked instead of showing misleading empty tabs.
+  const emailVerified = user?.emailVerified !== false
   const { data: requests } = useQuery({
     queryKey: ['friend-requests'],
     queryFn: getFriendRequests,
+    enabled: emailVerified,
   })
 
   const pendingCount = requests?.length ?? 0
+
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const handleResend = async () => {
+    setResendState('sending')
+    try {
+      await resendVerification()
+      setResendState('sent')
+    } catch {
+      setResendState('error')
+    }
+  }
+
+  if (!emailVerified) {
+    return (
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
+        <PageHeader title="Friends" />
+        <EmptyState
+          icon={<MarkEmailUnreadIcon sx={{ fontSize: 36 }} />}
+          title="Verify your email to unlock social features"
+          description={`Friends, requests and search open up once you've verified ${user?.email ?? 'your email address'}. Check your inbox for the verification link.`}
+          primary={{
+            label: resendState === 'sent' ? 'Email sent — check your inbox' : 'Resend verification email',
+            onClick: handleResend,
+          }}
+        />
+        {resendState === 'error' && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            Couldn't resend the verification email. Please try again in a moment.
+          </Alert>
+        )}
+      </Box>
+    )
+  }
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>

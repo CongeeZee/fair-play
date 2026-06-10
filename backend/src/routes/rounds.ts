@@ -3,7 +3,15 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requireFeature } from "../middleware/entitlement";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import {
+  bandForHandicap,
+  computeRoundStrokesGained,
+  MIN_TRACKED_HOLES,
+  SG_CATEGORIES,
+  SGCategory,
+} from "../lib/strokesGained";
 import { sendPushToUser } from "../lib/pushNotification";
 import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
@@ -1492,6 +1500,155 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// GET /rounds/strokes-gained — simplified strokes-gained analytics
+// Must be defined before /:id.
+//
+// requireAuth is applied router-wide above (router.use(requireAuth)).
+// requireFeature('strokesGained') is wired here per the gating scaffolding —
+// the feature is FREE today so the middleware is a no-op, but flipping the
+// tier in lib/features.ts starts enforcing with no further changes.
+//
+// See lib/strokesGained.ts for the model and its assumptions. This handler
+// only: (1) picks the user's handicap band, (2) runs the model per round,
+// (3) averages categories across the window and reports data completeness.
+router.get(
+  "/strokes-gained",
+  requireFeature("strokesGained"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Analyse a bounded recent window so the result reflects current form
+      // and the query stays cheap. 20 matches the WHS handicap window.
+      const RECENT_ROUNDS_WINDOW = 20;
+
+      const [rounds, linkedHandicap] = await Promise.all([
+        prisma.round.findMany({
+          where: { userId: req.userId! },
+          include: {
+            course: {
+              select: {
+                name: true,
+                courseRating: true,
+                slopeRating: true,
+                _count: { select: { holes: true } },
+              },
+            },
+            roundHoles: {
+              select: {
+                strokes: true,
+                putts: true,
+                teeShotDirection: true,
+                approachResult: true,
+                sandShots: true,
+                hole: { select: { par: true } },
+              },
+            },
+          },
+          orderBy: { playedAt: "desc" },
+          take: RECENT_ROUNDS_WINDOW,
+        }),
+        prisma.linkedHandicap.findUnique({ where: { userId: req.userId! } }),
+      ]);
+
+      const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
+      if (scoredRounds.length === 0) {
+        res.json({ hasData: false });
+        return;
+      }
+
+      // Baseline band: prefer the official linked handicap; otherwise compute
+      // from the same rounds (course rating/slope permitting); otherwise the
+      // model falls back to the "mid" band.
+      const handicapIndex =
+        linkedHandicap?.handicapIndex ??
+        calculateHandicapIndex(calculateDifferentials(rounds))?.handicapIndex ??
+        null;
+      const band = bandForHandicap(handicapIndex);
+
+      // Per-round series, oldest → newest (chart-friendly).
+      const series = scoredRounds
+        .slice()
+        .reverse()
+        .map((r) => {
+          const sg = computeRoundStrokesGained(
+            r.roundHoles.map((rh) => ({
+              par: rh.hole.par,
+              strokes: rh.strokes,
+              putts: rh.putts,
+              teeShotDirection: rh.teeShotDirection,
+              approachResult: rh.approachResult,
+              sandShots: rh.sandShots,
+            })),
+            band,
+          );
+          return {
+            roundId: r.id,
+            playedAt: r.playedAt.toISOString(),
+            courseName: r.course.name,
+            holesPlayed: sg.holesPlayed,
+            totalVsBaseline: sg.totalVsBaseline,
+            offTheTee: sg.offTheTee,
+            approach: sg.approach,
+            aroundGreen: sg.aroundGreen,
+            putting: sg.putting,
+          };
+        });
+
+      const totalHoles = series.reduce((s, r) => s + r.holesPlayed, 0);
+
+      // Per-category aggregate: average SG per round, over rounds that
+      // actually tracked that category (averaging in all-null rounds would
+      // bias toward zero). dataCompleteness flags sparse inputs.
+      const categories = {} as Record<
+        SGCategory,
+        {
+          averagePerRound: number | null;
+          dataCompleteness: {
+            trackedHoles: number;
+            totalHoles: number;
+            roundsWithData: number;
+            sufficient: boolean;
+          };
+        }
+      >;
+
+      for (const cat of SG_CATEGORIES) {
+        const withData = series.filter((r) => r[cat].value != null);
+        const trackedHoles = series.reduce((s, r) => s + r[cat].trackedHoles, 0);
+        const averagePerRound =
+          withData.length > 0
+            ? parseFloat(
+                (
+                  withData.reduce((s, r) => s + r[cat].value!, 0) /
+                  withData.length
+                ).toFixed(2),
+              )
+            : null;
+        categories[cat] = {
+          averagePerRound,
+          dataCompleteness: {
+            trackedHoles,
+            totalHoles,
+            roundsWithData: withData.length,
+            sufficient: trackedHoles >= MIN_TRACKED_HOLES,
+          },
+        };
+      }
+
+      res.json({
+        hasData: true,
+        band,
+        handicapIndex,
+        roundsAnalysed: series.length,
+        categories,
+        series,
+      });
+    } catch (err) {
+      console.error("GET /rounds/strokes-gained error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
 
 // DELETE /rounds/:id — delete a round and all its scores
 router.delete("/:id", async (req: AuthRequest, res: Response) => {

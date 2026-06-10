@@ -4,10 +4,24 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
-// Use a test-specific database if available, otherwise fall back to DATABASE_URL
-const testDbUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
+// SAFETY: tests TRUNCATE every table before each test, so they must NEVER run
+// against the real database. A dedicated DATABASE_URL_TEST is required — we
+// deliberately do NOT fall back to DATABASE_URL (that fallback once wiped the
+// production data). Fail fast and loudly instead.
+const testDbUrl = process.env.DATABASE_URL_TEST;
 if (!testDbUrl) {
-  throw new Error("DATABASE_URL_TEST or DATABASE_URL must be set for tests");
+  throw new Error(
+    "DATABASE_URL_TEST is not set. Tests truncate all tables, so they refuse to " +
+      "run against DATABASE_URL. Create a separate test database (e.g. a local " +
+      "Postgres or a Supabase branch), run migrations against it, and set " +
+      "DATABASE_URL_TEST in backend/.env before running vitest.",
+  );
+}
+if (process.env.DATABASE_URL && testDbUrl === process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL_TEST points at the same database as DATABASE_URL. Refusing to " +
+      "run: tests TRUNCATE all tables and would destroy real data.",
+  );
 }
 process.env.DATABASE_URL = testDbUrl;
 
