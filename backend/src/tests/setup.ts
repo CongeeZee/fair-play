@@ -1,3 +1,6 @@
+// Load .env BEFORE reading any env vars below. Previously this file relied on
+// a test file transitively importing dotenv before Prisma connected — fragile.
+import "dotenv/config";
 import { beforeAll, beforeEach } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
