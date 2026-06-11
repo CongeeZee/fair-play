@@ -88,3 +88,10 @@ export const unlinkHandicap = () =>
 
 export const refreshLinkedHandicap = () =>
   client.post<LinkedHandicap>('/handicap/refresh').then((r) => r.data)
+
+// ── Trends ──────────────────────────────────────────────────────────────────
+
+import type { TrendsResult, TrendMetricKey } from '../types'
+
+export const getTrends = (metric: TrendMetricKey, window = 5) =>
+  client.get<TrendsResult>('/rounds/trends', { params: { metric, window } }).then((r) => r.data)

@@ -649,3 +649,38 @@ export interface StrokesGainedResult {
   categories?: Record<SGCategoryKey, SGCategorySummary>
   series?: SGSeriesPoint[]
 }
+
+// ── Trends (gated feature: 'trends') ─────────────────────────────────────────
+
+export type TrendMetricKey = 'scoreToPar' | 'putts' | 'girRate' | 'fairwayRate' | 'strokesGained'
+
+export interface TrendSeriesPoint {
+  roundId: number
+  playedAt: string
+  courseName: string
+  value: number
+  /** Trailing mean over the requested window; null until the window is full */
+  rollingAvg: number | null
+}
+
+export interface TrendDelta {
+  /** mean(last N) − mean(previous N), in the metric's own units */
+  value: number
+  magnitude: number
+  direction: 'improving' | 'declining' | 'stable'
+  lastAvg: number
+  previousAvg: number
+  window: number
+}
+
+export interface TrendsResult {
+  hasData: boolean
+  metric: TrendMetricKey
+  window: number
+  higherIsBetter?: boolean
+  roundsAnalysed?: number
+  totalRounds?: number
+  series?: TrendSeriesPoint[]
+  /** null until 2×window rounds with data for this metric exist */
+  delta?: TrendDelta | null
+}

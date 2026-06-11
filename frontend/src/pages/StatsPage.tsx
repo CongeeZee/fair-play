@@ -26,6 +26,7 @@ import HandicapTrendChart from '../components/HandicapTrendChart'
 import LeaderboardSection from '../components/LeaderboardSection'
 import FeatureGate from '../components/FeatureGate'
 import StrokesGainedSection from '../components/StrokesGainedSection'
+import TrendsSection from '../components/TrendsSection'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
@@ -600,6 +601,11 @@ export default function StatsPage() {
       {/* ── Strokes Gained (gated — FREE today, scaffolding for paid tiers) ── */}
       <FeatureGate feature="strokesGained">
         <StrokesGainedSection />
+      </FeatureGate>
+
+      {/* ── Trends (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="trends">
+        <TrendsSection />
       </FeatureGate>
 
       {/* ── Game Insights ─────────────────────────────────────────────── */}

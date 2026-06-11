@@ -12,6 +12,18 @@ import {
   SG_CATEGORIES,
   SGCategory,
 } from "../lib/strokesGained";
+import {
+  TREND_METRICS,
+  TREND_METRIC_CONFIG,
+  roundMetricValue,
+  rollingAverage,
+  computeTrendDelta,
+  roundScoreToPar,
+  holeBreakdown,
+  summarisePutting,
+  summariseApproach,
+  summariseTeeShots,
+} from "../lib/roundMetrics";
 import { sendPushToUser } from "../lib/pushNotification";
 import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
@@ -1142,35 +1154,31 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
     // Exclude rounds with no scores at all — likely abandoned
     const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
 
-    const scoresToPar = scoredRounds.map((r) => {
-      const strokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
-      const par = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
-      return strokes - par;
-    });
+    const toMetricHoles = (r: (typeof scoredRounds)[number]) =>
+      r.roundHoles.map((rh) => ({
+        par: rh.hole.par,
+        strokes: rh.strokes,
+        putts: rh.putts,
+        teeShotDirection: rh.teeShotDirection,
+        approachResult: rh.approachResult,
+      }));
+
+    // roundScoreToPar never returns null here — scoredRounds all have holes
+    const scoresToPar = scoredRounds.map((r) => roundScoreToPar(toMetricHoles(r))!);
 
     const best = Math.min(...scoresToPar);
     const worst = Math.max(...scoresToPar);
     const average = scoresToPar.reduce((a, b) => a + b, 0) / scoresToPar.length;
 
-    // Hole-level outcome breakdown
-    let eagles = 0, birdies = 0, pars = 0, bogeys = 0, doublesOrWorse = 0;
-    for (const round of scoredRounds) {
-      for (const rh of round.roundHoles) {
-        const diff = rh.strokes - rh.hole.par;
-        if (diff <= -2) eagles++;
-        else if (diff === -1) birdies++;
-        else if (diff === 0) pars++;
-        else if (diff === 1) bogeys++;
-        else doublesOrWorse++;
-      }
-    }
+    // Hole-level outcome breakdown (shared with lib/roundMetrics)
+    const breakdown = holeBreakdown(scoredRounds.flatMap(toMetricHoles));
 
     res.json({
       roundsPlayed: rounds.length,
       averageScoreToPar: parseFloat(average.toFixed(2)),
       bestScoreToPar: best,
       worstScoreToPar: worst,
-      holeBreakdown: { eagles, birdies, pars, bogeys, doublesOrWorse },
+      holeBreakdown: breakdown,
     });
   } catch (err) {
     console.error("GET /rounds/stats error:", err);
@@ -1391,27 +1399,32 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
       r.roundHoles.map((rh) => ({ ...rh, holePar: rh.hole.par }))
     );
 
+    // Shared metric maths (lib/roundMetrics) — same definitions as /stats
+    // and /trends, so insights can never disagree with the other endpoints.
+    const metricHoles = allHoles.map((rh) => ({
+      par: rh.holePar,
+      strokes: rh.strokes,
+      putts: rh.putts,
+      teeShotDirection: rh.teeShotDirection,
+      approachResult: rh.approachResult,
+    }));
+
     // Putting
-    const holesWithPutts = allHoles.filter((rh) => rh.putts != null && rh.putts > 0);
-    const avgPutts = holesWithPutts.length > 0 ? holesWithPutts.reduce((s, rh) => s + rh.putts!, 0) / holesWithPutts.length : null;
-    const threePuttCount = holesWithPutts.filter((rh) => rh.putts! >= 3).length;
-    const threePuttRate = holesWithPutts.length > 0 ? threePuttCount / holesWithPutts.length : null;
+    const putting = summarisePutting(metricHoles);
+    const holesWithPutts = { length: putting.tracked }; // keep threshold checks below readable
+    const avgPutts = putting.avgPutts;
+    const threePuttRate = putting.threePuttRate;
 
     // GIR
-    const holesWithApproach = allHoles.filter((rh) => rh.approachResult != null);
-    const girCount = holesWithApproach.filter((rh) => rh.approachResult === "gir").length;
-    const girRate = holesWithApproach.length > 0 ? girCount / holesWithApproach.length : null;
-    const missLeft = holesWithApproach.filter((rh) => rh.approachResult === "left").length;
-    const missRight = holesWithApproach.filter((rh) => rh.approachResult === "right").length;
-    const missShort = holesWithApproach.filter((rh) => rh.approachResult === "short").length;
-    const missLong = holesWithApproach.filter((rh) => rh.approachResult === "long").length;
-    const missTotal = missLeft + missRight + missShort + missLong;
+    const approach = summariseApproach(metricHoles);
+    const holesWithApproach = { length: approach.tracked };
+    const girRate = approach.girRate;
+    const { left: missLeft, right: missRight, short: missShort, long: missLong, total: missTotal } = approach.misses;
 
     // Fairway accuracy (par 4/5 only)
-    const par45Holes = allHoles.filter((rh) => rh.holePar >= 4);
-    const holesWithTeeDir = par45Holes.filter((rh) => rh.teeShotDirection != null);
-    const fairwaysHit = holesWithTeeDir.filter((rh) => rh.teeShotDirection === "fairway").length;
-    const fairwayRate = holesWithTeeDir.length > 0 ? fairwaysHit / holesWithTeeDir.length : null;
+    const teeShots = summariseTeeShots(metricHoles);
+    const holesWithTeeDir = { length: teeShots.tracked };
+    const fairwayRate = teeShots.fairwayRate;
 
     // Per-par performance
     const parGroupStats = (par: number) => {
@@ -1645,6 +1658,143 @@ router.get(
       });
     } catch (err) {
       console.error("GET /rounds/strokes-gained error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// GET /rounds/trends — time-trend series for one metric
+// Must be defined before /:id.
+//
+// requireAuth is router-wide; requireFeature('trends') is FREE today (no-op)
+// but flips to enforcing the moment the tier changes in lib/features.ts.
+//
+// Semantics (see lib/roundMetrics.ts for the maths):
+//   • Series is chronological by playedAt. Rounds that didn't track the
+//     requested metric are excluded — they carry no signal for it.
+//   • rollingAvg is a trailing mean over `window` rounds, null until full.
+//   • delta compares the mean of the last `window` rounds vs the `window`
+//     before them; null until 2×window rounds exist.
+router.get(
+  "/trends",
+  requireFeature("trends"),
+  async (req: AuthRequest, res: Response) => {
+    const querySchema = z.object({
+      metric: z.enum(TREND_METRICS),
+      window: z.coerce.number().int().min(2).max(20).default(5),
+    });
+    const parsed = querySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const { metric, window } = parsed.data;
+    const config = TREND_METRIC_CONFIG[metric];
+
+    try {
+      // Single findMany: every metric is derived from the same hole rows.
+      // course rating/slope is only consumed for the strokesGained band
+      // fallback, but selecting it is cheaper than a second query shape.
+      const [rounds, linkedHandicap] = await Promise.all([
+        prisma.round.findMany({
+          where: { userId: req.userId! },
+          include: {
+            course: {
+              select: {
+                name: true,
+                courseRating: true,
+                slopeRating: true,
+                _count: { select: { holes: true } },
+              },
+            },
+            roundHoles: {
+              select: {
+                strokes: true,
+                putts: true,
+                teeShotDirection: true,
+                approachResult: true,
+                sandShots: true,
+                hole: { select: { par: true } },
+              },
+            },
+          },
+          orderBy: { playedAt: "asc" },
+        }),
+        // Band only matters for the strokesGained metric, but the lookup is
+        // a PK read — simpler to always fetch than to branch.
+        prisma.linkedHandicap.findUnique({ where: { userId: req.userId! } }),
+      ]);
+
+      const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
+      if (scoredRounds.length === 0) {
+        res.json({ hasData: false, metric, window });
+        return;
+      }
+
+      const handicapIndex =
+        linkedHandicap?.handicapIndex ??
+        calculateHandicapIndex(calculateDifferentials(rounds))?.handicapIndex ??
+        null;
+      const band = bandForHandicap(handicapIndex);
+
+      const round2 = (n: number) =>
+        parseFloat(n.toFixed(config.decimals));
+
+      // Per-round metric values, chronological; drop rounds without data.
+      const points = scoredRounds
+        .map((r) => ({
+          roundId: r.id,
+          playedAt: r.playedAt.toISOString(),
+          courseName: r.course.name,
+          value: roundMetricValue(
+            metric,
+            r.roundHoles.map((rh) => ({
+              par: rh.hole.par,
+              strokes: rh.strokes,
+              putts: rh.putts,
+              teeShotDirection: rh.teeShotDirection,
+              approachResult: rh.approachResult,
+              sandShots: rh.sandShots,
+            })),
+            band,
+          ),
+        }))
+        .filter((p): p is typeof p & { value: number } => p.value != null);
+
+      const values = points.map((p) => p.value);
+      const rolling = rollingAverage(values, window);
+      const series = points.map((p, i) => ({
+        roundId: p.roundId,
+        playedAt: p.playedAt,
+        courseName: p.courseName,
+        value: round2(p.value),
+        rollingAvg: rolling[i] != null ? round2(rolling[i]!) : null,
+      }));
+
+      const rawDelta = computeTrendDelta(values, window, config);
+      const delta = rawDelta
+        ? {
+            value: round2(rawDelta.value),
+            magnitude: round2(rawDelta.magnitude),
+            direction: rawDelta.direction,
+            lastAvg: round2(rawDelta.lastAvg),
+            previousAvg: round2(rawDelta.previousAvg),
+            window: rawDelta.window,
+          }
+        : null;
+
+      res.json({
+        hasData: series.length > 0,
+        metric,
+        window,
+        higherIsBetter: config.higherIsBetter,
+        roundsAnalysed: series.length,
+        totalRounds: scoredRounds.length,
+        series,
+        delta,
+      });
+    } catch (err) {
+      console.error("GET /rounds/trends error:", err);
       res.status(500).json({ error: "Internal server error" });
     }
   },
