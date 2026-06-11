@@ -684,3 +684,44 @@ export interface TrendsResult {
   /** null until 2×window rounds with data for this metric exist */
   delta?: TrendDelta | null
 }
+
+// ── Benchmarks (gated feature: 'benchmarks') ─────────────────────────────────
+
+export type BenchmarkMetricKey =
+  | 'scoreToPar'
+  | 'avgPutts'
+  | 'girRate'
+  | 'fairwayRate'
+  | 'sgOffTheTee'
+  | 'sgApproach'
+  | 'sgAroundGreen'
+  | 'sgPutting'
+
+export interface BenchmarkMetricResult {
+  key: BenchmarkMetricKey
+  label: string
+  lowerIsBetter: boolean
+  /** The user's own value; null when none of their rounds tracked the metric */
+  value: number | null
+  /**
+   * "Ahead of P% of the cohort" — higher is always better (already inverted
+   * for lower-is-better metrics), clamped to [5, 95]. Null when the cohort is
+   * too small for a meaningful, privacy-safe percentile.
+   */
+  percentile: number | null
+  cohortMedian: number | null
+  /** Number of USERS in the cohort distribution */
+  sampleSize: number
+  /** 'band' = same 5-stroke handicap band; 'all' = small-sample fallback */
+  cohort: 'band' | 'all' | null
+  cohortLabel: string | null
+}
+
+export interface BenchmarksResult {
+  hasData: boolean
+  handicapIndex?: number | null
+  /** The user's 5-stroke handicap band, e.g. "10-15"; null without an index */
+  band?: string | null
+  roundsAnalysed?: number
+  metrics?: BenchmarkMetricResult[]
+}

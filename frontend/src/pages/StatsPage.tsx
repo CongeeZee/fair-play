@@ -27,6 +27,7 @@ import LeaderboardSection from '../components/LeaderboardSection'
 import FeatureGate from '../components/FeatureGate'
 import StrokesGainedSection from '../components/StrokesGainedSection'
 import TrendsSection from '../components/TrendsSection'
+import BenchmarksSection from '../components/BenchmarksSection'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Dot
@@ -606,6 +607,11 @@ export default function StatsPage() {
       {/* ── Trends (gated — FREE today, scaffolding for paid tiers) ── */}
       <FeatureGate feature="trends">
         <TrendsSection />
+      </FeatureGate>
+
+      {/* ── How you compare (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="benchmarks">
+        <BenchmarksSection />
       </FeatureGate>
 
       {/* ── Game Insights ─────────────────────────────────────────────── */}

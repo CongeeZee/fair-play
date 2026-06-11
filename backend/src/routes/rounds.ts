@@ -24,6 +24,20 @@ import {
   summariseApproach,
   summariseTeeShots,
 } from "../lib/roundMetrics";
+import {
+  ALL_BAND,
+  BENCHMARK_METRICS,
+  BENCHMARK_METRIC_CONFIG,
+  BENCHMARK_ROUND_WINDOW,
+  BenchmarkMetric,
+  SnapshotSummary,
+  bandKeyForIndex,
+  bandLabel,
+  betterThanPercentile,
+  chooseCohort,
+  ensureFreshSnapshots,
+  userMetricValues,
+} from "../lib/benchmarks";
 import { sendPushToUser } from "../lib/pushNotification";
 import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
@@ -1795,6 +1809,168 @@ router.get(
       });
     } catch (err) {
       console.error("GET /rounds/trends error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+// GET /rounds/benchmarks — anonymised peer benchmarking
+// Must be defined before /:id.
+//
+// requireAuth is router-wide; requireFeature('benchmarks') is FREE today
+// (no-op) but flips to enforcing the moment the tier changes in
+// lib/features.ts — same scaffolding as strokes-gained and trends.
+//
+// PRIVACY: the response contains ONLY (a) the requesting user's own values,
+// computed from their own rounds, and (b) aggregate cohort statistics
+// (percentile, median, sample size) read from BenchmarkSnapshot rows. No
+// other user's identity, rounds or raw values are ever queried into this
+// handler, so they cannot leak. See lib/benchmarks.ts for the full model.
+//
+// Cohort = users in the same 5-stroke WHS handicap band; falls back to the
+// "all users" cohort when the band has < MIN_BAND_SAMPLE users (or the user
+// has no handicap index yet). Snapshots refresh lazily on a TTL — no cron.
+router.get(
+  "/benchmarks",
+  requireFeature("benchmarks"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const [rounds, linkedHandicap] = await Promise.all([
+        prisma.round.findMany({
+          where: { userId: req.userId! },
+          orderBy: { playedAt: "desc" },
+          take: BENCHMARK_ROUND_WINDOW,
+          select: {
+            id: true,
+            playedAt: true,
+            course: {
+              select: {
+                name: true,
+                courseRating: true,
+                slopeRating: true,
+                _count: { select: { holes: true } },
+              },
+            },
+            roundHoles: {
+              select: {
+                strokes: true,
+                putts: true,
+                teeShotDirection: true,
+                approachResult: true,
+                sandShots: true,
+                hole: { select: { par: true } },
+              },
+            },
+          },
+        }),
+        prisma.linkedHandicap.findUnique({ where: { userId: req.userId! } }),
+      ]);
+
+      const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
+      if (scoredRounds.length === 0) {
+        res.json({ hasData: false });
+        return;
+      }
+
+      const handicapIndex =
+        linkedHandicap?.handicapIndex ??
+        calculateHandicapIndex(calculateDifferentials(rounds))
+          ?.handicapIndex ??
+        null;
+      const sgBand = bandForHandicap(handicapIndex);
+      const bandKey = bandKeyForIndex(handicapIndex);
+
+      // The user's own values — computed from their own rounds only.
+      const ownValues = userMetricValues(
+        scoredRounds.map((r) => ({
+          holes: r.roundHoles.map((rh) => ({
+            par: rh.hole.par,
+            strokes: rh.strokes,
+            putts: rh.putts,
+            teeShotDirection: rh.teeShotDirection,
+            approachResult: rh.approachResult,
+            sandShots: rh.sandShots,
+          })),
+        })),
+        sgBand,
+      );
+
+      // Lazily rebuild cohort snapshots when the TTL has expired, then read
+      // only the two cohorts this user can belong to.
+      await ensureFreshSnapshots(prisma);
+      const snapshotRows = await prisma.benchmarkSnapshot.findMany({
+        where: {
+          band: { in: bandKey ? [bandKey, ALL_BAND] : [ALL_BAND] },
+          metric: { in: [...BENCHMARK_METRICS] },
+        },
+      });
+      const snapshotFor = (band: string, metric: BenchmarkMetric) => {
+        const row = snapshotRows.find(
+          (s) => s.band === band && s.metric === metric,
+        );
+        if (!row) return null;
+        return {
+          band: row.band,
+          summary: row.summary as unknown as SnapshotSummary,
+          sampleSize: row.sampleSize,
+        };
+      };
+
+      const metrics = BENCHMARK_METRICS.map((metric) => {
+        const config = BENCHMARK_METRIC_CONFIG[metric];
+        const value = ownValues[metric];
+        const roundVal = (n: number) => parseFloat(n.toFixed(config.decimals));
+
+        const base = {
+          key: metric,
+          label: config.label,
+          lowerIsBetter: config.lowerIsBetter,
+          value: value != null ? roundVal(value) : null,
+        };
+
+        const chosen = chooseCohort(
+          bandKey ? snapshotFor(bandKey, metric) : null,
+          snapshotFor(ALL_BAND, metric),
+        );
+        if (value == null || chosen == null) {
+          // Untracked metric, or cohort too small for a safe, meaningful
+          // percentile — return the user's own value (if any) and nothing else.
+          return {
+            ...base,
+            percentile: null,
+            cohortMedian: null,
+            sampleSize: chosen?.snapshot.sampleSize ?? 0,
+            cohort: null,
+            cohortLabel: null,
+          };
+        }
+
+        const { snapshot, cohort } = chosen;
+        return {
+          ...base,
+          // "You're ahead of P% of the cohort" — higher is always better,
+          // clamped to [5, 95] (we never claim sharper than top/bottom 5%).
+          percentile: betterThanPercentile(
+            snapshot.summary,
+            value,
+            config.lowerIsBetter,
+          ),
+          cohortMedian: roundVal(snapshot.summary.percentiles["50"]),
+          sampleSize: snapshot.sampleSize,
+          cohort,
+          cohortLabel: bandLabel(snapshot.band),
+        };
+      });
+
+      res.json({
+        hasData: metrics.some((m) => m.percentile != null),
+        handicapIndex,
+        band: bandKey,
+        roundsAnalysed: scoredRounds.length,
+        metrics,
+      });
+    } catch (err) {
+      console.error("GET /rounds/benchmarks error:", err);
       res.status(500).json({ error: "Internal server error" });
     }
   },

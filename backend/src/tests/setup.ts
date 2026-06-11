@@ -43,7 +43,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   // Use raw SQL TRUNCATE CASCADE to avoid FK ordering issues
   await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE "RoundHole", "Round", "Hole", "Course", "RefreshToken", "InviteAcceptance", "InviteLink", "Friendship", "User" CASCADE
+    TRUNCATE TABLE "RoundHole", "Round", "Hole", "Course", "RefreshToken", "InviteAcceptance", "InviteLink", "Friendship", "User", "BenchmarkSnapshot" CASCADE
   `);
 });
 

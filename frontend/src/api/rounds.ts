@@ -95,3 +95,10 @@ import type { TrendsResult, TrendMetricKey } from '../types'
 
 export const getTrends = (metric: TrendMetricKey, window = 5) =>
   client.get<TrendsResult>('/rounds/trends', { params: { metric, window } }).then((r) => r.data)
+
+// ── Benchmarks ──────────────────────────────────────────────────────────────
+
+import type { BenchmarksResult } from '../types'
+
+export const getBenchmarks = () =>
+  client.get<BenchmarksResult>('/rounds/benchmarks').then((r) => r.data)

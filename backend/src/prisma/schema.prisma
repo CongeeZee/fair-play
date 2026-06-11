@@ -72,6 +72,23 @@ model Subscription {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ── Benchmarks ───────────────────────────────────────────────────────────────
+// Precomputed anonymous cohort distributions for GET /rounds/benchmarks.
+// One row per (band, metric). `summary` holds ONLY aggregate statistics —
+// percentile breakpoints (p5..p95) and the median — never raw per-user values
+// or any user identifier, so the table itself can never leak who's in a cohort.
+// Refreshed lazily on read when older than the TTL (no cron in this repo).
+model BenchmarkSnapshot {
+  id         Int      @id @default(autoincrement())
+  band       String   // "0-5" | "5-10" | ... | "30+" | "plus" | "all"
+  metric     String   // BenchmarkMetric key, e.g. "scoreToPar"
+  summary    Json     // { percentiles: { "5": n, "10": n, ..., "95": n } }
+  sampleSize Int      // number of USERS (not rounds) in the distribution
+  computedAt DateTime @default(now())
+
+  @@unique([band, metric])
+}
+
 enum FriendshipStatus {
   PENDING
   ACCEPTED
