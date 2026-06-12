@@ -152,6 +152,11 @@ model Hole {
   number    Int
   par       Int
   distance  Int
+  // Official stroke index (1 = hardest hole) used to allocate handicap
+  // strokes for Stableford / net-per-hole scoring. Optional because most
+  // imported courses don't carry it — lib/stableford.ts falls back to a
+  // deterministic distance-based allocation when absent.
+  strokeIndex Int?
   courseId  Int
   course    Course      @relation(fields: [courseId], references: [id])
   scores    RoundHole[]
@@ -273,6 +278,7 @@ model PushSubscription {
 enum ScoringType {
   NET
   GROSS
+  STABLEFORD
 }
 
 enum ParticipantStatus {
@@ -319,6 +325,8 @@ model CompetitionRound {
   netScore      Float?
   scoreToPar    Int
   netScoreToPar Float?
+  // Total Stableford points — only populated for STABLEFORD competitions.
+  stablefordPoints Int?
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -16,7 +16,7 @@ export const createCompetition = (data: {
   courseId?: number
   startDate: string
   endDate: string
-  scoringType: 'NET' | 'GROSS'
+  scoringType: 'NET' | 'GROSS' | 'STABLEFORD'
   inviteUserIds?: number[]
 }) => client.post<CompetitionDetail>('/competitions', data).then((r) => r.data)
 

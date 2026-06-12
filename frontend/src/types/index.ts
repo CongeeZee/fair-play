@@ -18,7 +18,16 @@ export interface Hole {
   number: number
   par: number
   distance: number
+  strokeIndex?: number | null
   courseId: string
+}
+
+/** Stableford context returned with a round: handicap strokes per hole. */
+export interface StablefordInfo {
+  courseHandicap: number
+  usingOfficialStrokeIndex: boolean
+  /** hole number → strokes received (can be negative for plus handicaps) */
+  strokesReceived: Record<number, number>
 }
 
 export interface Course {
@@ -54,6 +63,7 @@ export interface Round {
   scoreToPar?: number
   holesCompleted?: number
   partners?: RoundPartner[]
+  stableford?: StablefordInfo
 }
 
 export interface SharedScorecard {
@@ -347,7 +357,7 @@ export interface CompetitionSummary {
   course: { id: number; name: string } | null
   startDate: string
   endDate: string
-  scoringType: 'NET' | 'GROSS'
+  scoringType: 'NET' | 'GROSS' | 'STABLEFORD'
   status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
   participantCount: number
   invitedCount: number
@@ -369,6 +379,7 @@ export interface CompetitionLeaderboardEntry {
   netScore: number | null
   scoreToPar: number
   netScoreToPar: number | null
+  stablefordPoints?: number | null
   courseName: string
   playedAt: string
 }
@@ -386,7 +397,7 @@ export interface CompetitionDetail {
   course: { id: number; name: string } | null
   startDate: string
   endDate: string
-  scoringType: 'NET' | 'GROSS'
+  scoringType: 'NET' | 'GROSS' | 'STABLEFORD'
   status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
   participants: CompetitionParticipant[]
   leaderboard: CompetitionLeaderboardEntry[]

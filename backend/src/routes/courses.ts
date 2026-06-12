@@ -24,6 +24,7 @@ const holeSchema = z.object({
   number: z.number().int().min(1).max(18),
   par: z.number().int().min(3).max(5),
   distance: z.number().int().positive(),
+  strokeIndex: z.number().int().min(1).max(18).optional(),
 });
 
 const courseSchema = z.object({
@@ -187,6 +188,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
             number: h.number,
             par: h.par,
             distance: h.distance,
+            strokeIndex: h.strokeIndex ?? null,
           })),
         },
       },

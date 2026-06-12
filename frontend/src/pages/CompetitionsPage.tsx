@@ -128,7 +128,7 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const [endDate, setEndDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10)
   })
-  const [scoringType, setScoringType] = useState<'NET' | 'GROSS'>('NET')
+  const [scoringType, setScoringType] = useState<'NET' | 'GROSS' | 'STABLEFORD'>('NET')
   const [selectedFriends, setSelectedFriends] = useState<number[]>([])
   const [error, setError] = useState('')
 
@@ -249,11 +249,14 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
             >
               <ToggleButton value="NET">Net</ToggleButton>
               <ToggleButton value="GROSS">Gross</ToggleButton>
+              <ToggleButton value="STABLEFORD">Stableford</ToggleButton>
             </ToggleButtonGroup>
             <Typography variant="body2" color="text.secondary">
               {scoringType === 'NET'
                 ? 'Net scoring adjusts for handicap, making it fair across all skill levels. A high-handicapper competes on equal footing with a scratch golfer.'
-                : 'Gross scoring uses raw stroke count — no handicap adjustment. Best for players of similar skill.'}
+                : scoringType === 'GROSS'
+                ? 'Gross scoring uses raw stroke count — no handicap adjustment. Best for players of similar skill.'
+                : 'Stableford awards points per hole (net par = 2, birdie = 3, bogey = 1) — most points wins. A blow-up hole costs you nothing, so it rewards attacking golf. The classic society format.'}
             </Typography>
           </Box>
         )}
@@ -470,6 +473,7 @@ function CompetitionDetailView({ id }: { id: string }) {
   const isCreator = comp.creator.id === parseInt(String(user?.id))
   const sc = statusColor(comp.status)
   const isNet = comp.scoringType === 'NET'
+  const isStableford = comp.scoringType === 'STABLEFORD'
 
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto', px: 2, py: 2 }}>
@@ -590,17 +594,29 @@ function CompetitionDetailView({ id }: { id: string }) {
                       <Typography variant="caption" color="text.secondary">Net {Math.round(entry.netScore)}</Typography>
                     )}
                   </Box>
-                  <Chip
-                    label={displayLabel}
-                    size="small"
-                    sx={{
-                      ml: 1.5, fontWeight: 700, height: 24,
-                      bgcolor: displayScore != null && displayScore < 0 ? '#c9a84c'
-                        : displayScore === 0 ? '#2d5e42'
-                        : '#1a3a5c',
-                      color: '#fff',
-                    }}
-                  />
+                  {isStableford ? (
+                    <Chip
+                      label={`${entry.stablefordPoints ?? 0} pts`}
+                      size="small"
+                      sx={{
+                        ml: 1.5, fontWeight: 700, height: 24,
+                        bgcolor: entry.rank === 1 ? '#c9a84c' : '#2d5e42',
+                        color: '#fff',
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label={displayLabel}
+                      size="small"
+                      sx={{
+                        ml: 1.5, fontWeight: 700, height: 24,
+                        bgcolor: displayScore != null && displayScore < 0 ? '#c9a84c'
+                          : displayScore === 0 ? '#2d5e42'
+                          : '#1a3a5c',
+                        color: '#fff',
+                      }}
+                    />
+                  )}
                 </Box>
               </Box>
             )

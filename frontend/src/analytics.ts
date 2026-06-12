@@ -37,7 +37,7 @@ export interface AnalyticsEventProps {
   [AnalyticsEvent.FriendAdded]: Record<string, never>
   [AnalyticsEvent.CompetitionCreated]: {
     competitionId: string
-    scoringType: 'NET' | 'GROSS'
+    scoringType: 'NET' | 'GROSS' | 'STABLEFORD'
     invitedCount: number
   }
   [AnalyticsEvent.CompetitionJoined]: { competitionId: string }

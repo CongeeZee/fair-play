@@ -2,7 +2,8 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
-import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import { getUserHandicapIndex } from "../lib/userHandicap";
+import { calculateStableford, courseHandicapFrom } from "../lib/stableford";
 import { sendPushToUser } from "../lib/pushNotification";
 
 const router = Router();
@@ -30,28 +31,6 @@ function compStatus(startDate: Date, endDate: Date): "UPCOMING" | "ACTIVE" | "CO
   return "ACTIVE";
 }
 
-// Helper: get user's handicap index
-async function getUserHandicapIndex(userId: number): Promise<number | null> {
-  // Check linked handicap first
-  const linked = await prisma.linkedHandicap.findUnique({ where: { userId } });
-  if (linked) return linked.handicapIndex;
-
-  // Calculate from rounds
-  const rounds = await prisma.round.findMany({
-    where: { userId, completedAt: { not: null } },
-    include: {
-      course: { select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } } },
-      roundHoles: { select: { strokes: true } },
-    },
-    orderBy: { playedAt: "desc" },
-    take: 20,
-  });
-
-  const diffs = calculateDifferentials(rounds);
-  const calc = calculateHandicapIndex(diffs);
-  return calc?.handicapIndex ?? null;
-}
-
 // ── POST /competitions — create a competition ─────────────────────────────────
 
 const createSchema = z.object({
@@ -59,7 +38,7 @@ const createSchema = z.object({
   courseId: z.number().int().optional(),
   startDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
   endDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}/)),
-  scoringType: z.enum(["NET", "GROSS"]).default("NET"),
+  scoringType: z.enum(["NET", "GROSS", "STABLEFORD"]).default("NET"),
   inviteUserIds: z.array(z.number().int()).optional(),
 });
 
@@ -284,7 +263,12 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
     where: { id: parsed.data.roundId },
     include: {
       course: { select: { id: true, slopeRating: true, courseRating: true, holes: { select: { par: true } } } },
-      roundHoles: { select: { strokes: true, hole: { select: { par: true } } } },
+      roundHoles: {
+        select: {
+          strokes: true,
+          hole: { select: { par: true, number: true, distance: true, strokeIndex: true } },
+        },
+      },
     },
   });
 
@@ -321,6 +305,7 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
 
   let netScore: number | null = null;
   let netScoreToPar: number | null = null;
+  let stablefordPoints: number | null = null;
 
   if (comp.scoringType === "NET") {
     const handicapIndex = await getUserHandicapIndex(req.userId!);
@@ -334,6 +319,23 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
       netScore = grossScore;
       netScoreToPar = scoreToPar;
     }
+  } else if (comp.scoringType === "STABLEFORD") {
+    // Net Stableford: handicap strokes are allocated per hole by stroke index
+    // (or the distance fallback). With no handicap available, courseHandicap
+    // is 0 and this degrades gracefully to gross Stableford.
+    const handicapIndex = await getUserHandicapIndex(req.userId!);
+    const courseHandicap = courseHandicapFrom(handicapIndex, round.course.slopeRating);
+    const result = calculateStableford(
+      round.roundHoles.map((rh) => ({
+        number: rh.hole.number,
+        par: rh.hole.par,
+        distance: rh.hole.distance,
+        strokeIndex: rh.hole.strokeIndex,
+        strokes: rh.strokes,
+      })),
+      courseHandicap,
+    );
+    stablefordPoints = result.totalPoints;
   }
 
   const compRound = await prisma.competitionRound.create({
@@ -345,6 +347,7 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
       netScore,
       scoreToPar,
       netScoreToPar,
+      stablefordPoints,
     },
   });
 
@@ -354,9 +357,12 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
     select: { userId: true },
   });
   const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-  const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
+  const scoreStr =
+    comp.scoringType === "STABLEFORD"
+      ? `${stablefordPoints ?? 0} pts`
+      : scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
   for (const p of otherParticipants) {
-    sendPushToUser(p.userId, comp.name, `${user?.name} posted a ${scoreStr}`, `/competitions/${compId}`).catch(() => {});
+    sendPushToUser(p.userId, comp.name, `${user?.name} posted ${comp.scoringType === "STABLEFORD" ? scoreStr : `a ${scoreStr}`}`, `/competitions/${compId}`).catch(() => {});
   }
 
   res.status(201).json(compRound);
@@ -466,9 +472,12 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
 
     const status = compStatus(comp.startDate, comp.endDate);
 
-    // Build leaderboard
-    const sortField = comp.scoringType === "NET" ? "netScoreToPar" : "scoreToPar";
+    // Build leaderboard — Stableford ranks by points DESCENDING (more is
+    // better); stroke formats rank by score-to-par ascending.
     const sortedRounds = [...comp.rounds].sort((a, b) => {
+      if (comp.scoringType === "STABLEFORD") {
+        return (b.stablefordPoints ?? 0) - (a.stablefordPoints ?? 0);
+      }
       const aVal = comp.scoringType === "NET" ? (a.netScoreToPar ?? a.scoreToPar) : a.scoreToPar;
       const bVal = comp.scoringType === "NET" ? (b.netScoreToPar ?? b.scoreToPar) : b.scoreToPar;
       return aVal - bVal;
@@ -482,6 +491,7 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       netScore: cr.netScore,
       scoreToPar: cr.scoreToPar,
       netScoreToPar: cr.netScoreToPar,
+      stablefordPoints: cr.stablefordPoints,
       courseName: cr.round.course.name,
       playedAt: cr.round.playedAt,
     }));

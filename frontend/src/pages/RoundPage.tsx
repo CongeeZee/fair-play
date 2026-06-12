@@ -26,7 +26,7 @@ import ReviewPromptDialog from '../components/ReviewPromptDialog'
 import AchievementUnlockOverlay from '../components/AchievementUnlockOverlay'
 import PlayingPartnersPicker from '../components/PlayingPartnersPicker'
 import { formatCourseName } from '../utils'
-import type { RoundHole, NewlyUnlockedAchievement } from '../types'
+import type { RoundHole, NewlyUnlockedAchievement, StablefordInfo } from '../types'
 import { capture, AnalyticsEvent } from '../analytics'
 
 const TEE_DIRECTIONS = [
@@ -125,9 +125,10 @@ interface ScorecardDialogProps {
   holeScores: Record<string, HoleScoreState>
   currentHoleIndex: number
   onSelectHole: (idx: number) => void
+  stableford?: StablefordInfo
 }
 
-function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, onSelectHole, isMobile }: ScorecardDialogProps & { isMobile: boolean }) {
+function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, onSelectHole, stableford, isMobile }: ScorecardDialogProps & { isMobile: boolean }) {
   const frontNine = holes.slice(0, 9)
   const backNine = holes.slice(9)
 
@@ -140,6 +141,18 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
   // Keep full-half pars for the par row display
   const frontPar = frontNine.reduce((s, h) => s + h.par, 0)
   const backPar = backNine.reduce((s, h) => s + h.par, 0)
+
+  // Stableford points per hole — net of handicap strokes received (server
+  // sends 0 received everywhere when no handicap, i.e. gross Stableford).
+  const pointsFor = (h: { id: string; number: number; par: number }): number | null => {
+    const s = holeScores[h.id]?.strokes ?? 0
+    if (!s) return null
+    const received = stableford?.strokesReceived?.[h.number] ?? 0
+    return Math.max(0, 2 - (s - received - h.par))
+  }
+  const sumPoints = (hs: { id: string; number: number; par: number }[]) =>
+    hs.reduce((sum, h) => sum + (pointsFor(h) ?? 0), 0)
+  const totalPoints = sumPoints(holes)
 
   const renderHalfTable = (
     half: { id: string; number: number; par: number; distance: number }[],
@@ -240,6 +253,32 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                 })() : '–'}
               </TableCell>
             </TableRow>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', color: 'text.secondary' }}>Pts</TableCell>
+              {half.map((h) => {
+                const pts = pointsFor(h)
+                return (
+                  <TableCell key={h.id} align="center" sx={{ fontSize: '0.75rem', p: 0.5 }}>
+                    <Typography
+                      component="span"
+                      sx={{
+                        fontSize: '0.75rem',
+                        fontWeight: pts != null && pts >= 3 ? 800 : 500,
+                        color: pts == null ? 'text.disabled'
+                          : pts >= 3 ? '#c9a84c'
+                          : pts === 0 ? '#c62828'
+                          : 'text.secondary',
+                      }}
+                    >
+                      {pts ?? '–'}
+                    </Typography>
+                  </TableCell>
+                )
+              })}
+              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem', color: 'text.secondary' }}>
+                {sumPoints(half) || '–'}
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </Box>
@@ -262,13 +301,23 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
       <DialogContent sx={{ pt: 1 }}>
         {renderHalfTable(frontNine, 'Front 9', frontPar, frontStrokes, frontScoredPar)}
         {backNine.length > 0 && renderHalfTable(backNine, 'Back 9', backPar, backStrokes, backScoredPar)}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, gap: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Total Par: <strong>{totalPar}</strong>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="caption" color="text.secondary">
+            {stableford
+              ? `Stableford${stableford.courseHandicap !== 0 ? ` · playing off ${stableford.courseHandicap}` : ' · gross (no handicap yet)'}${stableford.courseHandicap !== 0 && !stableford.usingOfficialStrokeIndex ? ' · estimated stroke index' : ''}`
+              : ''}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Total: <strong>{totalStrokes > 0 ? totalStrokes : '–'}</strong>
-          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Points: <strong>{totalStrokes > 0 ? totalPoints : '–'}</strong>
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Total Par: <strong>{totalPar}</strong>
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Total: <strong>{totalStrokes > 0 ? totalStrokes : '–'}</strong>
+            </Typography>
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions>
@@ -859,6 +908,7 @@ export default function RoundPage() {
         holeScores={holeScores}
         currentHoleIndex={currentHoleIndex}
         onSelectHole={(idx) => setCurrentHoleIndex(idx)}
+        stableford={round.stableford}
         isMobile={isMobile}
       />
 

@@ -5,6 +5,8 @@ import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireFeature } from "../middleware/entitlement";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
+import { getUserHandicapIndex } from "../lib/userHandicap";
+import { allocateStrokesReceived, courseHandicapFrom } from "../lib/stableford";
 import {
   bandForHandicap,
   computeRoundStrokesGained,
@@ -2137,9 +2139,29 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Stableford context: course handicap + per-hole strokes received, so the
+    // scorecard can render live points as holes are scored. With no handicap
+    // this degrades to gross Stableford (0 strokes received everywhere).
+    const handicapIndex = await getUserHandicapIndex(req.userId!);
+    const courseHandicap = courseHandicapFrom(handicapIndex, round.course.slopeRating);
+    const strokesReceived = allocateStrokesReceived(
+      round.course.holes.map((h) => ({
+        number: h.number,
+        par: h.par,
+        distance: h.distance,
+        strokeIndex: h.strokeIndex,
+      })),
+      courseHandicap,
+    );
+
     res.json({
       ...round,
       partners: round.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
+      stableford: {
+        courseHandicap,
+        usingOfficialStrokeIndex: round.course.holes.every((h) => h.strokeIndex != null),
+        strokesReceived: Object.fromEntries(strokesReceived),
+      },
     });
   } catch (err) {
     console.error("GET /rounds/:id error:", err);
