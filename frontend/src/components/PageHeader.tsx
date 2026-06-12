@@ -1,43 +1,64 @@
 import { Box, Typography } from '@mui/material'
-
-const BANNER_IMAGE =
-  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=1920&q=80'
+import type { ReactNode } from 'react'
 
 interface PageHeaderProps {
   title: string
   subtitle?: string
+  /** Optional right-aligned actions (icon buttons, etc.) */
+  action?: ReactNode
 }
 
-export default function PageHeader({ title, subtitle }: PageHeaderProps) {
+/**
+ * Consistent typographic page header.
+ *
+ * Deliberately *not* a photo banner: a tall stock-photo strip on every page
+ * wasted vertical space (especially on mobile), repeated the same image
+ * everywhere, and broke when squeezed into narrow flex rows. A clean serif
+ * title with a gold accent keeps the brand feel without the cost.
+ */
+export default function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
     <Box
       sx={{
-        height: 160,
         display: 'flex',
         alignItems: 'flex-end',
-        pb: 3,
-        px: { xs: 3, md: 6 },
-        backgroundImage: `
-          linear-gradient(to bottom, rgba(10,25,16,0.5) 0%, rgba(10,25,16,0.82) 100%),
-          url('${BANNER_IMAGE}')
-        `,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 30%',
+        justifyContent: 'space-between',
+        gap: 2,
+        pt: { xs: 2.5, md: 3.5 },
+        pb: subtitle ? 2 : 1.5,
+        mb: 1,
       }}
     >
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         <Typography
           variant="h4"
-          sx={{ color: '#fff', fontWeight: 700, lineHeight: 1, mb: subtitle ? 0.5 : 0 }}
+          component="h1"
+          sx={{
+            color: 'primary.main',
+            fontWeight: 700,
+            lineHeight: 1.1,
+            fontSize: { xs: '1.75rem', md: '2.125rem' },
+          }}
         >
           {title}
         </Typography>
+        <Box
+          sx={{
+            width: 36,
+            height: 3,
+            borderRadius: 1.5,
+            bgcolor: 'secondary.main',
+            mt: 1,
+            mb: subtitle ? 1 : 0,
+          }}
+        />
         {subtitle && (
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {subtitle}
           </Typography>
         )}
       </Box>
+      {action && <Box sx={{ flexShrink: 0, pb: 0.5 }}>{action}</Box>}
     </Box>
   )
 }

@@ -85,7 +85,7 @@ export default function PlayPage() {
   }, [teesQuery.data, selectedTee])
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3 }}>
       <PageHeader title="Play" subtitle="Find a course or organise a round" />
 
       {/* Tee Times Section */}

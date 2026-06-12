@@ -304,8 +304,8 @@ export default function StatsPage() {
   if (!stats || stats.roundsPlayed === 0) {
     return (
       <Box>
-        <PageHeader title="Stats" subtitle="Your performance at a glance" />
-        <Container maxWidth="md" sx={{ py: 4 }}>
+        <Container maxWidth="md" sx={{ pb: 4 }}>
+          <PageHeader title="Stats" subtitle="Your performance at a glance" />
           <EmptyState
             icon={<BarChartIcon sx={{ fontSize: 36 }} />}
             title="Stats unlock with your first round"
@@ -344,8 +344,8 @@ export default function StatsPage() {
 
   return (
     <Box>
+    <Container maxWidth="lg" sx={{ pb: 4 }}>
     <PageHeader title="Stats" subtitle="Your performance at a glance" />
-    <Container maxWidth="lg" sx={{ py: 4 }}>
 
       {/* Handicap Index hero */}
       <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)' }}>

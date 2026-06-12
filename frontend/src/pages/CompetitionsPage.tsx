@@ -696,8 +696,8 @@ function CompetitionsListView() {
 
   return (
     <Box>
-      <PageHeader title="Competitions" subtitle="Compete with friends" />
-      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3, position: 'relative' }}>
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3, position: 'relative' }}>
+        <PageHeader title="Competitions" subtitle="Compete with friends" />
         {isEmpty ? (
           <EmptyState
             icon={<EmojiEventsIcon sx={{ fontSize: 36 }} />}

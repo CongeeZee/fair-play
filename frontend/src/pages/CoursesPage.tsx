@@ -141,8 +141,8 @@ export default function CoursesPage() {
 
   return (
     <Box>
-      <PageHeader title="Find a Course" subtitle="Search 30,000+ real courses worldwide" />
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container maxWidth="md" sx={{ pb: 4 }}>
+        <PageHeader title="Find a Course" subtitle="Search 30,000+ real courses worldwide" />
 
         <FirstTimeTooltip
           storageKey="tooltip_courses_seen"

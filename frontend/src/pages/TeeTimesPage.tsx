@@ -539,8 +539,8 @@ function TeeTimesListView() {
 
   return (
     <Box>
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3 }}>
       <PageHeader title="Tee Times" subtitle="Organise rounds with friends" />
-      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
       {isEmpty ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <GolfCourseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />

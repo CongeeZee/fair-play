@@ -597,17 +597,20 @@ export default function FeedPage() {
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <PageHeader title="Activity" />
-        <Box>
-          <IconButton onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
-            <SettingsIcon fontSize="small" />
-          </IconButton>
-          <IconButton onClick={handleRefresh} disabled={isRefetching} size="small">
-            <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
-          </IconButton>
-        </Box>
-      </Box>
+      <PageHeader
+        title="Activity"
+        subtitle="What you and your mates have been playing"
+        action={
+          <Box>
+            <IconButton onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+            <IconButton onClick={handleRefresh} disabled={isRefetching} size="small">
+              <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
+            </IconButton>
+          </Box>
+        }
+      />
 
       <NotificationPrompt />
 

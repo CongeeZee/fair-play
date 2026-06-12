@@ -100,8 +100,8 @@ export default function HistoryPage() {
 
   return (
     <Box>
-    <PageHeader title="Round History" />
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="md" sx={{ pb: 4 }}>
+    <PageHeader title="Round History" subtitle="Every round you've logged, hole by hole" />
 
       {rounds && rounds.length === 0 && (
         <EmptyState
