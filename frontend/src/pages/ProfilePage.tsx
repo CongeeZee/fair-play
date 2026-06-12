@@ -64,9 +64,14 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
         )}
       </Box>
       {profile.handicapIndex != null && (
-        <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main', mt: 0.5 }}>
-          {profile.handicapIndex.toFixed(1)}
-        </Typography>
+        <>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main', mt: 0.5, lineHeight: 1.1 }}>
+            {profile.handicapIndex.toFixed(1)}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 1.5, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+            Handicap Index
+          </Typography>
+        </>
       )}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
         Member since {new Date(profile.memberSince).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
