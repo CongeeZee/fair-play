@@ -11,6 +11,9 @@ import EditIcon from '@mui/icons-material/Edit'
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'
 import BlockIcon from '@mui/icons-material/Block'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import BarChartIcon from '@mui/icons-material/BarChart'
+import HistoryIcon from '@mui/icons-material/History'
+import LogoutIcon from '@mui/icons-material/Logout'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -479,7 +482,7 @@ function EditNameDialog({ open, currentName, onClose, onSave }: {
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const queryClient = useQueryClient()
 
   const isOwn = userId === 'me' || userId === String(user?.id ?? '')
@@ -561,6 +564,31 @@ export default function ProfilePage() {
       <ProfileHeader profile={profile} isOwn={isOwn} onEdit={() => setEditOpen(true)} />
       <StatsRow profile={profile} />
 
+      {/* Own profile: quick links to Stats & History — on mobile this is the
+          only route to those pages (the bottom nav has no Stats tab) */}
+      {isOwn && (
+        <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<BarChartIcon />}
+            onClick={() => navigate('/stats')}
+            sx={{ textTransform: 'none' }}
+          >
+            Full Stats
+          </Button>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<HistoryIcon />}
+            onClick={() => navigate('/history')}
+            sx={{ textTransform: 'none' }}
+          >
+            Round History
+          </Button>
+        </Box>
+      )}
+
       <AchievementsSection userId={targetId} />
 
       {/* Head-to-head (friends only) */}
@@ -624,6 +652,23 @@ export default function ProfilePage() {
             sx={{ textTransform: 'none' }}
           >
             Block
+          </Button>
+        </Box>
+      )}
+
+      {/* Own profile: sign out — the mobile top bar shows only the avatar,
+          so this is where mobile users sign out */}
+      {isOwn && (
+        <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'center', mt: 2, mb: 1 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={<LogoutIcon />}
+            onClick={() => { logout(); navigate('/login') }}
+            sx={{ textTransform: 'none' }}
+          >
+            Sign out
           </Button>
         </Box>
       )}

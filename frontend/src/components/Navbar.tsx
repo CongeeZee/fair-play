@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Typography, Button, Box, Badge, useScrollTrigger } from '@mui/material'
+import { AppBar, Toolbar, Typography, Button, Box, Badge, Avatar, useScrollTrigger } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -109,17 +109,37 @@ export default function Navbar() {
               component={Link}
               to="/profile/me"
               sx={{
-                color: 'secondary.main', fontWeight: 600, display: { xs: 'none', sm: 'block' },
+                color: 'secondary.main', fontWeight: 600, display: { xs: 'none', md: 'block' },
                 textDecoration: 'none', '&:hover': { textDecoration: 'underline' },
               }}
             >
               {user.name}
             </Typography>
+            {/* Mobile: avatar links to profile — the only route to Profile,
+                Stats and Sign out on small screens (BottomNav is full) */}
+            <Avatar
+              component={Link}
+              to="/profile/me"
+              aria-label="your profile"
+              sx={{
+                display: { xs: 'flex', md: 'none' },
+                width: 32,
+                height: 32,
+                bgcolor: 'secondary.main',
+                color: 'primary.main',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              {user.name?.charAt(0).toUpperCase() || '?'}
+            </Avatar>
             <Button
               variant="outlined"
               size="small"
               onClick={handleLogout}
               sx={{
+                display: { xs: 'none', md: 'inline-flex' },
                 color: 'rgba(255,255,255,0.8)',
                 borderColor: 'rgba(255,255,255,0.3)',
                 fontSize: '0.8rem',
