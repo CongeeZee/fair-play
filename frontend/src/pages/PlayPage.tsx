@@ -14,6 +14,8 @@ import { createRound } from '../api/rounds'
 import { capture, AnalyticsEvent } from '../analytics'
 import PageHeader from '../components/PageHeader'
 import CourseSearchInput, { type CourseSearchResult } from '../components/CourseSearchInput'
+import ResumeRoundBanner from '../components/ResumeRoundBanner'
+import { getLiveRounds } from '../api/live'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -36,6 +38,13 @@ export default function PlayPage() {
     queryKey: ['teetimes'],
     queryFn: getTeeTimes,
     staleTime: 60_000,
+  })
+
+  // Surface an in-progress round so "Play" resumes it rather than burying it
+  const { data: liveData } = useQuery({
+    queryKey: ['live-rounds'],
+    queryFn: getLiveRounds,
+    staleTime: 30_000,
   })
 
   // Fetch tees when an external course is selected
@@ -87,6 +96,8 @@ export default function PlayPage() {
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3 }}>
       <PageHeader title="Play" subtitle="Find a course or organise a round" />
+
+      {liveData?.ownLiveRound && <ResumeRoundBanner round={liveData.ownLiveRound} />}
 
       {/* Tee Times Section */}
       <Box sx={{ mb: 3 }}>

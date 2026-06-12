@@ -27,6 +27,7 @@ import ReactionBar from '../components/ReactionBar'
 import StarRating from '../components/StarRating'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import EmptyState from '../components/EmptyState'
+import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 function scoreColor(scoreToPar: number) {
@@ -614,9 +615,16 @@ export default function FeedPage() {
 
       <NotificationPrompt />
 
+      {liveData?.ownLiveRound && <ResumeRoundBanner round={liveData.ownLiveRound} />}
+
       <LiveNowSection rounds={liveData?.liveRounds ?? []} />
 
-      {latestOwnRound && <OwnRoundCard round={latestOwnRound} />}
+      {/* Skip the latest-round card when it IS the in-progress round — the
+          resume banner above already covers it and the partial score reads
+          oddly as a "result". */}
+      {latestOwnRound && latestOwnRound.id !== liveData?.ownLiveRound?.roundId && (
+        <OwnRoundCard round={latestOwnRound} />
+      )}
 
       {feedTeeTimes.map((tt) => (
         <TeeTimeCard key={tt.id} teeTime={tt} />
