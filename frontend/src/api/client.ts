@@ -26,7 +26,13 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-export type RefreshResult = { token: string; user: User } | null
+export type RefreshResult =
+  | { status: 'ok'; token: string; user: User }
+  // The server explicitly rejected the refresh token — session is over.
+  | { status: 'invalid' }
+  // Rate limit / network / server hiccup — the session may still be fine,
+  // so we must NOT log the user out.
+  | { status: 'transient' }
 
 // Track whether a refresh is already in progress to avoid multiple concurrent refreshes
 // Shared between the 401 interceptor and AuthContext's silent refresh on page load.
@@ -34,7 +40,7 @@ let refreshPromise: Promise<RefreshResult> | null = null
 
 async function doRefresh(): Promise<RefreshResult> {
   const refreshToken = localStorage.getItem('refreshToken')
-  if (!refreshToken) return null
+  if (!refreshToken) return { status: 'invalid' }
 
   try {
     const resp = await axios.post<{ token: string; refreshToken: string; user: User }>(
@@ -45,13 +51,20 @@ async function doRefresh(): Promise<RefreshResult> {
     accessToken = token
     localStorage.setItem('refreshToken', newRefreshToken)
     localStorage.setItem('user', JSON.stringify(user))
-    return { token, user }
-  } catch {
-    // Refresh failed — clear everything
-    accessToken = null
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
-    return null
+    return { status: 'ok', token, user }
+  } catch (err) {
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined
+    // Only treat an explicit auth rejection as "session over". A 429
+    // (rate limit), 5xx, or network error must not wipe a valid session —
+    // that was logging users out spuriously.
+    if (status === 401 || status === 403) {
+      accessToken = null
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
+      return { status: 'invalid' }
+    }
+    if (status === 429) notifyRateLimit()
+    return { status: 'transient' }
   }
 }
 
@@ -106,13 +119,17 @@ client.interceptors.response.use(
 
       const result = await refreshAccessToken()
 
-      if (result) {
+      if (result.status === 'ok') {
         originalRequest.headers.Authorization = `Bearer ${result.token}`
         return client(originalRequest)
       }
 
-      // Refresh failed — redirect to login
-      window.location.href = '/login'
+      // Only force a login when the session is definitively dead.
+      // Transient refresh failures just reject the request — react-query
+      // retries will pick it up once the API recovers.
+      if (result.status === 'invalid') {
+        window.location.href = '/login'
+      }
     }
 
     return Promise.reject(error)

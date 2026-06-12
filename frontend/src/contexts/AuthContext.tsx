@@ -41,11 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!refreshToken || !user) return
 
     refreshAccessToken().then((result) => {
-      if (result) {
+      if (result.status === 'ok') {
         setUser(result.user)
-      } else {
+      } else if (result.status === 'invalid') {
         setUser(null)
       }
+      // 'transient' — keep the stored user; the 401 interceptor will
+      // retry the refresh when the API is reachable again.
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
