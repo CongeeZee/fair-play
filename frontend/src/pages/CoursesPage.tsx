@@ -147,6 +147,9 @@ export default function CoursesPage() {
         <FirstTimeTooltip
           storageKey="tooltip_courses_seen"
           message="Search for a course to start your first round."
+          // Only relevant before the user has logged a round; otherwise it
+          // pops over the Recently Played list and reads wrong.
+          disabled={!rounds || rounds.length > 0}
         >
           <Box sx={{ mb: 3 }}>
             <CourseSearchInput

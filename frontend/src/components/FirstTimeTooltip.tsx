@@ -6,6 +6,8 @@ interface Props {
   storageKey: string
   message: string
   children: ReactNode
+  /** When true the tooltip never opens (e.g. the hint no longer applies). */
+  disabled?: boolean
   anchorOrigin?: { vertical: 'top' | 'bottom'; horizontal: 'left' | 'center' | 'right' }
   transformOrigin?: { vertical: 'top' | 'bottom'; horizontal: 'left' | 'center' | 'right' }
 }
@@ -14,6 +16,7 @@ export default function FirstTimeTooltip({
   storageKey,
   message,
   children,
+  disabled = false,
   anchorOrigin = { vertical: 'bottom', horizontal: 'center' },
   transformOrigin = { vertical: 'top', horizontal: 'center' },
 }: Props) {
@@ -21,14 +24,14 @@ export default function FirstTimeTooltip({
   const [seen, setSeen] = useState(() => localStorage.getItem(storageKey) === '1')
 
   useEffect(() => {
-    if (seen) return
+    if (seen || disabled) return
     // Small delay so the element renders first
     const timer = setTimeout(() => {
       const el = document.getElementById(storageKey)
       if (el) setAnchorEl(el)
     }, 600)
     return () => clearTimeout(timer)
-  }, [seen, storageKey])
+  }, [seen, disabled, storageKey])
 
   const handleClose = () => {
     setAnchorEl(null)
@@ -40,7 +43,7 @@ export default function FirstTimeTooltip({
     <>
       <span id={storageKey}>{children}</span>
       <Popover
-        open={!!anchorEl && !seen}
+        open={!!anchorEl && !seen && !disabled}
         anchorEl={anchorEl}
         onClose={handleClose}
         anchorOrigin={anchorOrigin}
