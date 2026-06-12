@@ -37,7 +37,10 @@ export default function HomePage() {
       {/* Hero */}
       <Box
         sx={{
-          minHeight: '100vh',
+          // On mobile the feature strip flows below the hero instead of
+          // overlaying it, so the hero itself can be a bit shorter than the
+          // full viewport — otherwise the CTAs sit under the strip.
+          minHeight: { xs: '88svh', md: '100vh' },
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -111,13 +114,17 @@ export default function HomePage() {
           </Button>
         </Box>
 
-        {/* Feature strip pinned to bottom of hero */}
+        {/* Feature strip — pinned to the bottom of the hero on desktop only.
+            On mobile the three stacked items were tall enough to cover the
+            subtitle and CTA buttons, so there it flows below the hero. */}
         <Box
           sx={{
-            position: 'absolute',
+            position: { xs: 'static', md: 'absolute' },
             bottom: 0,
             left: 0,
             right: 0,
+            mt: { xs: 6, md: 0 },
+            mx: { xs: -3, md: 0 }, // counter hero's px so the strip is full-bleed
             borderTop: '1px solid rgba(255,255,255,0.1)',
             bgcolor: 'rgba(10,25,16,0.75)',
             backdropFilter: 'blur(8px)',
