@@ -18,7 +18,7 @@ import ShareIcon from '@mui/icons-material/Share'
 import Snackbar from '@mui/material/Snackbar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRound, scoreHole } from '../api/rounds'
+import { getRound, scoreHole, completeRound } from '../api/rounds'
 import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
@@ -340,7 +340,13 @@ export default function RoundPage() {
   const [scorecardOpen, setScorecardOpen] = useState(false)
   const [shareSnackbar, setShareSnackbar] = useState(false)
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false)
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false)
+  const [finishing, setFinishing] = useState(false)
   const [achievementQueue, setAchievementQueue] = useState<NewlyUnlockedAchievement[]>([])
+  // When achievements unlock at finish time, hold the navigation until the
+  // celebration overlay has been dismissed.
+  const navigateAfterAchievements = useRef(false)
+  const resumedRef = useRef(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { syncState, pendingCount, flush, refreshCount } = useOnlineStatus()
@@ -376,6 +382,17 @@ export default function RoundPage() {
         }
       })
       setHoleScores(initial)
+
+      // Resume an in-progress round at the first unscored hole instead of
+      // always dropping the player back on hole 1.
+      if (!resumedRef.current) {
+        resumedRef.current = true
+        if (!round.completedAt) {
+          const sorted = [...(round.course?.holes ?? [])].sort((a, b) => a.number - b.number)
+          const firstUnscored = sorted.findIndex((h) => !(initial[h.id]?.strokes > 0))
+          if (firstUnscored > 0) setCurrentHoleIndex(firstUnscored)
+        }
+      }
     }
   }, [round])
 
@@ -476,18 +493,54 @@ export default function RoundPage() {
   const reviewSkipped = typeof window !== 'undefined' && !!localStorage.getItem(`review_skipped_${roundId}`)
   const reviewExisting = (round as { review?: unknown }).review != null
 
-  const handleFinish = () => {
-    queryClient.invalidateQueries({ queryKey: ['rounds'] })
-    if (allHolesScored) {
-      capture(AnalyticsEvent.RoundCompleted, {
-        roundId,
-        holes: totalHoles,
-      })
-    }
-    if (allHolesScored && !reviewSkipped && !reviewExisting) {
+  const scoredCount = holes.filter((h) => (holeScores[h.id]?.strokes ?? 0) > 0).length
+  const alreadyCompleted = round.completedAt != null
+
+  const proceedAfterFinish = () => {
+    if (!reviewSkipped && !reviewExisting) {
       setReviewPromptOpen(true)
     } else {
       navigate('/history')
+    }
+  }
+
+  // Finish the round: explicitly complete it on the server (covers 9-hole and
+  // early finishes — an 18-hole card auto-completes when the last hole saves,
+  // in which case the server tells us it's already done and that's fine).
+  const finishRound = async () => {
+    setEndConfirmOpen(false)
+    setFinishing(true)
+    let unlocked: NewlyUnlockedAchievement[] = []
+    try {
+      const resp = await completeRound(id!)
+      unlocked = resp.newlyUnlocked ?? []
+    } catch {
+      // "Already completed" (auto-complete beat us to it) or a transient
+      // failure — either way the user is done scoring; carry on.
+    }
+    setFinishing(false)
+    capture(AnalyticsEvent.RoundCompleted, { roundId, holes: scoredCount })
+    queryClient.invalidateQueries({ queryKey: ['rounds'] })
+    queryClient.invalidateQueries({ queryKey: ['round', id] })
+    queryClient.invalidateQueries({ queryKey: ['live-rounds'] })
+    if (unlocked.length > 0) {
+      // Let the celebration overlay play before moving on
+      navigateAfterAchievements.current = true
+      setAchievementQueue(unlocked)
+    } else {
+      proceedAfterFinish()
+    }
+  }
+
+  const handleFinish = () => {
+    if (alreadyCompleted) {
+      navigate('/history')
+      return
+    }
+    if (allHolesScored) {
+      finishRound()
+    } else {
+      setEndConfirmOpen(true)
     }
   }
 
@@ -518,7 +571,16 @@ export default function RoundPage() {
 
   return (
     <>
-    <AchievementUnlockOverlay queue={achievementQueue} onClear={() => setAchievementQueue([])} />
+    <AchievementUnlockOverlay
+      queue={achievementQueue}
+      onClear={() => {
+        setAchievementQueue([])
+        if (navigateAfterAchievements.current) {
+          navigateAfterAchievements.current = false
+          proceedAfterFinish()
+        }
+      }}
+    />
     {/* Offline banner — full width above content */}
     <OfflineBanner syncState={syncState} pendingCount={pendingCount} />
 
@@ -843,9 +905,10 @@ export default function RoundPage() {
             variant="contained"
             color="primary"
             onClick={handleFinish}
+            disabled={finishing}
             sx={{ flex: 1, fontWeight: 700, py: { xs: 1.5, sm: 1 } }}
           >
-            Finish Round
+            {finishing ? 'Finishing…' : 'Finish Round'}
           </Button>
         ) : (
           <Button
@@ -900,6 +963,39 @@ export default function RoundPage() {
           )
         })}
       </Box>
+
+      {/* Early finish — lets 9-hole (or abandoned) rounds wrap up properly
+          instead of staying live forever waiting for 18 scored holes */}
+      {!isLastHole && !alreadyCompleted && scoredCount > 0 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={handleFinish}
+            disabled={finishing}
+            sx={{ textTransform: 'none', color: 'text.secondary', fontSize: '0.8rem' }}
+          >
+            {finishing ? 'Finishing…' : `Finish round early (${scoredCount} of ${totalHoles} holes)`}
+          </Button>
+        </Box>
+      )}
+
+      <Dialog open={endConfirmOpen} onClose={() => setEndConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Finish round?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            You've scored {scoredCount} of {totalHoles} holes. The round will be posted
+            to your feed with {scoredCount} hole{scoredCount === 1 ? '' : 's'} — unscored
+            holes won't count against you.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setEndConfirmOpen(false)}>Keep Playing</Button>
+          <Button variant="contained" onClick={finishRound} disabled={finishing}>
+            Finish Round
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ScorecardDialog
         open={scorecardOpen}

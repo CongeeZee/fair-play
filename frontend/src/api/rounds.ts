@@ -23,6 +23,19 @@ export interface ScoreHoleResponse extends RoundHole {
 export const scoreHole = (roundId: string, holeId: string, data: HoleScore) =>
   client.put<ScoreHoleResponse>(`/rounds/${roundId}/holes/${holeId}`, data).then((r) => r.data)
 
+export interface CompleteRoundResponse {
+  id: number
+  completedAt: string
+  totalStrokes: number
+  scoreToPar: number
+  holesCompleted: number
+  newlyUnlocked: NewlyUnlockedAchievement[]
+}
+
+/** Finish a round with however many holes have been scored (9-hole / early finish). */
+export const completeRound = (roundId: string) =>
+  client.post<CompleteRoundResponse>(`/rounds/${roundId}/complete`).then((r) => r.data)
+
 export const getRounds = () =>
   client.get<Round[]>('/rounds').then((r) => r.data)
 

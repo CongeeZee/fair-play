@@ -28,6 +28,7 @@ import StarRating from '../components/StarRating'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import EmptyState from '../components/EmptyState'
 import ResumeRoundBanner from '../components/ResumeRoundBanner'
+import FeedSidebar from '../components/FeedSidebar'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 function scoreColor(scoreToPar: number) {
@@ -597,7 +598,21 @@ export default function FeedPage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
+    // Two-column shell on large screens: main feed (600px) + sticky sidebar.
+    // Below `lg` the sidebar disappears and this collapses to the original
+    // single centered column.
+    <Box
+      sx={{
+        maxWidth: { xs: 600, lg: 960 },
+        mx: 'auto',
+        px: 2,
+        py: 3,
+        display: 'flex',
+        gap: 4,
+        alignItems: 'flex-start',
+      }}
+    >
+    <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto' }}>
       <PageHeader
         title="Activity"
         subtitle="What you and your mates have been playing"
@@ -635,7 +650,7 @@ export default function FeedPage() {
           icon={<PeopleIcon sx={{ fontSize: 36 }} />}
           title="Your feed is quiet — for now"
           description="Tee off a round or invite your golf mates to fill this with scores, comments, and tee times."
-          primary={{ label: 'Start a round', to: '/courses', icon: <SportsGolfIcon /> }}
+          primary={{ label: 'Start a round', to: '/play', icon: <SportsGolfIcon /> }}
           secondary={{ label: 'Invite mates', to: '/friends' }}
         />
       )}
@@ -696,6 +711,20 @@ export default function FeedPage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{ mb: { xs: '68px', md: 0 } }}
       />
+    </Box>
+
+    {/* Desktop sidebar — upcoming tee times and competitions at a glance */}
+    <Box
+      sx={{
+        width: 300,
+        flexShrink: 0,
+        display: { xs: 'none', lg: 'block' },
+        position: 'sticky',
+        top: 88,
+      }}
+    >
+      <FeedSidebar />
+    </Box>
     </Box>
   )
 }

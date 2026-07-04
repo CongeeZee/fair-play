@@ -18,8 +18,16 @@ export function getAccessToken() {
   return accessToken
 }
 
-// Attach access token to every request
-client.interceptors.request.use((config) => {
+// Attach access token to every request.
+// On a cold boot the access token only lives in memory, so queries that fire
+// during first render would otherwise go out unauthenticated, 401, and rely on
+// the response interceptor to refresh + retry (noisy and doubles the requests).
+// Instead, if we hold a refresh token but no access token yet, wait for the
+// shared refresh (deduped with AuthContext's boot refresh) before sending.
+client.interceptors.request.use(async (config) => {
+  if (!accessToken && localStorage.getItem('refreshToken')) {
+    await refreshAccessToken()
+  }
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }

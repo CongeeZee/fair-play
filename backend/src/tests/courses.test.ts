@@ -18,6 +18,7 @@ vi.mock("../middleware/rateLimiter", () => {
     strictLimiter: passthrough,
     moderateLimiter: passthrough,
     standardLimiter: passthrough,
+    refreshLimiter: passthrough,
   };
 });
 

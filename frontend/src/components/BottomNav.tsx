@@ -1,7 +1,7 @@
 import { Paper, BottomNavigation, BottomNavigationAction, Badge } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
-import HistoryIcon from '@mui/icons-material/History'
+import InsightsIcon from '@mui/icons-material/Insights'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import PeopleIcon from '@mui/icons-material/People'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -27,7 +27,8 @@ const NAV_ITEMS = [
   { label: 'Feed', to: '/feed', matches: ['/feed'], icon: <HomeIcon /> },
   { label: 'Play', to: '/play', matches: ['/play', '/courses', '/teetimes'], icon: <SportsGolfIcon /> },
   { label: 'Comps', to: '/competitions', matches: ['/competitions'], icon: <EmojiEventsIcon /> },
-  { label: 'History', to: '/history', matches: ['/history'], icon: <HistoryIcon /> },
+  // Stats owns the slot; round history lives one tap inside the Stats page
+  { label: 'Stats', to: '/stats', matches: ['/stats', '/history'], icon: <InsightsIcon /> },
   { label: 'Friends', to: '/friends', matches: ['/friends'], icon: <FriendsIcon /> },
 ]
 

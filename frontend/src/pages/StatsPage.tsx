@@ -14,6 +14,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import HistoryIcon from '@mui/icons-material/History'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -310,7 +311,7 @@ export default function StatsPage() {
             icon={<BarChartIcon sx={{ fontSize: 36 }} />}
             title="Stats unlock with your first round"
             description="Pick a course and score a round — handicap, trends, and insights will appear right here."
-            primary={{ label: 'Start your first round', to: '/courses', icon: <SportsGolfIcon /> }}
+            primary={{ label: 'Start your first round', to: '/play', icon: <SportsGolfIcon /> }}
             secondary={{ label: 'Invite mates', to: '/friends' }}
           />
         </Container>
@@ -345,7 +346,21 @@ export default function StatsPage() {
   return (
     <Box>
     <Container maxWidth="lg" sx={{ pb: 4 }}>
-    <PageHeader title="Stats" subtitle="Your performance at a glance" />
+    <PageHeader
+      title="Stats"
+      subtitle="Your performance at a glance"
+      action={
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<HistoryIcon />}
+          onClick={() => navigate('/history')}
+          sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+        >
+          Round History
+        </Button>
+      }
+    />
 
       {/* Handicap Index hero */}
       <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)' }}>
@@ -430,10 +445,10 @@ export default function StatsPage() {
               ) : (
                 <Box sx={{ color: 'rgba(255,255,255,0.7)' }}>
                   <Typography variant="body2">
-                    {handicap?.totalEligible ?? 0} of 3 required rounds recorded
+                    Your estimated index appears after 3 eligible rounds — {handicap?.totalEligible ?? 0} recorded so far
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-                    Play courses from the search to get rating &amp; slope data
+                    Eligible rounds need course rating &amp; slope — play courses found via search
                   </Typography>
                   <Box sx={{ mt: 1.5 }}>
                     <Button

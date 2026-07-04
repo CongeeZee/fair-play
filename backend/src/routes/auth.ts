@@ -7,7 +7,7 @@ import { OAuth2Client } from "google-auth-library";
 import prisma from "../lib/prisma";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
-import { strictLimiter } from "../middleware/rateLimiter";
+import { strictLimiter, refreshLimiter } from "../middleware/rateLimiter";
 
 const googleClient = new OAuth2Client();
 
@@ -218,7 +218,7 @@ router.post("/google", strictLimiter, async (req: Request, res: Response) => {
 });
 
 // POST /auth/refresh
-router.post("/refresh", strictLimiter, async (req: Request, res: Response) => {
+router.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
     res.status(400).json({ error: "Missing refresh token" });

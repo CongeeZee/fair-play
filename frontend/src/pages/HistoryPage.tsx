@@ -5,8 +5,10 @@ import {
   Box, Container, Typography, CircularProgress, Alert,
   List, ListItemButton, ListItemText, Paper, Chip, Divider,
   IconButton, Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, Button, TextField, InputAdornment, Fab, Tooltip
+  DialogActions, Button, TextField, InputAdornment, Fab, Tooltip,
+  Menu, MenuItem, ListItemIcon,
 } from '@mui/material'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import HistoryIcon from '@mui/icons-material/History'
@@ -29,6 +31,19 @@ export default function HistoryPage() {
   const [deleting, setDeleting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [shareSnackbar, setShareSnackbar] = useState(false)
+  // Row overflow menu — one kebab per row instead of three icon buttons
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [menuRound, setMenuRound] = useState<Round | null>(null)
+
+  const openRowMenu = (e: React.MouseEvent<HTMLElement>, round: Round) => {
+    e.stopPropagation()
+    setMenuAnchor(e.currentTarget)
+    setMenuRound(round)
+  }
+  const closeRowMenu = () => {
+    setMenuAnchor(null)
+    setMenuRound(null)
+  }
 
   const handleShare = async (round: Round) => {
     if (!round.shareId) return
@@ -108,7 +123,7 @@ export default function HistoryPage() {
           icon={<HistoryIcon sx={{ fontSize: 36 }} />}
           title="Your card is blank"
           description="Score your first round and it'll live here forever — every hole, every birdie, every blow-up."
-          primary={{ label: 'Start your first round', to: '/courses', icon: <SportsGolfIcon /> }}
+          primary={{ label: 'Start your first round', to: '/play', icon: <SportsGolfIcon /> }}
           secondary={{ label: 'Invite mates', to: '/friends' }}
         />
       )}
@@ -157,13 +172,15 @@ export default function HistoryPage() {
                     const diff = round.scoreToPar
                     const diffStr =
                       diff == null ? null : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
-                    // Under par = good (gold/green), over par = bad (dark blue → red)
+                    // Graded palette: most club golfers live over par, so
+                    // reserve red for genuine blow-ups rather than every round.
                     const chipColor =
                       diff == null ? '#888'
                       : diff < 0 ? '#c9a84c'     // under par — gold
                       : diff === 0 ? '#2d5e42'   // even — green
                       : diff <= 5 ? '#1a3a5c'    // modest over par — dark navy
-                      : '#c62828'                // badly over par — red
+                      : diff <= 12 ? '#5c5470'   // typical club score — muted slate
+                      : '#a1453c'                // blow-up round — softened red
 
                     return (
                       <Box key={round.id}>
@@ -194,29 +211,12 @@ export default function HistoryPage() {
                                 {round.holesCompleted}/{round.course?.holes?.length ?? 18}
                               </Typography>
                             )}
-                            {round.shareId && (
-                              <IconButton
-                                size="small"
-                                onClick={(e) => { e.stopPropagation(); handleShare(round) }}
-                                aria-label="share round"
-                              >
-                                <ShareIcon fontSize="small" />
-                              </IconButton>
-                            )}
                             <IconButton
                               size="small"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/rounds/${round.id}`) }}
-                              aria-label="edit round"
+                              onClick={(e) => openRowMenu(e, round)}
+                              aria-label="round actions"
                             >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={(e) => { e.stopPropagation(); setConfirmRound(round) }}
-                              aria-label="delete round"
-                            >
-                              <DeleteIcon fontSize="small" />
+                              <MoreVertIcon fontSize="small" />
                             </IconButton>
                           </Box>
                         </ListItemButton>
@@ -229,6 +229,26 @@ export default function HistoryPage() {
           )}
         </>
       )}
+
+      <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeRowMenu}>
+        {menuRound?.shareId && (
+          <MenuItem onClick={() => { const r = menuRound; closeRowMenu(); handleShare(r) }}>
+            <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+            Share scorecard
+          </MenuItem>
+        )}
+        <MenuItem onClick={() => { const r = menuRound; closeRowMenu(); if (r) navigate(`/rounds/${r.id}`) }}>
+          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          Edit scores
+        </MenuItem>
+        <MenuItem
+          onClick={() => { const r = menuRound; closeRowMenu(); setConfirmRound(r) }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          Delete round
+        </MenuItem>
+      </Menu>
 
       <Dialog open={!!confirmRound} onClose={() => setConfirmRound(null)}>
         <DialogTitle>Delete round?</DialogTitle>
@@ -265,7 +285,7 @@ export default function HistoryPage() {
       <Fab
         color="secondary"
         aria-label="start new round"
-        onClick={() => navigate('/courses')}
+        onClick={() => navigate('/play')}
         sx={{
           position: 'fixed',
           bottom: { xs: 76, md: 24 },   // above BottomNav on mobile

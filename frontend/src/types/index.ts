@@ -64,6 +64,7 @@ export interface Round {
   holesCompleted?: number
   partners?: RoundPartner[]
   stableford?: StablefordInfo
+  completedAt?: string | null
 }
 
 export interface SharedScorecard {

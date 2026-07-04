@@ -935,6 +935,135 @@ router.post("/", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Shared completion side effects: mark the round complete, evaluate
+// achievements, and notify friends. Used both by the auto-complete path
+// (all 18 holes scored) and the explicit "finish round" endpoint (9 holes,
+// abandoned rounds, etc).
+async function finalizeRound(roundId: number, userId: number) {
+  const completedRound = await prisma.round.update({
+    where: { id: roundId },
+    data: { completedAt: new Date() },
+    include: {
+      user: { select: { name: true } },
+      course: { select: { name: true } },
+      roundHoles: { include: { hole: { select: { par: true } } } },
+    },
+  });
+
+  const totalStrokes = completedRound.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
+  const totalPar = completedRound.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
+  const scoreToPar = totalStrokes - totalPar;
+  const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
+  const holesCompleted = completedRound.roundHoles.length;
+  const throughStr = holesCompleted < 18 ? ` through ${holesCompleted}` : "";
+  const courseName = completedRound.course.name.replace(/\s*—.*$/, "");
+
+  // Evaluate achievements now that round is complete
+  const evalResult = await evaluateAchievements(userId);
+  const newlyUnlocked = evalResult.newlyUnlocked;
+
+  // Notify all accepted friends (fire-and-forget)
+  const friendships = await prisma.friendship.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [{ requesterId: userId }, { addresseeId: userId }],
+    },
+    select: { requesterId: true, addresseeId: true },
+  });
+
+  for (const f of friendships) {
+    const friendId = f.requesterId === userId ? f.addresseeId : f.requesterId;
+    sendPushToUser(
+      friendId,
+      "New round posted",
+      `${completedRound.user.name} shot ${scoreStr}${throughStr} at ${courseName}`,
+      "/feed"
+    ).catch(() => {});
+  }
+
+  // If a Personal Best was unlocked/updated, push a special notification to friends
+  const pb = newlyUnlocked.find((a) => a.type === "PERSONAL_BEST");
+  if (pb) {
+    const pbScore = (pb.metadata as { score?: number } | null)?.score ?? totalStrokes;
+    for (const f of friendships) {
+      const friendId = f.requesterId === userId ? f.addresseeId : f.requesterId;
+      sendPushToUser(
+        friendId,
+        "New personal best!",
+        `${completedRound.user.name} just set a new PB — ${pbScore} at ${courseName}!`,
+        "/feed"
+      ).catch(() => {});
+    }
+  }
+
+  return { completedRound, newlyUnlocked, totalStrokes, scoreToPar, holesCompleted };
+}
+
+function enrichAchievements(newlyUnlocked: Awaited<ReturnType<typeof evaluateAchievements>>["newlyUnlocked"]) {
+  return newlyUnlocked.map((a) => {
+    const def = getAchievementDef(a.type);
+    return {
+      id: a.id,
+      type: a.type,
+      name: def?.name ?? a.type,
+      description: def?.description ?? "",
+      emoji: def?.emoji ?? "🏆",
+      category: def?.category ?? "MILESTONE",
+      unlockedAt: a.unlockedAt,
+      metadata: a.metadata,
+    };
+  });
+}
+
+// POST /rounds/:id/complete — finish a round with however many holes are scored.
+// Lets players wrap up 9-hole rounds (or bail out early) instead of the round
+// sitting "live" forever waiting for 18 scored holes.
+router.post("/:id/complete", async (req: AuthRequest, res: Response) => {
+  const roundId = parseInt(String(req.params.id));
+  if (isNaN(roundId)) {
+    res.status(400).json({ error: "Invalid round ID" });
+    return;
+  }
+
+  try {
+    const round = await prisma.round.findUnique({
+      where: { id: roundId },
+      include: { _count: { select: { roundHoles: true } } },
+    });
+    if (!round) {
+      res.status(404).json({ error: "Round not found" });
+      return;
+    }
+    if (round.userId !== req.userId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (round.completedAt) {
+      res.status(400).json({ error: "Round is already completed" });
+      return;
+    }
+    if (round._count.roundHoles === 0) {
+      res.status(400).json({ error: "Score at least one hole before finishing the round" });
+      return;
+    }
+
+    const { completedRound, newlyUnlocked, totalStrokes, scoreToPar, holesCompleted } =
+      await finalizeRound(roundId, req.userId!);
+
+    res.json({
+      id: completedRound.id,
+      completedAt: completedRound.completedAt,
+      totalStrokes,
+      scoreToPar,
+      holesCompleted,
+      newlyUnlocked: enrichAchievements(newlyUnlocked),
+    });
+  } catch (err) {
+    console.error("POST /rounds/:id/complete error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // PUT /rounds/:id/holes/:holeId — submit or update a score for one hole
 router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
   const roundId = parseInt(String(req.params.id));
@@ -1035,80 +1164,12 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
       const scoredCount = await prisma.roundHole.count({ where: { roundId } });
 
       if (scoredCount === courseHoleCount) {
-        // Mark round complete
-        const completedRound = await prisma.round.update({
-          where: { id: roundId },
-          data: { completedAt: new Date() },
-          include: {
-            user: { select: { name: true } },
-            course: { select: { name: true } },
-            roundHoles: { include: { hole: { select: { par: true } } } },
-          },
-        });
-
-        // Calculate score for notification
-        const totalStrokes = completedRound.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
-        const totalPar = completedRound.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
-        const scoreToPar = totalStrokes - totalPar;
-        const scoreStr = scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
-        const courseName = completedRound.course.name.replace(/\s*—.*$/, "");
-
-        // Evaluate achievements now that round is complete
-        const evalResult = await evaluateAchievements(req.userId!);
-        newlyUnlockedAchievements = evalResult.newlyUnlocked;
-
-        // Notify all accepted friends (fire-and-forget)
-        const friendships = await prisma.friendship.findMany({
-          where: {
-            status: "ACCEPTED",
-            OR: [{ requesterId: req.userId! }, { addresseeId: req.userId! }],
-          },
-          select: { requesterId: true, addresseeId: true },
-        });
-
-        for (const f of friendships) {
-          const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
-          sendPushToUser(
-            friendId,
-            "New round posted",
-            `${completedRound.user.name} shot ${scoreStr} at ${courseName}`,
-            "/feed"
-          ).catch(() => {});
-        }
-
-        // If a Personal Best was unlocked/updated, push a special notification to friends
-        const pb = newlyUnlockedAchievements.find((a) => a.type === "PERSONAL_BEST");
-        if (pb) {
-          const pbScore = (pb.metadata as { score?: number } | null)?.score ?? totalStrokes;
-          for (const f of friendships) {
-            const friendId = f.requesterId === req.userId! ? f.addresseeId : f.requesterId;
-            sendPushToUser(
-              friendId,
-              "New personal best!",
-              `${completedRound.user.name} just set a new PB — ${pbScore} at ${courseName}!`,
-              "/feed"
-            ).catch(() => {});
-          }
-        }
+        const finalized = await finalizeRound(roundId, req.userId!);
+        newlyUnlockedAchievements = finalized.newlyUnlocked;
       }
     }
 
-    // Enrich newly-unlocked achievements with display metadata so frontend can show overlay immediately
-    const enrichedNewlyUnlocked = newlyUnlockedAchievements.map((a) => {
-      const def = getAchievementDef(a.type);
-      return {
-        id: a.id,
-        type: a.type,
-        name: def?.name ?? a.type,
-        description: def?.description ?? "",
-        emoji: def?.emoji ?? "🏆",
-        category: def?.category ?? "MILESTONE",
-        unlockedAt: a.unlockedAt,
-        metadata: a.metadata,
-      };
-    });
-
-    res.json({ ...roundHole, newlyUnlocked: enrichedNewlyUnlocked });
+    res.json({ ...roundHole, newlyUnlocked: enrichAchievements(newlyUnlockedAchievements) });
   } catch (err) {
     console.error("PUT /rounds/:id/holes/:holeId error:", err);
     res.status(500).json({ error: "Internal server error" });

@@ -18,6 +18,18 @@ export const strictLimiter = rateLimit({
   validate: false,
 });
 
+// Token refresh happens on every app boot (reloads, multiple tabs), so it
+// needs far more headroom than credential endpoints. Still bounded to stop
+// brute-forcing refresh tokens.
+export const refreshLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message,
+  validate: false,
+});
+
 export const moderateLimiter = rateLimit({
   windowMs: 60_000,
   limit: 20,

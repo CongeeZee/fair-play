@@ -104,8 +104,10 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
 function StatsRow({ profile }: { profile: UserProfile }) {
   const stats = [
     { label: 'Rounds Played', value: String(profile.roundsPlayed) },
-    { label: 'Avg Score', value: scoreLabelFloat(profile.averageScoreToPar) },
-    { label: 'Best Score', value: scoreLabel(profile.bestScoreToPar) },
+    // "vs Par" labels — a bare "+12.8" under "Avg Score" read like a score,
+    // not a to-par differential.
+    { label: 'Avg vs Par', value: scoreLabelFloat(profile.averageScoreToPar) },
+    { label: 'Best vs Par', value: scoreLabel(profile.bestScoreToPar) },
   ]
   return (
     <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
