@@ -43,6 +43,7 @@ const LiveScorecardPage = lazy(() => import('./pages/LiveScorecardPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const CourseReviewsPage = lazy(() => import('./pages/CourseReviewsPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 import RateLimitSnackbar from './components/RateLimitSnackbar'
 import OnboardingFlow from './components/OnboardingFlow'
 import InstallPrompt from './components/InstallPrompt'
@@ -151,6 +152,9 @@ function Layout() {
           path="/stats/courses/:courseId"
           element={<ProtectedRoute><CourseStatsPage /></ProtectedRoute>}
         />
+        {/* Without this, an unknown URL matched no route and rendered the
+            chrome around an empty page. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
       {showBottomNav && <BottomNav />}

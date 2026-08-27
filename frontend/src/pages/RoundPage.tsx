@@ -38,13 +38,16 @@ const TEE_DIRECTIONS = [
 
 const STROKE_QUICK_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
+// These colours are only ever rendered on the dark green hole header, so they
+// have to read against primary.main (#1a3a2a). Birdie, par and double were all
+// under a 2:1 ratio there — par in particular was mid-grey on dark green.
 function scoreLabel(diff: number, strokes: number) {
   if (strokes === 1) return { label: 'Ace!', color: '#c9a84c' }
   if (diff <= -2) return { label: 'Eagle', color: '#c9a84c' }
-  if (diff === -1) return { label: 'Birdie', color: '#2d5e42' }
-  if (diff === 0) return { label: 'Par', color: '#555' }
+  if (diff === -1) return { label: 'Birdie', color: '#6fbf8b' }
+  if (diff === 0) return { label: 'Par', color: '#f5f0e8' }
   if (diff === 1) return { label: 'Bogey', color: '#e6a817' }
-  return { label: diff === 2 ? 'Double' : `+${diff}`, color: '#c62828' }
+  return { label: diff === 2 ? 'Double' : `+${diff}`, color: '#ef5350' }
 }
 
 function scoreDiffColor(diff: number | null): string {
@@ -704,7 +707,7 @@ export default function RoundPage() {
           <Box sx={{ textAlign: 'right' }}>
             {scoreInfo ? (
               <>
-                <Typography variant="h5" sx={{ color: scoreInfo.color === 'text.secondary' ? 'primary.contrastText' : scoreInfo.color, fontWeight: 800 }}>
+                <Typography variant="h5" sx={{ color: scoreInfo.color, fontWeight: 800 }}>
                   {diff === 0 ? 'E' : diff! > 0 ? `+${diff}` : diff}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'primary.contrastText', opacity: 0.8 }}>

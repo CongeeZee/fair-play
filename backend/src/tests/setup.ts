@@ -34,6 +34,12 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || "test-jwt-secret-for-ci";
 // Suppress email sending in tests
 process.env.RESEND_API_KEY = "";
 
+// POST /auth/google refuses to run without a client ID (it cannot verify the
+// token audience without one), so tests need it set even though the Google
+// verifier itself is mocked.
+process.env.GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID || "test-google-client-id.apps.googleusercontent.com";
+
 const prisma = new PrismaClient();
 
 beforeAll(async () => {

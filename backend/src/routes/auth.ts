@@ -11,6 +11,18 @@ import { strictLimiter, refreshLimiter } from "../middleware/rateLimiter";
 
 const googleClient = new OAuth2Client();
 
+// The audience check in verifyIdToken is SKIPPED when `audience` is undefined,
+// which would accept any Google-issued ID token — including ones minted for a
+// completely different app — and let an attacker sign in as any user by email.
+// Fail closed instead of verifying nothing.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+if (!GOOGLE_CLIENT_ID) {
+  console.warn(
+    "GOOGLE_CLIENT_ID is not set — POST /auth/google will reject every request. " +
+      "Set it to the same client ID the frontend uses (VITE_GOOGLE_CLIENT_ID).",
+  );
+}
+
 const router = Router();
 
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
@@ -168,17 +180,35 @@ router.post("/google", strictLimiter, async (req: Request, res: Response) => {
     return;
   }
 
+  if (!GOOGLE_CLIENT_ID) {
+    console.error("Google auth error: GOOGLE_CLIENT_ID is not configured");
+    res.status(500).json({ error: "Google sign-in is not configured" });
+    return;
+  }
+
+  // Verify the token first, on its own. Everything after this point is our own
+  // infrastructure (database, token issuing) — folding those failures into the
+  // same catch reported a DB outage to the user as "Google authentication
+  // failed", which sent us hunting for an OAuth bug that did not exist.
+  let payload;
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_ID,
     });
-    const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
-      res.status(401).json({ error: "Invalid Google token" });
-      return;
-    }
+    payload = ticket.getPayload();
+  } catch (err) {
+    console.error("Google token verification failed:", err);
+    res.status(401).json({ error: "Google authentication failed" });
+    return;
+  }
 
+  if (!payload || !payload.email) {
+    res.status(401).json({ error: "Invalid Google token" });
+    return;
+  }
+
+  try {
     const { sub: googleId, email, name } = payload;
 
     let user = await prisma.user.findFirst({
@@ -213,7 +243,7 @@ router.post("/google", strictLimiter, async (req: Request, res: Response) => {
     await issueTokens(user, res);
   } catch (err) {
     console.error("Google auth error:", err);
-    res.status(401).json({ error: "Google authentication failed" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

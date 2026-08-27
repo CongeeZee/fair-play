@@ -100,7 +100,10 @@ export default function InstallPrompt() {
       }
       action={
         <>
-          <Button color="primary" size="small" onClick={install} sx={{ fontWeight: 600 }}>
+          {/* The Snackbar sits on a near-black surface, so primary (dark green)
+              rendered the label all but invisible. Gold is the accent that
+              actually reads against it. */}
+          <Button color="secondary" size="small" onClick={install} sx={{ fontWeight: 600 }}>
             Install
           </Button>
           <IconButton size="small" aria-label="Dismiss install prompt" color="inherit" onClick={dismiss}>
