@@ -82,9 +82,9 @@ export default function ReactionBar({ roundId, reactionSummary, userReaction, re
                 fontSize: '1rem',
                 height: 28,
                 cursor: readOnly ? 'default' : 'pointer',
-                bgcolor: isSelected ? 'rgba(201,168,76,0.2)' : 'rgba(0,0,0,0.04)',
-                border: isSelected ? '1.5px solid #c9a84c' : '1.5px solid transparent',
-                '&:hover': readOnly ? {} : { bgcolor: isSelected ? 'rgba(201,168,76,0.3)' : 'rgba(0,0,0,0.08)' },
+                bgcolor: isSelected ? 'rgba(224,185,92,0.2)' : 'rgba(0,0,0,0.04)',
+                border: isSelected ? '1.5px solid #e0b95c' : '1.5px solid transparent',
+                '&:hover': readOnly ? {} : { bgcolor: isSelected ? 'rgba(224,185,92,0.3)' : 'rgba(0,0,0,0.08)' },
               }}
             />
           )

@@ -46,10 +46,10 @@ export default function HandicapTrendChart() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Your handicap index after each round · lower is better
         </Typography>
-        <Box sx={{ bgcolor: '#f5f0e8', borderRadius: 2, p: { xs: 1, sm: 2 } }}>
+        <Box sx={{ bgcolor: '#e9e1d3', borderRadius: 2, p: { xs: 1, sm: 2 } }}>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d5cfc5" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" />
               <XAxis
                 dataKey="index"
                 type="number"
@@ -88,7 +88,7 @@ export default function HandicapTrendChart() {
                       <Typography variant="caption" color="text.secondary" display="block">
                         {d.date} · Round {d.roundNumber}
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 800, color: '#1a3a2a', my: 0.25 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: '#2f6b4c', my: 0.25 }}>
                         {d.handicapIndex.toFixed(1)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{
@@ -103,13 +103,13 @@ export default function HandicapTrendChart() {
               <Line
                 type="monotone"
                 dataKey="handicapIndex"
-                stroke="#1a3a2a"
+                stroke="#2f6b4c"
                 strokeWidth={2.5}
                 dot={(props) => {
                   const { cx, cy } = props
-                  return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="#c9a84c" stroke="#1a3a2a" strokeWidth={1.5} />
+                  return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="#e0b95c" stroke="#2f6b4c" strokeWidth={1.5} />
                 }}
-                activeDot={{ r: 7, fill: '#c9a84c', stroke: '#1a3a2a', strokeWidth: 2 }}
+                activeDot={{ r: 7, fill: '#e0b95c', stroke: '#2f6b4c', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>

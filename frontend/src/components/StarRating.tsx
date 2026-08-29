@@ -21,9 +21,9 @@ export default function StarRating({ value, onChange, size = 'medium', readOnly 
   const stars = [1, 2, 3, 4, 5].map((n) => {
     let icon
     if (v >= n) {
-      icon = <StarIcon sx={{ fontSize: px, color: '#c9a84c' }} />
+      icon = <StarIcon sx={{ fontSize: px, color: '#e0b95c' }} />
     } else if (v >= n - 0.5) {
-      icon = <StarHalfIcon sx={{ fontSize: px, color: '#c9a84c' }} />
+      icon = <StarHalfIcon sx={{ fontSize: px, color: '#e0b95c' }} />
     } else {
       icon = <StarBorderIcon sx={{ fontSize: px, color: readonly ? 'text.disabled' : 'text.secondary' }} />
     }

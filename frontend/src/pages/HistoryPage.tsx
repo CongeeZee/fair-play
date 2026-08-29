@@ -176,9 +176,9 @@ export default function HistoryPage() {
                     // reserve red for genuine blow-ups rather than every round.
                     const chipColor =
                       diff == null ? '#888'
-                      : diff < 0 ? '#c9a84c'     // under par — gold
-                      : diff === 0 ? '#2d5e42'   // even — green
-                      : diff <= 5 ? '#1a3a5c'    // modest over par — dark navy
+                      : diff < 0 ? '#e0b95c'     // under par — gold
+                      : diff === 0 ? '#4a8a68'   // even — green
+                      : diff <= 5 ? '#5c86a8'    // modest over par — clay blue
                       : diff <= 12 ? '#5c5470'   // typical club score — muted slate
                       : '#a1453c'                // blow-up round — softened red
 

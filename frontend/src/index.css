@@ -1,3 +1,16 @@
+/* Claymorphism base tokens.
+   Mirrors CLAY.* in src/theme.ts — kept in sync by hand because plain CSS
+   (body background, focus rings, scrollbars) is painted before React mounts. */
+:root {
+  --clay-base: #e9e1d3;
+  --clay-surface: #faf6ee;
+  --clay-sunken: #e4dbcb;
+  --clay-shade: rgba(163, 148, 122, 0.42);
+  --clay-light: rgba(255, 255, 255, 0.92);
+  --clay-green: #2f6b4c;
+  --clay-gold: #e0b95c;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -5,11 +18,30 @@
 body {
   margin: 0;
   font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
-  background-color: #f5f0e8;
+  /* Two very low-contrast radial washes stop the flat base colour from
+     looking like dead space behind the raised cards. */
+  background-color: var(--clay-base);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.55) 0%, transparent 42%),
+    radial-gradient(circle at 88% 92%, rgba(47, 107, 76, 0.06) 0%, transparent 45%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Rounded, soft focus ring rather than the default square outline. */
+:focus-visible {
+  outline: 2px solid var(--clay-green);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Firefox scrollbars (WebKit is handled in the MUI CssBaseline overrides). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(163, 148, 122, 0.5) transparent;
 }

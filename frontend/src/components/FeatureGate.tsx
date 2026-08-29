@@ -46,7 +46,7 @@ export function FeatureGate({
       sx={{
         borderColor: 'secondary.main',
         background:
-          'linear-gradient(135deg, rgba(26,58,42,0.04) 0%, rgba(201,168,76,0.10) 100%)',
+          'linear-gradient(135deg, rgba(47,107,76,0.04) 0%, rgba(224,185,92,0.10) 100%)',
       }}
     >
       <CardContent>

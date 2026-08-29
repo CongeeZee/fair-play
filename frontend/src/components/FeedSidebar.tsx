@@ -68,7 +68,7 @@ function TeeTimeRow({ tt, invited }: { tt: TeeTimeSummary; invited?: boolean }) 
         secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
       />
       {invited && (
-        <Chip label="Invited" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#c9a84c', color: '#fff' }} />
+        <Chip label="Invited" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#e0b95c', color: '#fff' }} />
       )}
     </ListItemButton>
   )
@@ -76,7 +76,7 @@ function TeeTimeRow({ tt, invited }: { tt: TeeTimeSummary; invited?: boolean }) 
 
 function CompetitionRow({ comp }: { comp: CompetitionSummary }) {
   const navigate = useNavigate()
-  const statusColor = comp.status === 'ACTIVE' ? '#2d5e42' : '#1a3a5c'
+  const statusColor = comp.status === 'ACTIVE' ? '#4a8a68' : '#5c86a8'
   return (
     <ListItemButton dense onClick={() => navigate(`/competitions/${comp.id}`)} sx={{ py: 0.75 }}>
       <ListItemText
@@ -90,7 +90,7 @@ function CompetitionRow({ comp }: { comp: CompetitionSummary }) {
         size="small"
         sx={{
           ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, color: '#fff',
-          bgcolor: comp.myStatus === 'INVITED' ? '#c9a84c' : statusColor,
+          bgcolor: comp.myStatus === 'INVITED' ? '#e0b95c' : statusColor,
         }}
       />
     </ListItemButton>
@@ -124,7 +124,7 @@ export default function FeedSidebar() {
       {upcomingTeeTimes.length > 0 && (
         <SidebarSection
           title="Upcoming rounds"
-          icon={<GolfCourseIcon sx={{ fontSize: 18, color: '#1a3a2a' }} />}
+          icon={<GolfCourseIcon sx={{ fontSize: 18, color: '#2f6b4c' }} />}
           seeAllTo="/teetimes"
         >
           <List disablePadding sx={{ pb: 0.5 }}>
@@ -141,7 +141,7 @@ export default function FeedSidebar() {
       {activeComps.length > 0 && (
         <SidebarSection
           title="Competitions"
-          icon={<EmojiEventsIcon sx={{ fontSize: 18, color: '#c9a84c' }} />}
+          icon={<EmojiEventsIcon sx={{ fontSize: 18, color: '#e0b95c' }} />}
           seeAllTo="/competitions"
         >
           <List disablePadding sx={{ pb: 0.5 }}>

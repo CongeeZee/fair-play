@@ -104,12 +104,12 @@ export default function LeaderboardSection() {
                       <TableRow
                         key={entry.userId}
                         onClick={() => navigate(`/profile/${entry.userId}`)}
-                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : {}) }}
+                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(224,185,92, 0.1)' } : {}) }}
                       >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {i === 0 && entry.avgScoreToPar !== null && (
-                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#c9a84c' }} />
+                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#e0b95c' }} />
                             )}
                             {i + 1}
                           </Box>
@@ -161,12 +161,12 @@ export default function LeaderboardSection() {
                       <TableRow
                         key={entry.userId}
                         onClick={() => navigate(`/profile/${entry.userId}`)}
-                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(201, 168, 76, 0.1)' } : {}) }}
+                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(224,185,92, 0.1)' } : {}) }}
                       >
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {i === 0 && entry.handicapIndex !== null && (
-                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#c9a84c' }} />
+                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#e0b95c' }} />
                             )}
                             {i + 1}
                           </Box>
@@ -178,8 +178,8 @@ export default function LeaderboardSection() {
                           {entry.handicapIndex != null ? entry.handicapIndex.toFixed(1) : '—'}
                         </TableCell>
                         <TableCell align="center">
-                          {entry.trend === 'improving' && <TrendingDownIcon sx={{ fontSize: 18, color: '#2d5e42' }} />}
-                          {entry.trend === 'declining' && <TrendingUpIcon sx={{ fontSize: 18, color: '#c62828' }} />}
+                          {entry.trend === 'improving' && <TrendingDownIcon sx={{ fontSize: 18, color: '#4a8a68' }} />}
+                          {entry.trend === 'declining' && <TrendingUpIcon sx={{ fontSize: 18, color: '#b0574c' }} />}
                           {entry.trend === 'stable' && <RemoveIcon sx={{ fontSize: 18, color: '#999' }} />}
                         </TableCell>
                       </TableRow>

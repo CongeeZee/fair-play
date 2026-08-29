@@ -42,12 +42,19 @@ export default function Navbar() {
   return (
     <AppBar
       position="fixed"
-      elevation={solid ? 2 : 0}
+      elevation={0}
       sx={{
-        bgcolor: solid ? '#1a3a2a' : 'transparent',
+        // A clay slab rather than a flat bar: soft gradient face plus a top
+        // inset highlight, so the bar reads as moulded like the cards below it.
+        background: solid
+          ? 'linear-gradient(180deg, #37795a 0%, #2f6b4c 100%)'
+          : 'transparent',
         backdropFilter: !solid ? 'blur(10px)' : 'none',
         borderBottom: !solid ? '1px solid rgba(255,255,255,0.1)' : 'none',
-        transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+        boxShadow: solid
+          ? '0 8px 24px 0 rgba(31, 74, 52, 0.28), inset 0 1px 0 0 rgba(255,255,255,0.16)'
+          : 'none',
+        transition: 'background 0.3s ease, box-shadow 0.3s ease',
       }}
     >
       <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
@@ -82,12 +89,22 @@ export default function Navbar() {
                 to={to}
                 sx={{
                   fontSize: '0.875rem',
-                  fontWeight: active ? 700 : 400,
-                  opacity: active ? 1 : 0.75,
-                  borderBottom: active ? '2px solid #c9a84c' : '2px solid transparent',
-                  borderRadius: 0,
-                  pb: '2px',
-                  '&:hover': { opacity: 1, bgcolor: 'rgba(255,255,255,0.08)' },
+                  fontWeight: active ? 700 : 500,
+                  // Active tab becomes a pressed-in pill — the clay equivalent
+                  // of the old gold underline.
+                  color: active ? '#f2d492' : 'rgba(255,255,255,0.78)',
+                  borderRadius: 999,
+                  px: 2,
+                  py: 0.6,
+                  minWidth: 0,
+                  boxShadow: active
+                    ? 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)'
+                    : 'none',
+                  bgcolor: active ? 'rgba(19,48,33,0.28)' : 'transparent',
+                  '&:hover': {
+                    color: '#fff',
+                    bgcolor: active ? 'rgba(19,48,33,0.32)' : 'rgba(255,255,255,0.1)',
+                  },
                 }}
               >
                 {badge > 0 ? <Badge badgeContent={badge} color="error" sx={{ '& .MuiBadge-badge': { right: -10, top: -2 } }}>{label}</Badge> : label}

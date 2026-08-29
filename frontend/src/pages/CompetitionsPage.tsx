@@ -36,8 +36,8 @@ import EmptyState from '../components/EmptyState'
 // ── Status badge colors ──────────────────────────────────────────────────────
 
 function statusColor(status: string) {
-  if (status === 'ACTIVE') return { bg: '#2d5e42', text: '#fff' }
-  if (status === 'UPCOMING') return { bg: '#1a3a5c', text: '#fff' }
+  if (status === 'ACTIVE') return { bg: '#4a8a68', text: '#fff' }
+  if (status === 'UPCOMING') return { bg: '#5c86a8', text: '#fff' }
   return { bg: '#666', text: '#fff' }
 }
 
@@ -503,7 +503,7 @@ function CompetitionDetailView({ id }: { id: string }) {
       )}
 
       {/* Header */}
-      <Card elevation={2} sx={{ mb: 3, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)', borderRadius: 2 }}>
+      <Card elevation={2} sx={{ mb: 3, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)', borderRadius: 2 }}>
         <CardContent sx={{ py: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box>
@@ -565,11 +565,11 @@ function CompetitionDetailView({ id }: { id: string }) {
                 {idx > 0 && <Divider />}
                 <Box sx={{
                   display: 'flex', alignItems: 'center', px: 2, py: 1.5,
-                  bgcolor: isMe ? 'rgba(201,168,76,0.08)' : undefined,
+                  bgcolor: isMe ? 'rgba(224,185,92,0.08)' : undefined,
                 }}>
                   <Box sx={{ width: 32, textAlign: 'center', flexShrink: 0 }}>
                     {entry.rank === 1 ? (
-                      <EmojiEventsIcon sx={{ color: '#c9a84c', fontSize: 22 }} />
+                      <EmojiEventsIcon sx={{ color: '#e0b95c', fontSize: 22 }} />
                     ) : (
                       <Typography variant="body2" fontWeight={700} color="text.secondary">{entry.rank}</Typography>
                     )}
@@ -600,7 +600,7 @@ function CompetitionDetailView({ id }: { id: string }) {
                       size="small"
                       sx={{
                         ml: 1.5, fontWeight: 700, height: 24,
-                        bgcolor: entry.rank === 1 ? '#c9a84c' : '#2d5e42',
+                        bgcolor: entry.rank === 1 ? '#e0b95c' : '#4a8a68',
                         color: '#fff',
                       }}
                     />
@@ -610,9 +610,9 @@ function CompetitionDetailView({ id }: { id: string }) {
                       size="small"
                       sx={{
                         ml: 1.5, fontWeight: 700, height: 24,
-                        bgcolor: displayScore != null && displayScore < 0 ? '#c9a84c'
-                          : displayScore === 0 ? '#2d5e42'
-                          : '#1a3a5c',
+                        bgcolor: displayScore != null && displayScore < 0 ? '#e0b95c'
+                          : displayScore === 0 ? '#4a8a68'
+                          : '#5c86a8',
                         color: '#fff',
                       }}
                     />
@@ -629,7 +629,7 @@ function CompetitionDetailView({ id }: { id: string }) {
               {comp.noSubmission.map((p) => {
                 const isMe = p.userId === parseInt(String(user?.id))
                 return (
-                  <Box key={p.userId} sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, bgcolor: isMe ? 'rgba(201,168,76,0.05)' : undefined }}>
+                  <Box key={p.userId} sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, bgcolor: isMe ? 'rgba(224,185,92,0.05)' : undefined }}>
                     <Box sx={{ width: 32, textAlign: 'center', flexShrink: 0 }}>
                       <Typography variant="body2" color="text.disabled">–</Typography>
                     </Box>

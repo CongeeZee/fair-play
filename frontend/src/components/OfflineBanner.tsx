@@ -15,19 +15,19 @@ export default function OfflineBanner({ syncState, pendingCount }: OfflineBanner
     offline: {
       icon: <CloudOffIcon sx={{ fontSize: 16 }} />,
       text: `You're offline — ${pendingCount > 0 ? `${pendingCount} score${pendingCount > 1 ? 's' : ''} saved locally` : 'scores are saved locally'}`,
-      bgcolor: '#f5a623',
+      bgcolor: '#e6ae4d',
       color: '#000',
     },
     syncing: {
       icon: <CircularProgress size={14} sx={{ color: '#fff' }} />,
       text: 'Syncing scores...',
-      bgcolor: '#1a3a5c',
+      bgcolor: '#5c86a8',
       color: '#fff',
     },
     synced: {
       icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
       text: 'All scores synced',
-      bgcolor: '#2d5e42',
+      bgcolor: '#4a8a68',
       color: '#fff',
     },
   } as const

@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import { Popover, Typography, Box, IconButton } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import { CLAY, raised, tint } from '../theme'
 
 interface Props {
   storageKey: string
@@ -50,7 +51,7 @@ export default function FirstTimeTooltip({
         transformOrigin={transformOrigin}
         disableAutoFocus
         disableEnforceFocus
-        slotProps={{ paper: { sx: { p: 1.5, pr: 4, maxWidth: 260, bgcolor: '#1a3a2a', color: '#fff', borderRadius: 2 } } }}
+        slotProps={{ paper: { sx: { p: 1.5, pr: 4, maxWidth: 260, bgcolor: '#2f6b4c', color: '#fff', borderRadius: 2 } } }}
       >
         <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
           {message}
@@ -78,7 +79,7 @@ export function FirstTimeCard({ storageKey, message, action }: { storageKey: str
   }
 
   return (
-    <Box sx={{ bgcolor: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 2, p: 2, mb: 3, position: 'relative' }}>
+    <Box sx={{ bgcolor: tint(CLAY.gold, 0.18), boxShadow: raised(3), borderRadius: 2, p: 2, mb: 3, position: 'relative' }}>
       <IconButton size="small" onClick={handleDismiss} sx={{ position: 'absolute', top: 4, right: 4 }}>
         <CloseIcon sx={{ fontSize: 16 }} />
       </IconButton>

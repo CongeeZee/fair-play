@@ -7,6 +7,7 @@ import StarRating from './StarRating'
 import ProfileLink from './ProfileLink'
 import ReviewPromptDialog from './ReviewPromptDialog'
 import { getCourseReviews } from '../api/reviews'
+import { CLAY, tint } from '../theme'
 
 interface CourseReviewsSectionProps {
   courseId: string | number
@@ -16,7 +17,7 @@ interface CourseReviewsSectionProps {
 function scoreToParBadge(stp: number | null) {
   if (stp == null) return null
   const label = stp === 0 ? 'E' : stp > 0 ? `+${stp}` : `${stp}`
-  const color = stp < 0 ? '#c9a84c' : stp === 0 ? '#2d5e42' : stp <= 5 ? '#e6a817' : '#c62828'
+  const color = stp < 0 ? '#e0b95c' : stp === 0 ? '#4a8a68' : stp <= 5 ? '#d9a63f' : '#b0574c'
   return (
     <Chip
       label={label}
@@ -54,7 +55,7 @@ export default function CourseReviewsSection({ courseId, promptableRound }: Cour
   return (
     <Box>
       {promptableRound && (
-        <Paper elevation={1} sx={{ p: 2, mb: 2, bgcolor: 'rgba(201, 168, 76, 0.08)', border: '1px solid rgba(201,168,76,0.3)' }}>
+        <Paper elevation={2} sx={{ p: 2, mb: 2, bgcolor: tint(CLAY.gold, 0.18) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
             <Box>
               <Typography variant="subtitle1" fontWeight={700}>Leave a review</Typography>
@@ -97,7 +98,7 @@ export default function CourseReviewsSection({ courseId, promptableRound }: Cour
                         variant="determinate"
                         value={pct}
                         sx={{ height: 8, borderRadius: 4, bgcolor: 'action.hover',
-                          '& .MuiLinearProgress-bar': { bgcolor: '#c9a84c' } }}
+                          '& .MuiLinearProgress-bar': { bgcolor: '#e0b95c' } }}
                       />
                     </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ width: 30, textAlign: 'right' }}>
