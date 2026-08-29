@@ -130,6 +130,9 @@ export default function RegisterPage() {
             size="large"
             width={320}
             text="signup_with"
+            // Matches LoginPage — Google owns this button's chrome, and `shape`
+            // is the only way to stop it being the one square corner on the page.
+            shape="pill"
           />
         </Box>
 

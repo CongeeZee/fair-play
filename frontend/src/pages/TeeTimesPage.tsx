@@ -28,6 +28,7 @@ import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import CourseSearchInput from '../components/CourseSearchInput'
 import type { TeeTimeSummary } from '../types'
+import { CLAY, raised, tint } from '../theme'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -351,7 +352,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
       </Button>
 
       {/* Header card */}
-      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)', color: '#fff', borderRadius: 3 }}>
+      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)', color: '#fff', borderRadius: 3 }}>
         <CardContent sx={{ py: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>{courseName}</Typography>
           <Typography variant="body1" sx={{ opacity: 0.9, mb: 1 }}>
@@ -363,7 +364,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
           <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
             {/* Show status only when it's a meaningful non-default state — avoids duplicating 'Open' with visibility */}
             {(tt.status === 'CANCELLED' || tt.status === 'FULL' || tt.status === 'COMPLETED') && (
-              <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#c62828' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+              <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#b0574c' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
             )}
             <Chip label={tt.visibility === 'FRIENDS' ? 'Open' : 'Invite Only'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.7rem' }} />
           </Box>
@@ -399,7 +400,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
               key={i}
               sx={{
                 width: 36, height: 36,
-                bgcolor: i < confirmed.length ? '#2d5e42' : 'rgba(0,0,0,0.08)',
+                bgcolor: i < confirmed.length ? '#4a8a68' : 'rgba(0,0,0,0.08)',
                 color: i < confirmed.length ? '#fff' : 'rgba(0,0,0,0.3)',
                 fontSize: '0.8rem', fontWeight: 700,
               }}
@@ -424,7 +425,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
                 <ProfileLink userId={p.userId} name={p.name} variant="body2" />
                 {p.userId === Number(user?.id) && <Typography variant="body2" color="text.secondary">(You)</Typography>}
               </Box>
-              <Chip label="Confirmed" size="small" sx={{ bgcolor: '#e8f5e9', color: '#2d5e42', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
+              <Chip label="Confirmed" size="small" sx={{ bgcolor: '#e8f5e9', color: '#4a8a68', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
         ))}
@@ -442,7 +443,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
             <Divider />
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ opacity: 0.5 }} />
-              <Chip label={p.status === 'WITHDRAWN' ? 'Withdrew' : 'Declined'} size="small" sx={{ bgcolor: '#fce4ec', color: '#c62828', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
+              <Chip label={p.status === 'WITHDRAWN' ? 'Withdrew' : 'Declined'} size="small" sx={{ bgcolor: '#fce4ec', color: '#b0574c', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
         ))}
@@ -559,11 +560,22 @@ function TeeTimesListView() {
           {/* Invitations */}
           {invitations.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, color: '#1a3a5c', fontWeight: 700 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: CLAY.goldDark, fontWeight: 700 }}>
                 Invitations ({invitations.length})
               </Typography>
               {invitations.map((tt) => (
-                <Card key={tt.id} variant="outlined" sx={{ mb: 1.5, borderRadius: 2, borderColor: '#1a3a5c', borderWidth: 2 }}>
+                // Gold ring, matching how Play and the feed sidebar already flag
+                // an invitation. Navy was the only off-palette colour left here.
+                <Card
+                  key={tt.id}
+                  elevation={2}
+                  sx={{
+                    mb: 1.5,
+                    borderRadius: 2,
+                    bgcolor: tint(CLAY.gold, 0.16),
+                    boxShadow: `${raised(3)}, 0 0 0 2px rgba(224,185,92,0.45)`,
+                  }}
+                >
                   <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{tt.courseName || 'Course TBD'}</Typography>
                     <Typography variant="body2" color="text.secondary">

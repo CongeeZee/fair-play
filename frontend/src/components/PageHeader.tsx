@@ -44,12 +44,13 @@ export default function PageHeader({ title, subtitle, action }: PageHeaderProps)
         </Typography>
         <Box
           sx={{
-            width: 36,
-            height: 3,
-            borderRadius: 1.5,
-            bgcolor: 'secondary.main',
-            mt: 1,
-            mb: subtitle ? 1 : 0,
+            width: 44,
+            height: 7,
+            borderRadius: 999,
+            background: 'linear-gradient(135deg, #f2d492 0%, #e0b95c 60%, #bf9738 100%)',
+            boxShadow: '2px 2px 5px 0 rgba(163,148,122,0.5), inset 0 1px 2px 0 rgba(255,255,255,0.7)',
+            mt: 1.25,
+            mb: subtitle ? 1.25 : 0,
           }}
         />
         {subtitle && (

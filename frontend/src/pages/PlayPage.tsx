@@ -16,6 +16,7 @@ import PageHeader from '../components/PageHeader'
 import CourseSearchInput, { type CourseSearchResult } from '../components/CourseSearchInput'
 import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import { getLiveRounds } from '../api/live'
+import { CLAY, raised, tint } from '../theme'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -109,7 +110,19 @@ export default function PlayPage() {
         </Box>
 
         {invitations.length > 0 && invitations.map((tt) => (
-          <Card key={tt.id} variant="outlined" sx={{ mb: 1, borderRadius: 2, borderColor: '#1a3a5c', borderWidth: 2 }}>
+          // Gold, not the info blue: "invited" is the same needs-your-attention
+          // state the feed sidebar already flags in gold, and a hard navy rule
+          // is the one thing on the page that reads as a drawn border.
+          <Card
+            key={tt.id}
+            elevation={2}
+            sx={{
+              mb: 1,
+              borderRadius: 2,
+              bgcolor: tint(CLAY.gold, 0.16),
+              boxShadow: `${raised(3)}, 0 0 0 2px rgba(224,185,92,0.45)`,
+            }}
+          >
             <CardActionArea onClick={() => navigate(`/teetimes/${tt.id}`)}>
               <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -119,7 +132,7 @@ export default function PlayPage() {
                       {relativeDate(tt.dateTime)} · from {tt.creatorName}
                     </Typography>
                   </Box>
-                  <Chip label="Invited" size="small" sx={{ bgcolor: '#1a3a5c', color: '#fff', fontWeight: 700, fontSize: '0.65rem', height: 22 }} />
+                  <Chip label="Invited" size="small" sx={{ bgcolor: CLAY.gold, color: '#3a2f12', fontWeight: 700, fontSize: '0.65rem', height: 22 }} />
                 </Box>
               </CardContent>
             </CardActionArea>

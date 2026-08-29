@@ -38,6 +38,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import type { Round, InsightSuggestion } from '../types'
+import { CLAY, raised, pressed, tint } from '../theme'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -82,8 +83,12 @@ function ImprovementCard({ rounds }: { rounds: Round[] }) {
   const declined = delta > 0.4
 
   const TrendIcon = improved ? TrendingDownIcon : declined ? TrendingUpIcon : TrendingFlatIcon
-  const trendColor = improved ? '#2d5e42' : declined ? '#c62828' : '#4a5e4a'
-  const trendBg = improved ? 'rgba(45,94,66,0.1)' : declined ? 'rgba(198,40,40,0.08)' : 'rgba(74,94,74,0.08)'
+  const trendColor = improved ? '#4a8a68' : declined ? '#b0574c' : '#68786d'
+  // Solid, not translucent. A semi-transparent tint composites against the clay
+  // page base (#e9e1d3) and lands *darker* than the page, so a raised card reads
+  // as a sunken smudge. These are those same tints pre-composited over the clay
+  // surface (#faf6ee), which keeps the card above the page.
+  const trendBg = improved ? '#e8ebe1' : declined ? '#f4e9e1' : '#eeece4'
   const label = improved
     ? `${Math.abs(delta).toFixed(1)} strokes better`
     : declined
@@ -92,7 +97,7 @@ function ImprovementCard({ rounds }: { rounds: Round[] }) {
   const sub = `Last ${recent.length} rounds vs previous ${previous.length}`
 
   return (
-    <Card elevation={1} sx={{ mb: 4, bgcolor: trendBg, border: '1px solid', borderColor: improved ? 'rgba(45,94,66,0.2)' : declined ? 'rgba(198,40,40,0.2)' : 'rgba(74,94,74,0.15)' }}>
+    <Card elevation={2} sx={{ mb: 4, bgcolor: trendBg }}>
       <CardContent sx={{ py: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ bgcolor: trendColor, borderRadius: '50%', p: 1.25, display: 'flex', flexShrink: 0 }}>
@@ -150,7 +155,7 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
         </Typography>
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" />
             <XAxis
               dataKey="index"
               type="number"
@@ -169,7 +174,7 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
               tickLine={false}
               width={36}
             />
-            <ReferenceLine y={0} stroke="#2d5e42" strokeDasharray="4 4" strokeWidth={1.5} />
+            <ReferenceLine y={0} stroke="#4a8a68" strokeDasharray="4 4" strokeWidth={1.5} />
             <Tooltip
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
@@ -196,12 +201,12 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
             <Line
               type="monotone"
               dataKey="scoreToPar"
-              stroke="#1a3a5c"
+              stroke="#5c86a8"
               strokeWidth={2.5}
               dot={(props) => {
                 const { cx, cy, payload } = props
                 const score = payload.scoreToPar
-                const color = score < 0 ? '#c62828' : score === 0 ? '#2d5e42' : '#1a3a5c'
+                const color = score < 0 ? '#b0574c' : score === 0 ? '#4a8a68' : '#5c86a8'
                 return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={2} />
               }}
               activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
@@ -214,20 +219,23 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
 }
 
 function severityIcon(s: InsightSuggestion['severity']) {
-  if (s === 'high') return <WarningAmberIcon sx={{ fontSize: 18, color: '#c62828' }} />
-  if (s === 'medium') return <InfoOutlinedIcon sx={{ fontSize: 18, color: '#e6a817' }} />
-  return <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#2d5e42' }} />
+  if (s === 'high') return <WarningAmberIcon sx={{ fontSize: 18, color: '#b0574c' }} />
+  if (s === 'medium') return <InfoOutlinedIcon sx={{ fontSize: 18, color: '#d9a63f' }} />
+  return <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#4a8a68' }} />
 }
 
 function severityBg(s: InsightSuggestion['severity']) {
-  if (s === 'high') return { bg: 'rgba(198,40,40,0.06)', border: 'rgba(198,40,40,0.2)', text: '#c62828' }
-  if (s === 'medium') return { bg: 'rgba(230,168,23,0.06)', border: 'rgba(230,168,23,0.25)', text: '#8a6000' }
-  return { bg: 'rgba(45,94,66,0.06)', border: 'rgba(45,94,66,0.2)', text: '#2d5e42' }
+  if (s === 'high') return { bg: tint('#b0574c', 0.12), text: '#b0574c' }
+  if (s === 'medium') return { bg: tint('#d9a63f', 0.16), text: '#7d5a14' }
+  return { bg: tint(CLAY.greenLight, 0.12), text: '#4a8a68' }
 }
 
 function MetricPill({ label, value }: { label: string; value: string }) {
   return (
-    <Box sx={{ textAlign: 'center', px: 1.5, py: 1, bgcolor: 'background.default', borderRadius: 2, flex: 1, minWidth: 80 }}>
+    // Reads as a well carved into the card rather than a flat grey patch —
+    // `background.default` is darker than the card surface, so without the
+    // inset it just looks like a smudge.
+    <Box sx={{ textAlign: 'center', px: 1.5, py: 1, bgcolor: CLAY.sunken, boxShadow: pressed(1.6), borderRadius: 2, flex: 1, minWidth: 80 }}>
       <Typography variant="h6" fontWeight={700} color="primary.main">{value}</Typography>
       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>{label}</Typography>
     </Box>
@@ -326,11 +334,11 @@ export default function StatsPage() {
 
   const breakdownItems = breakdown
     ? [
-        { label: 'Eagles', value: breakdown.eagles, color: '#c9a84c' },
-        { label: 'Birdies', value: breakdown.birdies, color: '#2d5e42' },
-        { label: 'Pars', value: breakdown.pars, color: '#4a5e4a' },
-        { label: 'Bogeys', value: breakdown.bogeys, color: '#e6a817' },
-        { label: 'Double+', value: breakdown.doublesOrWorse, color: '#c62828' },
+        { label: 'Eagles', value: breakdown.eagles, color: '#e0b95c' },
+        { label: 'Birdies', value: breakdown.birdies, color: '#4a8a68' },
+        { label: 'Pars', value: breakdown.pars, color: '#68786d' },
+        { label: 'Bogeys', value: breakdown.bogeys, color: '#d9a63f' },
+        { label: 'Double+', value: breakdown.doublesOrWorse, color: '#b0574c' },
       ]
     : []
 
@@ -363,7 +371,7 @@ export default function StatsPage() {
     />
 
       {/* Handicap Index hero */}
-      <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #1a3a2a 0%, #2d5e42 100%)' }}>
+      <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)' }}>
         <CardContent sx={{ py: 3 }}>
           <Grid container spacing={3} alignItems="center">
             <Grid size={{ xs: 12, sm: 'auto' }}>
@@ -503,7 +511,7 @@ export default function StatsPage() {
                   {handicap.differentials.map((d) => (
                     <TableRow
                       key={d.roundId}
-                      sx={{ bgcolor: d.used ? 'rgba(45,94,66,0.08)' : undefined }}
+                      sx={{ bgcolor: d.used ? 'rgba(74,138,104,0.08)' : undefined }}
                     >
                       <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {formatCourseName(d.courseName)}
@@ -520,7 +528,7 @@ export default function StatsPage() {
                             {d.differential.toFixed(1)}
                           </Typography>
                           {d.used && (
-                            <Chip label="used" size="small" sx={{ bgcolor: '#2d5e42', color: '#fff', height: 18, fontSize: 10 }} />
+                            <Chip label="used" size="small" sx={{ bgcolor: '#4a8a68', color: '#fff', height: 18, fontSize: 10 }} />
                           )}
                         </Box>
                       </TableCell>
@@ -553,9 +561,9 @@ export default function StatsPage() {
             value={formatScore(stats.averageScoreToPar)}
             color={
               stats.averageScoreToPar == null ? undefined
-              : stats.averageScoreToPar < 0 ? '#2d5e42'
-              : stats.averageScoreToPar === 0 ? '#4a5e4a'
-              : '#c62828'
+              : stats.averageScoreToPar < 0 ? '#4a8a68'
+              : stats.averageScoreToPar === 0 ? '#68786d'
+              : '#b0574c'
             }
           />
         </Grid>
@@ -563,14 +571,14 @@ export default function StatsPage() {
           <StatCard
             label="Best Round"
             value={formatScore(stats.bestScoreToPar)}
-            color={stats.bestScoreToPar != null && stats.bestScoreToPar < 0 ? '#c9a84c' : '#2d5e42'}
+            color={stats.bestScoreToPar != null && stats.bestScoreToPar < 0 ? '#e0b95c' : '#4a8a68'}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard
             label="Worst Round"
             value={formatScore(stats.worstScoreToPar)}
-            color="#c62828"
+            color="#b0574c"
           />
         </Grid>
       </Grid>
@@ -634,7 +642,7 @@ export default function StatsPage() {
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <LightbulbIcon sx={{ color: '#c9a84c' }} />
+              <LightbulbIcon sx={{ color: '#e0b95c' }} />
               <Typography variant="h6" color="primary.main" fontWeight={700}>
                 Game Insights
               </Typography>
@@ -689,9 +697,9 @@ export default function StatsPage() {
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {insights.suggestions.map((s, i) => {
-                const { bg, border, text } = severityBg(s.severity)
+                const { bg, text } = severityBg(s.severity)
                 return (
-                  <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, border: '1px solid', borderColor: border, borderRadius: 2 }}>
+                  <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, boxShadow: raised(2.4), borderRadius: 2 }}>
                     <Box sx={{ pt: 0.1, flexShrink: 0 }}>{severityIcon(s.severity)}</Box>
                     <Box>
                       <Typography variant="caption" fontWeight={700} sx={{ color: text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -727,7 +735,7 @@ export default function StatsPage() {
             {courseStats.map((c, idx) => {
               const diffStr = c.averageScoreToPar === 0 ? 'E' : c.averageScoreToPar > 0 ? `+${c.averageScoreToPar.toFixed(1)}` : c.averageScoreToPar.toFixed(1)
               const bestStr = c.bestScoreToPar === 0 ? 'E' : c.bestScoreToPar > 0 ? `+${c.bestScoreToPar}` : `${c.bestScoreToPar}`
-              const chipColor = c.averageScoreToPar < 0 ? '#c9a84c' : c.averageScoreToPar === 0 ? '#2d5e42' : c.averageScoreToPar <= 10 ? '#1a3a5c' : '#c62828'
+              const chipColor = c.averageScoreToPar < 0 ? '#e0b95c' : c.averageScoreToPar === 0 ? '#4a8a68' : c.averageScoreToPar <= 10 ? '#5c86a8' : '#b0574c'
               return (
                 <Box key={c.courseId}>
                   {idx > 0 && <Divider />}

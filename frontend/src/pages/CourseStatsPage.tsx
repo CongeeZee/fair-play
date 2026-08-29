@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatCourseName } from '../utils'
 import CourseReviewsSection from '../components/CourseReviewsSection'
 import type { CourseHoleStat } from '../types'
+import { CLAY, tint } from '../theme'
 
 function pct(rate: number | null) {
   if (rate == null) return '—'
@@ -26,10 +27,10 @@ function avgStr(v: number | null) {
 
 function diffColor(v: number | null) {
   if (v == null) return 'text.secondary'
-  if (v < 0) return '#c9a84c'
-  if (v === 0) return '#2d5e42'
-  if (v <= 1) return '#e6a817'
-  return '#c62828'
+  if (v < 0) return '#e0b95c'
+  if (v === 0) return '#4a8a68'
+  if (v <= 1) return '#d9a63f'
+  return '#b0574c'
 }
 
 function holeRating(hole: CourseHoleStat): 'strength' | 'weakness' | 'neutral' {
@@ -120,9 +121,9 @@ export default function CourseStatsPage() {
           {/* Strongest / Weakest summary cards */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card elevation={1} sx={{ border: '1px solid rgba(45,94,66,0.3)', bgcolor: 'rgba(45,94,66,0.04)' }}>
+              <Card elevation={2} sx={{ height: '100%', bgcolor: tint(CLAY.greenLight, 0.1) }}>
                 <CardContent sx={{ pb: '12px !important' }}>
-                  <Typography variant="overline" sx={{ color: '#2d5e42', fontWeight: 700, letterSpacing: 1.5 }}>
+                  <Typography variant="overline" sx={{ color: '#4a8a68', fontWeight: 700, letterSpacing: 1.5 }}>
                     Strongest Holes
                   </Typography>
                   {strongest.map((h) => (
@@ -133,7 +134,7 @@ export default function CourseStatsPage() {
                       <Chip
                         label={avgStr(h.averageScoreToPar)}
                         size="small"
-                        sx={{ bgcolor: '#2d5e42', color: '#fff', fontWeight: 700, height: 22 }}
+                        sx={{ bgcolor: '#4a8a68', color: '#fff', fontWeight: 700, height: 22 }}
                       />
                     </Box>
                   ))}
@@ -141,9 +142,9 @@ export default function CourseStatsPage() {
               </Card>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card elevation={1} sx={{ border: '1px solid rgba(198,40,40,0.3)', bgcolor: 'rgba(198,40,40,0.04)' }}>
+              <Card elevation={2} sx={{ height: '100%', bgcolor: tint('#b0574c', 0.1) }}>
                 <CardContent sx={{ pb: '12px !important' }}>
-                  <Typography variant="overline" sx={{ color: '#c62828', fontWeight: 700, letterSpacing: 1.5 }}>
+                  <Typography variant="overline" sx={{ color: '#b0574c', fontWeight: 700, letterSpacing: 1.5 }}>
                     Weakest Holes
                   </Typography>
                   {weakest.map((h) => (
@@ -154,7 +155,7 @@ export default function CourseStatsPage() {
                       <Chip
                         label={avgStr(h.averageScoreToPar)}
                         size="small"
-                        sx={{ bgcolor: '#c62828', color: '#fff', fontWeight: 700, height: 22 }}
+                        sx={{ bgcolor: '#b0574c', color: '#fff', fontWeight: 700, height: 22 }}
                       />
                     </Box>
                   ))}
@@ -193,8 +194,8 @@ export default function CourseStatsPage() {
                         key={hole.holeId}
                         sx={{
                           bgcolor:
-                            rating === 'strength' ? 'rgba(45,94,66,0.06)'
-                            : rating === 'weakness' ? 'rgba(198,40,40,0.05)'
+                            rating === 'strength' ? 'rgba(74,138,104,0.06)'
+                            : rating === 'weakness' ? 'rgba(176,87,76,0.05)'
                             : undefined,
                           '&:hover': { bgcolor: 'action.hover' },
                         }}
@@ -221,8 +222,8 @@ export default function CourseStatsPage() {
                               sx={{
                                 height: 20,
                                 fontSize: '0.7rem',
-                                bgcolor: hole.girRate >= 0.5 ? 'rgba(45,94,66,0.15)' : hole.girRate >= 0.3 ? 'rgba(230,168,23,0.15)' : 'rgba(198,40,40,0.1)',
-                                color: hole.girRate >= 0.5 ? '#2d5e42' : hole.girRate >= 0.3 ? '#8a6000' : '#c62828',
+                                bgcolor: hole.girRate >= 0.5 ? 'rgba(74,138,104,0.15)' : hole.girRate >= 0.3 ? 'rgba(217,166,63,0.15)' : 'rgba(176,87,76,0.1)',
+                                color: hole.girRate >= 0.5 ? '#4a8a68' : hole.girRate >= 0.3 ? '#7d5a14' : '#b0574c',
                                 fontWeight: 600,
                               }}
                             />
@@ -238,8 +239,8 @@ export default function CourseStatsPage() {
                               sx={{
                                 height: 20,
                                 fontSize: '0.7rem',
-                                bgcolor: hole.fairwayRate >= 0.6 ? 'rgba(45,94,66,0.15)' : hole.fairwayRate >= 0.4 ? 'rgba(230,168,23,0.15)' : 'rgba(198,40,40,0.1)',
-                                color: hole.fairwayRate >= 0.6 ? '#2d5e42' : hole.fairwayRate >= 0.4 ? '#8a6000' : '#c62828',
+                                bgcolor: hole.fairwayRate >= 0.6 ? 'rgba(74,138,104,0.15)' : hole.fairwayRate >= 0.4 ? 'rgba(217,166,63,0.15)' : 'rgba(176,87,76,0.1)',
+                                color: hole.fairwayRate >= 0.6 ? '#4a8a68' : hole.fairwayRate >= 0.4 ? '#7d5a14' : '#b0574c',
                                 fontWeight: 600,
                               }}
                             />

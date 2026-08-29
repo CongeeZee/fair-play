@@ -107,6 +107,11 @@ export default function LoginPage() {
             size="large"
             width={320}
             text="signin_with"
+            // Google renders this button itself, so `shape` is the only lever
+            // available to stop it reading as a hard-cornered rectangle next to
+            // the clay pill above it. It still won't have a clay shadow — that
+            // is a limitation of the third-party widget, not an oversight.
+            shape="pill"
           />
         </Box>
 

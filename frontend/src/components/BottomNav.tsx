@@ -40,7 +40,7 @@ export default function BottomNav() {
 
   return (
     <Paper
-      elevation={8}
+      elevation={0}
       sx={{
         position: 'fixed',
         bottom: 0,
@@ -48,20 +48,35 @@ export default function BottomNav() {
         right: 0,
         zIndex: 1200,
         display: { xs: 'block', md: 'none' },
-        borderTop: '1px solid rgba(0,0,0,0.08)',
+        // Rounded top corners + an upward shadow make the bar read as a clay
+        // tray lifted off the page rather than a flat strip glued to the edge.
+        borderTopLeftRadius: 26,
+        borderTopRightRadius: 26,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        overflow: 'hidden',
+        boxShadow: '0 -8px 24px 0 rgba(163,148,122,0.5)',
       }}
     >
       <BottomNavigation
         value={currentValue === -1 ? false : currentValue}
         sx={{
-          bgcolor: '#1a3a2a',
+          background: 'linear-gradient(180deg, #37795a 0%, #2f6b4c 100%)',
+          boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.18)',
           height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
           pb: 'env(safe-area-inset-bottom, 0px)',
+          px: 0.75,
           '& .MuiBottomNavigationAction-root': {
-            color: 'rgba(255,255,255,0.5)',
+            color: 'rgba(255,255,255,0.55)',
             minWidth: 0,
+            borderRadius: 18,
+            mx: 0.25,
+            my: 0.75,
+            transition: 'background-color .2s ease, box-shadow .2s ease, color .2s ease',
             '&.Mui-selected': {
-              color: '#c9a84c',
+              color: '#f2d492',
+              bgcolor: 'rgba(19,48,33,0.3)',
+              boxShadow: 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)',
             },
           },
           '& .MuiBottomNavigationAction-label': {

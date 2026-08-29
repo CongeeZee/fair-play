@@ -23,7 +23,7 @@ const fmtValue = (m: BenchmarkMetricResult, v: number | null): string => {
 }
 
 const percentileColor = (p: number) =>
-  p >= 70 ? '#2d5e42' : p >= 40 ? '#c9a84c' : '#c62828'
+  p >= 70 ? '#4a8a68' : p >= 40 ? '#e0b95c' : '#b0574c'
 
 function PercentileBar({ metric }: { metric: BenchmarkMetricResult }) {
   const p = metric.percentile

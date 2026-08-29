@@ -63,8 +63,8 @@ export default function OnboardingFlow() {
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'center' }, px: 3, pt: { xs: 8, sm: 4 }, pb: 4, textAlign: 'center', overflow: 'auto' }}>
           {step === 0 && (
             <>
-              <GolfCourseIcon sx={{ fontSize: 64, color: '#c9a84c', mb: 3 }} />
-              <Typography variant="h4" sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#1a3a2a', mb: 1.5 }}>
+              <GolfCourseIcon sx={{ fontSize: 64, color: '#e0b95c', mb: 3 }} />
+              <Typography variant="h4" sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
                 Welcome to Fairplay{user.name ? `, ${user.name.split(' ')[0]}` : ''}!
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7 }}>
@@ -76,12 +76,12 @@ export default function OnboardingFlow() {
           {step === 1 && (
             <>
               <Box sx={{
-                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(201,168,76,0.12)',
+                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(224,185,92,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3,
               }}>
-                <SearchIcon sx={{ fontSize: 40, color: '#c9a84c' }} />
+                <SearchIcon sx={{ fontSize: 40, color: '#e0b95c' }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a3a2a', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
                 Find a course
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 3 }}>
@@ -100,12 +100,12 @@ export default function OnboardingFlow() {
           {step === 2 && (
             <>
               <Box sx={{
-                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(201,168,76,0.12)',
+                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(224,185,92,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3,
               }}>
-                <SportsGolfIcon sx={{ fontSize: 40, color: '#c9a84c' }} />
+                <SportsGolfIcon sx={{ fontSize: 40, color: '#e0b95c' }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a3a2a', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
                 Score your round
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 2 }}>
@@ -114,10 +114,10 @@ export default function OnboardingFlow() {
               {/* Visual mock of score chips */}
               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
                 {[
-                  { label: '3', color: '#2d5e42', desc: 'Birdie' },
-                  { label: '4', color: '#f5f0e8', desc: 'Par', textColor: '#1a3a2a', border: true },
-                  { label: '5', color: '#c62828', desc: 'Bogey' },
-                  { label: '6', color: '#b71c1c', desc: 'Double' },
+                  { label: '3', color: '#4a8a68', desc: 'Birdie' },
+                  { label: '4', color: '#e9e1d3', desc: 'Par', textColor: '#2f6b4c', border: true },
+                  { label: '5', color: '#b0574c', desc: 'Bogey' },
+                  { label: '6', color: '#9a4a41', desc: 'Double' },
                 ].map((c) => (
                   <Box key={c.label} sx={{ textAlign: 'center' }}>
                     <Box sx={{
@@ -144,12 +144,12 @@ export default function OnboardingFlow() {
           {step === 3 && (
             <>
               <Box sx={{
-                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(201,168,76,0.12)',
+                width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(224,185,92,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3,
               }}>
-                <PeopleIcon sx={{ fontSize: 40, color: '#c9a84c' }} />
+                <PeopleIcon sx={{ fontSize: 40, color: '#e0b95c' }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a3a2a', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
                 Bring your mates
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 3 }}>

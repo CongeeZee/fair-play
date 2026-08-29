@@ -70,7 +70,7 @@ export default function PlayingPartnersPicker({ roundId, partners }: Props) {
             label={p.name}
             size="small"
             onDelete={() => handleRemoveChip(p.id)}
-            sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'rgba(26,58,42,0.08)' }}
+            sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'rgba(47,107,76,0.08)' }}
           />
         ))}
         <IconButton

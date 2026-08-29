@@ -63,10 +63,10 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
             minWidth: 280,
             maxWidth: 380,
             borderRadius: 2,
-            bgcolor: '#1a3a2a',
+            bgcolor: '#2f6b4c',
             color: '#fff',
             cursor: 'pointer',
-            borderLeft: '4px solid #c9a84c',
+            borderLeft: '4px solid #e0b95c',
           }}
         >
           <Box sx={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>
@@ -75,7 +75,7 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="caption"
-              sx={{ color: '#c9a84c', fontWeight: 700, letterSpacing: 1, display: 'block', lineHeight: 1.2 }}
+              sx={{ color: '#e0b95c', fontWeight: 700, letterSpacing: 1, display: 'block', lineHeight: 1.2 }}
             >
               Achievement Unlocked
             </Typography>

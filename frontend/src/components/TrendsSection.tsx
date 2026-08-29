@@ -35,8 +35,8 @@ function fmtValue(metric: TrendMetricKey, v: number, signed = false): string {
 
 function DeltaChip({ metric, delta }: { metric: TrendMetricKey; delta: NonNullable<TrendsResult['delta']> }) {
   const styles = {
-    improving: { icon: <TrendingUpIcon sx={{ fontSize: 16 }} />, color: '#2d5e42', bg: 'rgba(45,94,66,0.1)' },
-    declining: { icon: <TrendingDownIcon sx={{ fontSize: 16 }} />, color: '#c62828', bg: 'rgba(198,40,40,0.08)' },
+    improving: { icon: <TrendingUpIcon sx={{ fontSize: 16 }} />, color: '#4a8a68', bg: 'rgba(74,138,104,0.1)' },
+    declining: { icon: <TrendingDownIcon sx={{ fontSize: 16 }} />, color: '#b0574c', bg: 'rgba(176,87,76,0.08)' },
     stable: { icon: <TrendingFlatIcon sx={{ fontSize: 16 }} />, color: '#666', bg: 'rgba(0,0,0,0.06)' },
   }[delta.direction]
 
@@ -114,7 +114,7 @@ export default function TrendsSection() {
         {series.length >= 2 ? (
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={series} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} minTickGap={24} />
               <YAxis
                 tick={{ fontSize: 12, fill: '#888' }}
@@ -145,16 +145,16 @@ export default function TrendsSection() {
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#9bb3a4"
+                stroke="#a9bfb2"
                 strokeWidth={1.5}
-                dot={{ r: 3, fill: '#9bb3a4', strokeWidth: 0 }}
+                dot={{ r: 3, fill: '#a9bfb2', strokeWidth: 0 }}
                 isAnimationActive={false}
               />
               {/* Rolling average: the actual trend signal */}
               <Line
                 type="monotone"
                 dataKey="rollingAvg"
-                stroke="#2d5e42"
+                stroke="#4a8a68"
                 strokeWidth={2.5}
                 dot={false}
                 connectNulls

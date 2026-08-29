@@ -19,11 +19,11 @@ import { useAuth } from '../contexts/AuthContext'
 
 function scoreDiffColor(diff: number | null): string {
   if (diff == null) return '#aaa'
-  if (diff <= -2) return '#c9a84c'
-  if (diff === -1) return '#2d5e42'
+  if (diff <= -2) return '#e0b95c'
+  if (diff === -1) return '#4a8a68'
   if (diff === 0) return '#555'
-  if (diff === 1) return '#e6a817'
-  return '#c62828'
+  if (diff === 1) return '#d9a63f'
+  return '#b0574c'
 }
 
 function ScoreCell({ strokes, par }: { strokes: number | null; par: number }) {
@@ -39,9 +39,9 @@ function ScoreCell({ strokes, par }: { strokes: number | null; par: number }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: isCircle ? '50%' : 1,
           border: isBorder
-            ? diff === 1 ? '1px solid #e6a817' : '2px solid #c62828'
+            ? diff === 1 ? '1px solid #d9a63f' : '2px solid #b0574c'
             : 'none',
-          bgcolor: diff <= -2 ? '#c9a84c' : diff === -1 ? '#2d5e42' : 'transparent',
+          bgcolor: diff <= -2 ? '#e0b95c' : diff === -1 ? '#4a8a68' : 'transparent',
           color: diff <= -1 ? '#fff' : scoreDiffColor(diff),
           fontWeight: 700, fontSize: '0.8rem',
         }}
@@ -79,7 +79,7 @@ function HalfTable({
                   {h.number}
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ color: '#c9a84c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
+              <TableCell align="center" sx={{ color: '#e0b95c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
                 {label.includes('Front') ? 'Out' : 'In'}
               </TableCell>
             </TableRow>
@@ -150,7 +150,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
   const canComment = !!user
 
   return (
-    <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3 }}>
+    <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3 }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
         Reactions & Comments
       </Typography>
@@ -302,7 +302,7 @@ export default function SharedScorecardPage() {
       </Box>
 
       {/* Score summary */}
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
+      <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 2 }}>
           <Box>
             <Typography variant="h3" sx={{ fontWeight: 800, color: 'primary.main' }}>
@@ -326,7 +326,7 @@ export default function SharedScorecardPage() {
       </Paper>
 
       {/* Scorecard tables */}
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3 }}>
+      <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3 }}>
         <HalfTable
           label="Front 9"
           holes={frontNine}

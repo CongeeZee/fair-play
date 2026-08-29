@@ -15,11 +15,11 @@ import { getReactions } from '../api/reactions'
 
 function scoreDiffColor(diff: number | null): string {
   if (diff == null) return '#aaa'
-  if (diff <= -2) return '#c9a84c'
-  if (diff === -1) return '#2d5e42'
+  if (diff <= -2) return '#e0b95c'
+  if (diff === -1) return '#4a8a68'
   if (diff === 0) return '#555'
-  if (diff === 1) return '#e6a817'
-  return '#c62828'
+  if (diff === 1) return '#d9a63f'
+  return '#b0574c'
 }
 
 function scoreToParLabel(scoreToPar: number) {
@@ -85,27 +85,27 @@ export default function LiveScorecardPage() {
         {/* Live / Final badge */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1 }}>
           {isComplete ? (
-            <Chip label="Final" sx={{ bgcolor: '#1a3a2a', color: '#fff', fontWeight: 700 }} />
+            <Chip label="Final" sx={{ bgcolor: '#2f6b4c', color: '#fff', fontWeight: 700 }} />
           ) : (
             <Chip
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   <Box sx={{
-                    width: 8, height: 8, borderRadius: '50%', bgcolor: '#4caf50',
+                    width: 8, height: 8, borderRadius: '50%', bgcolor: '#63b47f',
                     animation: 'pulse 2s infinite',
                     '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
                   }} />
                   Live
                 </Box>
               }
-              sx={{ bgcolor: 'rgba(76,175,80,0.15)', color: '#2e7d32', fontWeight: 700 }}
+              sx={{ bgcolor: 'rgba(99,180,127,0.15)', color: '#4f9d6d', fontWeight: 700 }}
             />
           )}
         </Box>
       </Box>
 
       {/* Score summary */}
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
+      <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 2 }}>
           <Box>
             <Typography variant="h3" sx={{ fontWeight: 800, color: scoreDiffColor(scorecard.currentScoreToPar) }}>
@@ -124,14 +124,14 @@ export default function LiveScorecardPage() {
       </Paper>
 
       {/* Scorecard table */}
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3 }}>
+      <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3 }}>
         <HalfTable label="Front 9" holes={frontNine} highlightHole={highlightHole} />
         {backNine.length > 0 && <HalfTable label="Back 9" holes={backNine} highlightHole={highlightHole} />}
       </Paper>
 
       {/* Reactions when complete */}
       {isComplete && reactions && (
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mb: 3 }}>
+        <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3 }}>
           <ReactionBar
             roundId={roundIdNum}
             reactionSummary={reactions.summary}
@@ -178,7 +178,7 @@ function HalfTable({ label, holes, highlightHole }: {
                   {h.number}
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ color: '#c9a84c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
+              <TableCell align="center" sx={{ color: '#e0b95c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
                 {label.includes('Front') ? 'Out' : 'In'}
               </TableCell>
             </TableRow>
@@ -201,7 +201,7 @@ function HalfTable({ label, holes, highlightHole }: {
                   align="center"
                   sx={{
                     p: 0.5,
-                    bgcolor: highlightHole === h.number ? 'rgba(76,175,80,0.15)' : 'transparent',
+                    bgcolor: highlightHole === h.number ? 'rgba(99,180,127,0.15)' : 'transparent',
                     transition: 'background-color 1s ease',
                   }}
                 >
@@ -212,9 +212,9 @@ function HalfTable({ label, holes, highlightHole }: {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: (h.scoreToPar ?? 0) <= -1 ? '50%' : 1,
                         border: (h.scoreToPar ?? 0) >= 1
-                          ? (h.scoreToPar ?? 0) === 1 ? '1px solid #e6a817' : '2px solid #c62828'
+                          ? (h.scoreToPar ?? 0) === 1 ? '1px solid #d9a63f' : '2px solid #b0574c'
                           : 'none',
-                        bgcolor: (h.scoreToPar ?? 0) <= -2 ? '#c9a84c' : (h.scoreToPar ?? 0) === -1 ? '#2d5e42' : 'transparent',
+                        bgcolor: (h.scoreToPar ?? 0) <= -2 ? '#e0b95c' : (h.scoreToPar ?? 0) === -1 ? '#4a8a68' : 'transparent',
                         color: (h.scoreToPar ?? 0) <= -1 ? '#fff' : scoreDiffColor(h.scoreToPar),
                         fontWeight: 700, fontSize: '0.8rem',
                       }}

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import {
-  Box, Typography, Tabs, Tab, Badge, List, ListItem, ListItemText,
+  Box, Typography, Tabs, Tab, Badge, List, ListItem, ListItemText, Paper,
   IconButton, Button, TextField, InputAdornment, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Chip,
 } from '@mui/material'
@@ -26,6 +26,26 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd'
 import MarkEmailUnreadIcon from '@mui/icons-material/MarkEmailUnread'
 import { useAuth } from '../contexts/AuthContext'
 import { resendVerification } from '../api/auth'
+
+/**
+ * Shared shell for the three tab lists.
+ *
+ * All three used to render their rows bare on the clay page background with
+ * full-width hairline `divider`s — the last place in the app that still read as
+ * flat Material next to the raised cards on every other page. The rows now sit
+ * inside one raised clay card — the same Paper + List shape the History page
+ * already uses — and the separators are the theme's warm clay seam rather than
+ * a full-bleed rule running to the page edge.
+ */
+const listCardSx = {
+  borderRadius: 2.4,
+  overflow: 'hidden',
+  '& .MuiListItem-root': { py: 1.5, px: 2 },
+  '& .MuiListItem-root + .MuiListItem-root': {
+    borderTop: '1px solid',
+    borderColor: 'divider',
+  },
+} as const
 
 /** Extract a human-readable message from an axios error. */
 const apiError = (err: unknown, fallback: string) =>
@@ -81,43 +101,44 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
 
   return (
     <>
-      <List disablePadding>
-        {friends.map((f) => {
-          const live = liveByName.get(f.name)
-          return (
-            <ListItem
-              key={f.friendshipId}
-              divider
-              secondaryAction={
-                <IconButton edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
-                  <PersonRemoveIcon fontSize="small" />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ProfileLink userId={f.id} name={f.name} variant="body1" />
-                    {live && (
-                      <Chip
-                        label={`Playing`}
-                        size="small"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/live/${live.roundId}`) }}
-                        sx={{
-                          height: 20, fontSize: '0.6rem', fontWeight: 700,
-                          bgcolor: 'rgba(76,175,80,0.15)', color: '#2e7d32',
-                          cursor: 'pointer',
-                        }}
-                      />
-                    )}
-                  </Box>
+      <Paper elevation={2} sx={listCardSx}>
+        <List disablePadding>
+          {friends.map((f) => {
+            const live = liveByName.get(f.name)
+            return (
+              <ListItem
+                key={f.friendshipId}
+                secondaryAction={
+                  <IconButton edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
+                    <PersonRemoveIcon fontSize="small" />
+                  </IconButton>
                 }
-                secondary={live ? live.courseName.replace(/\s*—.*$/, '') : (f.handicapIndex != null ? `Handicap: ${f.handicapIndex.toFixed(1)}` : 'No handicap')}
-              />
-            </ListItem>
-          )
-        })}
-      </List>
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ProfileLink userId={f.id} name={f.name} variant="body1" />
+                      {live && (
+                        <Chip
+                          label={`Playing`}
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/live/${live.roundId}`) }}
+                          sx={{
+                            height: 20, fontSize: '0.6rem', fontWeight: 700,
+                            bgcolor: 'rgba(99,180,127,0.15)', color: '#4f9d6d',
+                            cursor: 'pointer',
+                          }}
+                        />
+                      )}
+                    </Box>
+                  }
+                  secondary={live ? live.courseName.replace(/\s*—.*$/, '') : (f.handicapIndex != null ? `Handicap: ${f.handicapIndex.toFixed(1)}` : 'No handicap')}
+                />
+              </ListItem>
+            )
+          })}
+        </List>
+      </Paper>
 
       <Dialog open={!!removeTarget} onClose={() => setRemoveTarget(null)}>
         <DialogTitle>Remove Friend</DialogTitle>
@@ -172,38 +193,39 @@ function RequestsTab() {
   }
 
   return (
-    <List disablePadding>
-      {requests.map((r) => (
-        <ListItem
-          key={r.friendshipId}
-          divider
-          secondaryAction={
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <IconButton
-                color="primary"
-                onClick={() => acceptMutation.mutate(r.friendshipId)}
-                disabled={acceptMutation.isPending}
-                size="small"
-              >
-                <CheckIcon />
-              </IconButton>
-              <IconButton
-                onClick={() => declineMutation.mutate(r.friendshipId)}
-                disabled={declineMutation.isPending}
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
-          }
-        >
-          <ListItemText
-            primary={<ProfileLink userId={r.from.id} name={r.from.name} variant="body1" />}
-            secondary={`Sent ${new Date(r.sentAt).toLocaleDateString()}`}
-          />
-        </ListItem>
-      ))}
-    </List>
+    <Paper elevation={2} sx={listCardSx}>
+      <List disablePadding>
+        {requests.map((r) => (
+          <ListItem
+            key={r.friendshipId}
+            secondaryAction={
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <IconButton
+                  color="primary"
+                  onClick={() => acceptMutation.mutate(r.friendshipId)}
+                  disabled={acceptMutation.isPending}
+                  size="small"
+                >
+                  <CheckIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => declineMutation.mutate(r.friendshipId)}
+                  disabled={declineMutation.isPending}
+                  size="small"
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            }
+          >
+            <ListItemText
+              primary={<ProfileLink userId={r.from.id} name={r.from.name} variant="body1" />}
+              secondary={`Sent ${new Date(r.sentAt).toLocaleDateString()}`}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Paper>
   )
 }
 
@@ -283,28 +305,30 @@ function FindFriendsTab() {
       )}
 
       {results && results.length > 0 && (
-        <List disablePadding>
-          {results.map((u) => (
-            <ListItem key={u.id} divider secondaryAction={
-              u.isFriend ? (
-                <Chip label="Friends" size="small" color="success" variant="outlined" />
-              ) : u.isPending ? (
-                <Chip label="Pending" size="small" variant="outlined" />
-              ) : (
-                <IconButton
-                  color="primary"
-                  onClick={() => addMutation.mutate(u.id)}
-                  disabled={addMutation.isPending}
-                  size="small"
-                >
-                  <PersonAddIcon />
-                </IconButton>
-              )
-            }>
-              <ListItemText primary={u.name} />
-            </ListItem>
-          ))}
-        </List>
+        <Paper elevation={2} sx={listCardSx}>
+          <List disablePadding>
+            {results.map((u) => (
+              <ListItem key={u.id} secondaryAction={
+                u.isFriend ? (
+                  <Chip label="Friends" size="small" color="success" variant="outlined" />
+                ) : u.isPending ? (
+                  <Chip label="Pending" size="small" variant="outlined" />
+                ) : (
+                  <IconButton
+                    color="primary"
+                    onClick={() => addMutation.mutate(u.id)}
+                    disabled={addMutation.isPending}
+                    size="small"
+                  >
+                    <PersonAddIcon />
+                  </IconButton>
+                )
+              }>
+                <ListItemText primary={u.name} />
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
       )}
     </Box>
   )
@@ -380,7 +404,7 @@ export default function FriendsPage() {
         value={tab}
         onChange={(_, v) => setTab(v)}
         variant="fullWidth"
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+        sx={{ mb: 3 }}
       >
         <Tab label="Friends" />
         <Tab label={

@@ -54,20 +54,20 @@ export default function EmptyState({ icon, title, description, primary, secondar
           width: 72,
           height: 72,
           borderRadius: '50%',
-          bgcolor: 'rgba(201,168,76,0.12)',
+          bgcolor: 'rgba(224,185,92,0.12)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           mx: 'auto',
           mb: 2,
-          color: '#c9a84c',
+          color: '#e0b95c',
         }}
       >
         {icon}
       </Box>
       <Typography
         variant="h6"
-        sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#1a3a2a', mb: 1 }}
+        sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#2f6b4c', mb: 1 }}
       >
         {title}
       </Typography>

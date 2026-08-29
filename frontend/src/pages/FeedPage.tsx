@@ -18,6 +18,7 @@ import { getFeed } from '../api/rounds'
 import { joinTeeTime } from '../api/teetimes'
 import { addComment } from '../api/reactions'
 import { getLiveRounds } from '../api/live'
+import { CLAY, raised, tint } from '../theme'
 import { getRecentAchievements } from '../api/achievements'
 import { formatCourseName, timeAgo } from '../utils'
 import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement, RoundPartner } from '../types'
@@ -32,10 +33,10 @@ import FeedSidebar from '../components/FeedSidebar'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 function scoreColor(scoreToPar: number) {
-  if (scoreToPar < 0) return '#c9a84c'
-  if (scoreToPar === 0) return '#2d5e42'
-  if (scoreToPar <= 5) return '#1a3a5c'
-  return '#c62828'
+  if (scoreToPar < 0) return '#e0b95c'
+  if (scoreToPar === 0) return '#4a8a68'
+  if (scoreToPar <= 5) return '#5c86a8'
+  return '#b0574c'
 }
 
 function scoreLabel(scoreToPar: number) {
@@ -51,7 +52,7 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
     <Box sx={{ mb: 3 }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
         <Box sx={{
-          width: 8, height: 8, borderRadius: '50%', bgcolor: '#4caf50',
+          width: 8, height: 8, borderRadius: '50%', bgcolor: '#63b47f',
           animation: 'pulse 2s infinite',
           '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
         }} />
@@ -60,12 +61,21 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
       <Box
         sx={{
           display: 'flex',
-          gap: 1.25,
+          gap: 2,
           overflowX: 'auto',
-          p: 1.25,
-          mx: -1.25,
-          borderRadius: 2,
-          bgcolor: 'rgba(76,175,80,0.06)',
+          // The clay card shadow spreads ~14px down-right; anything less than
+          // this padding lets `overflowX: auto` clip it and the cards read as
+          // cut off rather than raised.
+          p: 2,
+          // Full-bleed only where there's room for it. On a phone the container
+          // gutter is 16px, so -2 pushes the well past the viewport edge and its
+          // left corner gets cut off.
+          mx: { xs: 0, sm: -2 },
+          borderRadius: 2.2,
+          // A sunken well rather than a flat tint, so the raised cards have
+          // something to sit in.
+          bgcolor: 'rgba(163,148,122,0.12)',
+          boxShadow: 'inset 2px 2px 5px 0 rgba(158,141,111,0.3), inset -1px -1px 3px 0 rgba(255,255,255,0.7)',
           // Hide scrollbars but keep scrolling
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
@@ -74,14 +84,14 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
         {rounds.map((r) => (
           <Card
             key={r.roundId}
-            elevation={1}
+            elevation={2}
             onClick={() => navigate(`/live/${r.roundId}`)}
-            sx={{ minWidth: 200, cursor: 'pointer', borderRadius: 2, border: '1px solid rgba(76,175,80,0.3)', flexShrink: 0 }}
+            sx={{ minWidth: 200, cursor: 'pointer', borderRadius: 2.2, flexShrink: 0 }}
           >
             <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                 <Box sx={{
-                  width: 6, height: 6, borderRadius: '50%', bgcolor: '#4caf50',
+                  width: 6, height: 6, borderRadius: '50%', bgcolor: '#63b47f',
                   animation: 'pulse 2s infinite',
                 }} />
                 <ProfileLink userId={r.playerId} name={r.playerName} variant="body2" onClick={(e) => e.stopPropagation()} />
@@ -98,7 +108,7 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
                   size="small"
                   sx={{
                     height: 20, fontSize: '0.65rem', fontWeight: 700,
-                    bgcolor: r.currentScoreToPar < 0 ? '#c9a84c' : r.currentScoreToPar === 0 ? '#2d5e42' : r.currentScoreToPar <= 5 ? '#1a3a5c' : '#c62828',
+                    bgcolor: r.currentScoreToPar < 0 ? '#e0b95c' : r.currentScoreToPar === 0 ? '#4a8a68' : r.currentScoreToPar <= 5 ? '#5c86a8' : '#b0574c',
                     color: '#fff',
                   }}
                 />
@@ -316,8 +326,8 @@ function FeedCard({ round }: { round: FeedRound }) {
         mb: 1.5,
         borderRadius: 2,
         ...(round.viewerTagged && {
-          border: '1px solid rgba(201,168,76,0.45)',
-          bgcolor: 'rgba(201,168,76,0.04)',
+          bgcolor: tint(CLAY.gold, 0.14),
+          boxShadow: `${raised(3)}, 0 0 0 2px rgba(224,185,92,0.4)`,
         }),
       }}
     >
@@ -325,7 +335,7 @@ function FeedCard({ round }: { round: FeedRound }) {
         {round.viewerTagged && (
           <Typography
             variant="overline"
-            sx={{ color: '#c9a84c', fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25, lineHeight: 1.2 }}
+            sx={{ color: '#e0b95c', fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25, lineHeight: 1.2 }}
           >
             You were tagged
           </Typography>
@@ -386,7 +396,7 @@ function FeedCard({ round }: { round: FeedRound }) {
 function AchievementFeedCard({ achievement }: { achievement: RecentAchievement }) {
   const courseName = typeof achievement.metadata?.course === 'string' ? achievement.metadata.course : null
   return (
-    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2, border: '1px solid rgba(201,168,76,0.35)', bgcolor: 'rgba(201,168,76,0.06)' }}>
+    <Card elevation={2} sx={{ mb: 1.5, borderRadius: 2, bgcolor: tint(CLAY.gold, 0.16) }}>
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography sx={{ fontSize: '2.25rem', lineHeight: 1 }}>{achievement.emoji}</Typography>
@@ -433,7 +443,7 @@ function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
   const timeLabel = new Date(teeTime.dateTime).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })
 
   return (
-    <Card elevation={1} sx={{ mb: 1.5, borderRadius: 2, border: '1px solid rgba(26,58,42,0.15)' }}>
+    <Card elevation={2} sx={{ mb: 1.5, borderRadius: 2, bgcolor: tint(CLAY.green, 0.06) }}>
       <CardContent sx={{ pb: '12px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -445,7 +455,7 @@ function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
               {dateLabel} · {timeLabel} · {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </Typography>
           </Box>
-          <Chip label="Tee Time" size="small" sx={{ bgcolor: '#1a3a2a', color: '#fff', fontWeight: 600, fontSize: '0.65rem', height: 22 }} />
+          <Chip label="Tee Time" size="small" sx={{ bgcolor: '#2f6b4c', color: '#fff', fontWeight: 600, fontSize: '0.65rem', height: 22 }} />
         </Box>
       </CardContent>
       <CardActions sx={{ pt: 0, px: 2, pb: 1.5 }}>
@@ -504,10 +514,10 @@ function NotificationPrompt() {
   }
 
   return (
-    <Card elevation={1} sx={{ mb: 3, bgcolor: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 2 }}>
+    <Card elevation={2} sx={{ mb: 3, bgcolor: tint(CLAY.gold, 0.18), borderRadius: 2 }}>
       <CardContent sx={{ pb: '8px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-          <NotificationsActiveIcon sx={{ color: '#c9a84c', mt: 0.25 }} />
+          <NotificationsActiveIcon sx={{ color: '#e0b95c', mt: 0.25 }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
               Get notified when friends post rounds

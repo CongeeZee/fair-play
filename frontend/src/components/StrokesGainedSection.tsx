@@ -70,7 +70,7 @@ export default function StrokesGainedSection() {
                 data={chartData.filter((d) => d.value != null)}
                 margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
                 <YAxis
                   tickFormatter={(v: number) => (v > 0 ? `+${v}` : `${v}`)}
@@ -79,7 +79,7 @@ export default function StrokesGainedSection() {
                   tickLine={false}
                   width={42}
                 />
-                <ReferenceLine y={0} stroke="#4a5e4a" strokeWidth={1.5} />
+                <ReferenceLine y={0} stroke="#68786d" strokeWidth={1.5} />
                 <Tooltip
                   cursor={{ fill: 'rgba(0,0,0,0.04)' }}
                   formatter={(value) => [fmtSG(Number(value)), 'SG / round']}
@@ -88,7 +88,7 @@ export default function StrokesGainedSection() {
                   {chartData.filter((d) => d.value != null).map((d) => (
                     <Cell
                       key={d.key}
-                      fill={d.value! >= 0 ? '#2d5e42' : '#c62828'}
+                      fill={d.value! >= 0 ? '#4a8a68' : '#b0574c'}
                       fillOpacity={d.sufficient ? 1 : 0.4}
                     />
                   ))}
@@ -112,7 +112,7 @@ export default function StrokesGainedSection() {
                   <Typography
                     variant="h6"
                     fontWeight={700}
-                    sx={{ color: d.value == null ? 'text.disabled' : d.value >= 0 ? '#2d5e42' : '#c62828' }}
+                    sx={{ color: d.value == null ? 'text.disabled' : d.value >= 0 ? '#4a8a68' : '#b0574c' }}
                   >
                     {d.value == null ? '–' : fmtSG(d.value)}
                   </Typography>
@@ -122,7 +122,7 @@ export default function StrokesGainedSection() {
                     </Typography>
                     {!d.sufficient && (
                       <MuiTooltip title="Not enough tracked holes yet to trust this number — keep logging fairways, greens and putts.">
-                        <WarningAmberIcon sx={{ fontSize: 14, color: '#e6a817' }} />
+                        <WarningAmberIcon sx={{ fontSize: 14, color: '#d9a63f' }} />
                       </MuiTooltip>
                     )}
                   </Box>

@@ -11,17 +11,17 @@ const HERO_IMAGE =
 
 const features = [
   {
-    icon: <TrackChangesIcon sx={{ fontSize: 32, color: '#c9a84c' }} />,
+    icon: <TrackChangesIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
     title: 'Track Every Round',
     body: 'Log scores hole-by-hole for any real course, from Pebble Beach to your local club.',
   },
   {
-    icon: <EmojiEventsIcon sx={{ fontSize: 32, color: '#c9a84c' }} />,
+    icon: <EmojiEventsIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
     title: 'Official Handicap',
     body: 'Your WHS Handicap Index is calculated automatically from your round history.',
   },
   {
-    icon: <BarChartIcon sx={{ fontSize: 32, color: '#c9a84c' }} />,
+    icon: <BarChartIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
     title: 'Analyse Your Game',
     body: 'Score trends, hole breakdowns, and stats that show you where to improve.',
   },
@@ -56,7 +56,7 @@ export default function HomePage() {
           backgroundPosition: 'center 70%',
         }}
       >
-        <GolfCourseIcon sx={{ fontSize: 52, color: '#c9a84c', mb: 2, opacity: 0.9 }} />
+        <GolfCourseIcon sx={{ fontSize: 52, color: '#e0b95c', mb: 2, opacity: 0.9 }} />
 
         <Typography
           variant="h1"
@@ -106,8 +106,17 @@ export default function HomePage() {
             sx={{
               px: 5, py: 1.5, fontSize: '1rem',
               color: '#fff',
+              // The theme gives outlined buttons a pale clay fill, which turns
+              // grey and muddy over the dark hero photo — use a translucent
+              // dark clay pill here instead.
+              bgcolor: 'rgba(20,40,28,0.38)',
+              backdropFilter: 'blur(6px)',
               borderColor: 'rgba(255,255,255,0.45)',
-              '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+              boxShadow: '0 6px 18px 0 rgba(10,25,16,0.4), inset 0 1px 0 0 rgba(255,255,255,0.25)',
+              '&:hover': {
+                borderColor: '#fff',
+                bgcolor: 'rgba(20,40,28,0.52)',
+              },
             }}
           >
             Sign In

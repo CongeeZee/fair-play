@@ -34,13 +34,13 @@ export default function ResumeRoundBanner({ round }: { round: LiveRound }) {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    bgcolor: '#4caf50',
+                    bgcolor: '#63b47f',
                     flexShrink: 0,
                     animation: 'resumePulse 2s infinite',
                     '@keyframes resumePulse': {
-                      '0%': { boxShadow: '0 0 0 0 rgba(76,175,80,0.6)' },
-                      '70%': { boxShadow: '0 0 0 6px rgba(76,175,80,0)' },
-                      '100%': { boxShadow: '0 0 0 0 rgba(76,175,80,0)' },
+                      '0%': { boxShadow: '0 0 0 0 rgba(99,180,127,0.6)' },
+                      '70%': { boxShadow: '0 0 0 6px rgba(99,180,127,0)' },
+                      '100%': { boxShadow: '0 0 0 0 rgba(99,180,127,0)' },
                     },
                   }}
                 />
