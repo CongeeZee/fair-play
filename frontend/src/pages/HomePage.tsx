@@ -49,7 +49,13 @@ export default function HomePage() {
           px: 3,
           position: 'relative',
           backgroundImage: `
-            linear-gradient(to bottom, rgba(10,25,16,0.55) 0%, rgba(10,25,16,0.75) 60%, rgba(10,25,16,0.92) 100%),
+            /* The scrim is the only thing guaranteeing contrast here: the
+               photo behind it is a fixed asset today but the safe assumption
+               is a bright sky, and over pure white a 0.55 scrim flattens to
+               #78807c, where the 75%-white subtitle measured 3.03:1. 0.70 is
+               the shallowest top stop that keeps every foreground above AA
+               against a white worst case (#fff 6.73:1, subtitle 5.67:1). */
+            linear-gradient(to bottom, rgba(10,25,16,0.70) 0%, rgba(10,25,16,0.82) 60%, rgba(10,25,16,0.94) 100%),
             url('${HERO_IMAGE}')
           `,
           backgroundSize: 'cover',
@@ -76,7 +82,7 @@ export default function HomePage() {
         <Typography
           variant="h5"
           sx={{
-            color: 'rgba(255,255,255,0.75)',
+            color: 'rgba(255,255,255,0.88)',
             fontWeight: 300,
             fontFamily: '"Source Sans 3", sans-serif',
             maxWidth: 480,
@@ -160,7 +166,7 @@ export default function HomePage() {
                     <Typography variant="subtitle1" sx={{ color: '#fff', fontWeight: 600, mb: 0.25 }}>
                       {f.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.88)', lineHeight: 1.5 }}>
                       {f.body}
                     </Typography>
                   </Box>

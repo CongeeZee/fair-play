@@ -73,7 +73,7 @@ export default function PlayingPartnersPicker({ roundId, partners }: Props) {
             sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'rgba(47,107,76,0.08)' }}
           />
         ))}
-        <IconButton
+        <IconButton aria-label="Add playing partners"
           size="small"
           onClick={handleOpen}
           sx={{

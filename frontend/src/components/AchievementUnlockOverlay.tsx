@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Snackbar, Paper, Box, Typography, IconButton } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import type { NewlyUnlockedAchievement } from '../types'
+import { ON_GREEN } from '../scoreColors'
 
 interface Props {
   queue: NewlyUnlockedAchievement[]
@@ -66,7 +67,7 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
             bgcolor: '#2f6b4c',
             color: '#fff',
             cursor: 'pointer',
-            borderLeft: '4px solid #e0b95c',
+            borderLeft: `4px solid ${ON_GREEN.gold}`,
           }}
         >
           <Box sx={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>
@@ -75,7 +76,7 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="caption"
-              sx={{ color: '#e0b95c', fontWeight: 700, letterSpacing: 1, display: 'block', lineHeight: 1.2 }}
+              sx={{ color: ON_GREEN.gold, fontWeight: 700, letterSpacing: 1, display: 'block', lineHeight: 1.2 }}
             >
               Achievement Unlocked
             </Typography>
@@ -89,7 +90,7 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
           <IconButton
             size="small"
             onClick={(e) => { e.stopPropagation(); advance() }}
-            sx={{ color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}
+            sx={{ color: ON_GREEN.soft, flexShrink: 0 }}
             aria-label="Dismiss achievement"
           >
             <CloseIcon fontSize="small" />

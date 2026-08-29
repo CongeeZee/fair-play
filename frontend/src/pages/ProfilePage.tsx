@@ -27,9 +27,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatCourseName, timeAgo } from '../utils'
 import PageHeader from '../components/PageHeader'
 import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
+import { CLAY } from '../theme'
+import { scoreBand } from '../scoreColors'
 
 function avatarColor(userId: number): string {
-  const colors = ['#2f6b4c', '#4a8a68', '#e0b95c', '#5c86a8', '#8B4513', '#4a148c', '#00695c', '#9a4a41']
+  // White initials sit on these, so each must clear 4.5:1 against white.
+  // #e0b95c (1.86:1) and #4a8a68 (4.10:1) did not and have been deepened.
+  const colors = ['#2f6b4c', '#3e7357', '#8a6a1e', '#4e7291', '#8B4513', '#4a148c', '#00695c', '#9a4a41']
   return colors[userId % colors.length]
 }
 
@@ -60,7 +64,7 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>{profile.name}</Typography>
         {isOwn && (
-          <IconButton size="small" onClick={onEdit}><EditIcon fontSize="small" /></IconButton>
+          <IconButton aria-label="Edit profile" size="small" onClick={onEdit}><EditIcon fontSize="small" /></IconButton>
         )}
       </Box>
       {profile.handicapIndex != null && (
@@ -89,7 +93,7 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
             </Box>
           }
           onClick={() => navigate(`/live/${profile.liveRoundId}`)}
-          sx={{ mt: 1, bgcolor: 'rgba(99,180,127,0.15)', color: '#4f9d6d', fontWeight: 700, cursor: 'pointer' }}
+          sx={{ mt: 1, bgcolor: 'rgba(99,180,127,0.15)', color: CLAY.greenDark, fontWeight: 700, cursor: 'pointer' }}
         />
       )}
       {!isOwn && profile.mutualFriends > 0 && (
@@ -176,12 +180,13 @@ function AchievementsSection({ userId }: { userId: number }) {
           {data.locked.map((a) => (
             <Box
               key={a.type}
-              sx={{
-                textAlign: 'center', opacity: 0.4, py: 1, borderRadius: 1.5, filter: 'grayscale(1)',
-              }}
+              // The dimming used to sit on the whole tile, which took the
+              // label down to 2.16:1. Greying the emoji says "locked" just as
+              // clearly and leaves the name readable.
+              sx={{ textAlign: 'center', py: 1, borderRadius: 1.5 }}
             >
-              <Typography sx={{ fontSize: '2rem', lineHeight: 1 }}>{a.emoji}</Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+              <Typography sx={{ fontSize: '2rem', lineHeight: 1, opacity: 0.4, filter: 'grayscale(1)' }}>{a.emoji}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
                 {a.name}
               </Typography>
             </Box>
@@ -258,16 +263,16 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
         {/* Win/loss bar */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
           <Box sx={{ textAlign: 'center', minWidth: 50 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#4a8a68' }}>{h2h.viewerWins}</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: CLAY.greenText }}>{h2h.viewerWins}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>You</Typography>
           </Box>
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
-              <Box sx={{ width: `${viewerPct}%`, bgcolor: '#4a8a68', transition: 'width 0.5s' }} />
+              <Box sx={{ width: `${viewerPct}%`, bgcolor: CLAY.green, transition: 'width 0.5s' }} />
               {h2h.draws > 0 && (
                 <Box sx={{ width: `${(h2h.draws / total) * 100}%`, bgcolor: '#ded6c8' }} />
               )}
-              <Box sx={{ width: `${targetPct}%`, bgcolor: '#e0b95c', transition: 'width 0.5s' }} />
+              <Box sx={{ width: `${targetPct}%`, bgcolor: CLAY.gold, transition: 'width 0.5s' }} />
             </Box>
             {h2h.draws > 0 && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.25 }}>
@@ -276,7 +281,7 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
             )}
           </Box>
           <Box sx={{ textAlign: 'center', minWidth: 50 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#e0b95c' }}>{h2h.targetWins}</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: CLAY.goldText }}>{h2h.targetWins}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>{targetName.split(' ')[0]}</Typography>
           </Box>
         </Box>
@@ -300,19 +305,19 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
                     <TableCell sx={{ fontSize: '0.75rem', maxWidth: 120, whiteSpace: 'nowrap' }}>{formatCourseName(sc.courseName)}</TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem', fontWeight: 600,
-                      color: sc.viewerBest <= sc.targetBest ? '#4a8a68' : 'text.primary',
+                      color: sc.viewerBest <= sc.targetBest ? CLAY.greenText : 'text.primary',
                     }}>{scoreLabel(sc.viewerBest)}</TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem', fontWeight: 600,
-                      color: sc.targetBest <= sc.viewerBest ? '#4a8a68' : 'text.primary',
+                      color: sc.targetBest <= sc.viewerBest ? CLAY.greenText : 'text.primary',
                     }}>{scoreLabel(sc.targetBest)}</TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem',
-                      color: sc.viewerAvg <= sc.targetAvg ? '#4a8a68' : 'text.primary',
+                      color: sc.viewerAvg <= sc.targetAvg ? CLAY.greenText : 'text.primary',
                     }}>{scoreLabelFloat(sc.viewerAvg)}</TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem',
-                      color: sc.targetAvg <= sc.viewerAvg ? '#4a8a68' : 'text.primary',
+                      color: sc.targetAvg <= sc.viewerAvg ? CLAY.greenText : 'text.primary',
                     }}>{scoreLabelFloat(sc.targetAvg)}</TableCell>
                   </TableRow>
                 ))}
@@ -364,8 +369,8 @@ function HandicapChart({ viewerId, targetId, viewerName, targetName }: {
             <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
             <Tooltip />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="viewer" name={viewerName.split(' ')[0]} stroke="#4a8a68" strokeWidth={2} dot={false} connectNulls />
-            <Line type="monotone" dataKey="target" name={targetName.split(' ')[0]} stroke="#e0b95c" strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="viewer" name={viewerName.split(' ')[0]} stroke={CLAY.greenText} strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="target" name={targetName.split(' ')[0]} stroke={CLAY.goldText} strokeWidth={2} dot={false} connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
@@ -400,7 +405,7 @@ function RecentRoundsSection({ rounds }: { rounds: UserProfile['recentRounds'] }
             </Box>
             <Box sx={{ textAlign: 'right', ml: 1, flexShrink: 0 }}>
               <Typography variant="body2" sx={{ fontWeight: 700 }}>{r.totalStrokes}</Typography>
-              <Typography variant="caption" sx={{ color: r.scoreToPar < 0 ? '#e0b95c' : r.scoreToPar === 0 ? '#4a8a68' : '#5c86a8', fontWeight: 600 }}>
+              <Typography variant="caption" sx={{ color: scoreBand(r.scoreToPar).text, fontWeight: 600 }}>
                 {scoreLabel(r.scoreToPar)}
               </Typography>
             </Box>
@@ -742,7 +747,7 @@ function OwnHandicapChart({ userId }: { userId: number }) {
             <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(5, 10)} />
             <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
             <Tooltip />
-            <Line type="monotone" dataKey="handicapIndex" name="Handicap" stroke="#4a8a68" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="handicapIndex" name="Handicap" stroke={CLAY.greenText} strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

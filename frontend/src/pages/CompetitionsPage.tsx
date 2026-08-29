@@ -26,6 +26,8 @@ import {
 import { getFriends } from '../api/friends'
 import { formatCourseName } from '../utils'
 import { useAuth } from '../contexts/AuthContext'
+import { CLAY, greenGradient } from '../theme'
+import { scoreBand, ON_GREEN } from '../scoreColors'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import CourseSearchInput from '../components/CourseSearchInput'
@@ -36,9 +38,9 @@ import EmptyState from '../components/EmptyState'
 // ── Status badge colors ──────────────────────────────────────────────────────
 
 function statusColor(status: string) {
-  if (status === 'ACTIVE') return { bg: '#4a8a68', text: '#fff' }
-  if (status === 'UPCOMING') return { bg: '#5c86a8', text: '#fff' }
-  return { bg: '#666', text: '#fff' }
+  if (status === 'ACTIVE') return { bg: CLAY.green, text: '#fff' }
+  if (status === 'UPCOMING') return { bg: CLAY.clayBlue, text: '#fff' }
+  return { bg: CLAY.inkSoft, text: '#fff' }
 }
 
 function formatDateRange(start: string, end: string) {
@@ -503,30 +505,30 @@ function CompetitionDetailView({ id }: { id: string }) {
       )}
 
       {/* Header */}
-      <Card elevation={2} sx={{ mb: 3, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)', borderRadius: 2 }}>
+      <Card elevation={2} sx={{ mb: 3, background: greenGradient, borderRadius: 2 }}>
         <CardContent sx={{ py: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box>
               <Typography variant="h5" sx={{ color: '#fff', fontWeight: 700, mb: 0.5 }}>
                 {comp.name}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              <Typography variant="body2" sx={{ color: ON_GREEN.soft }}>
                 {comp.course ? formatCourseName(comp.course.name) : 'Any Course'}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <CalendarTodayIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }} />
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                <CalendarTodayIcon sx={{ fontSize: 14, color: ON_GREEN.soft }} />
+                <Typography variant="caption" sx={{ color: ON_GREEN.soft }}>
                   {formatDateRange(comp.startDate, comp.endDate)}
                 </Typography>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
               <Chip label={comp.status} size="small" sx={{ bgcolor: sc.bg, color: sc.text, fontWeight: 700 }} />
-              <Chip label={comp.scoringType} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600 }} />
+              <Chip label={comp.scoringType} size="small" sx={{ bgcolor: ON_GREEN.soft, color: CLAY.greenDark, fontWeight: 600 }} />
             </Box>
           </Box>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', mt: 1, display: 'block' }}>
-            Created by <ProfileLink userId={comp.creator.id} name={comp.creator.name} variant="caption" sx={{ display: 'inline', color: 'rgba(255,255,255,0.7)' }} />
+          <Typography variant="caption" sx={{ color: ON_GREEN.soft, mt: 1, display: 'block' }}>
+            Created by <ProfileLink userId={comp.creator.id} name={comp.creator.name} variant="caption" sx={{ display: 'inline', color: ON_GREEN.soft }} />
           </Typography>
         </CardContent>
       </Card>
@@ -569,7 +571,7 @@ function CompetitionDetailView({ id }: { id: string }) {
                 }}>
                   <Box sx={{ width: 32, textAlign: 'center', flexShrink: 0 }}>
                     {entry.rank === 1 ? (
-                      <EmojiEventsIcon sx={{ color: '#e0b95c', fontSize: 22 }} />
+                      <EmojiEventsIcon sx={{ color: ON_GREEN.gold, fontSize: 22 }} />
                     ) : (
                       <Typography variant="body2" fontWeight={700} color="text.secondary">{entry.rank}</Typography>
                     )}
@@ -600,8 +602,11 @@ function CompetitionDetailView({ id }: { id: string }) {
                       size="small"
                       sx={{
                         ml: 1.5, fontWeight: 700, height: 24,
-                        bgcolor: entry.rank === 1 ? '#e0b95c' : '#4a8a68',
-                        color: '#fff',
+                        // The winner's gold chip carried white at 1.86:1 —
+                        // the most prominent chip was the least readable.
+                        ...(entry.rank === 1
+                          ? { bgcolor: CLAY.gold, color: CLAY.onGold }
+                          : { bgcolor: CLAY.green, color: '#fff' }),
                       }}
                     />
                   ) : (
@@ -610,10 +615,10 @@ function CompetitionDetailView({ id }: { id: string }) {
                       size="small"
                       sx={{
                         ml: 1.5, fontWeight: 700, height: 24,
-                        bgcolor: displayScore != null && displayScore < 0 ? '#e0b95c'
-                          : displayScore === 0 ? '#4a8a68'
-                          : '#5c86a8',
-                        color: '#fff',
+                        ...(() => {
+                          const b = scoreBand(displayScore ?? 0)
+                          return { bgcolor: b.fill, color: b.on }
+                        })(),
                       }}
                     />
                   )}

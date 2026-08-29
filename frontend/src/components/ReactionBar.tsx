@@ -3,6 +3,7 @@ import { Box, Chip, Popover, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ALLOWED_EMOJI, toggleReaction, getReactions } from '../api/reactions'
 import ProfileLink from './ProfileLink'
+import { CLAY } from '../theme'
 
 interface Props {
   roundId: number
@@ -83,7 +84,9 @@ export default function ReactionBar({ roundId, reactionSummary, userReaction, re
                 height: 28,
                 cursor: readOnly ? 'default' : 'pointer',
                 bgcolor: isSelected ? 'rgba(224,185,92,0.2)' : 'rgba(0,0,0,0.04)',
-                border: isSelected ? '1.5px solid #e0b95c' : '1.5px solid transparent',
+                // The ring is the only thing marking a reaction as yours, so 1.4.11
+                // applies at 3:1. Plain gold managed 1.7:1 against the chip.
+                border: isSelected ? `1.5px solid ${CLAY.goldGraphic}` : '1.5px solid transparent',
                 '&:hover': readOnly ? {} : { bgcolor: isSelected ? 'rgba(224,185,92,0.3)' : 'rgba(0,0,0,0.08)' },
               }}
             />

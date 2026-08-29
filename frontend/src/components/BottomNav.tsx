@@ -61,20 +61,28 @@ export default function BottomNav() {
       <BottomNavigation
         value={currentValue === -1 ? false : currentValue}
         sx={{
-          background: 'linear-gradient(180deg, #37795a 0%, #2f6b4c 100%)',
+          // Was `#37795a → #2f6b4c` in literal hex, which had two problems: the
+          // bar stayed clay-green when sunlight mode was on, and its light stop
+          // carried the 55% white labels at 2.74:1. Same invariant as the top
+          // bar now — green down to greenDark, so #2f6b4c is the worst case.
+          background: 'linear-gradient(180deg, var(--c-green) 0%, var(--c-greenDark) 100%)',
           boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.18)',
           height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
           pb: 'env(safe-area-inset-bottom, 0px)',
           px: 0.75,
           '& .MuiBottomNavigationAction-root': {
-            color: 'rgba(255,255,255,0.55)',
+            // 55% white was 2.85:1 even on the darkened bar. These are the
+            // primary navigation labels on mobile — the one thing on screen
+            // that has to be readable in sunlight on a course.
+            color: 'rgba(255,255,255,0.88)',
             minWidth: 0,
             borderRadius: 18,
             mx: 0.25,
             my: 0.75,
             transition: 'background-color .2s ease, box-shadow .2s ease, color .2s ease',
             '&.Mui-selected': {
-              color: '#f2d492',
+              // goldLight is 4.39:1 on the bar; goldOnGreen exists for this.
+              color: 'var(--c-goldOnGreen)',
               bgcolor: 'rgba(19,48,33,0.3)',
               boxShadow: 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)',
             },

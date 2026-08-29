@@ -2,6 +2,7 @@ import { Box, Typography, CircularProgress } from '@mui/material'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import type { SyncState } from '../hooks/useOnlineStatus'
+import { CLAY } from '../theme'
 
 interface OfflineBannerProps {
   syncState: SyncState
@@ -21,13 +22,13 @@ export default function OfflineBanner({ syncState, pendingCount }: OfflineBanner
     syncing: {
       icon: <CircularProgress size={14} sx={{ color: '#fff' }} />,
       text: 'Syncing scores...',
-      bgcolor: '#5c86a8',
+      bgcolor: CLAY.clayBlue,
       color: '#fff',
     },
     synced: {
       icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
       text: 'All scores synced',
-      bgcolor: '#4a8a68',
+      bgcolor: CLAY.green,
       color: '#fff',
     },
   } as const

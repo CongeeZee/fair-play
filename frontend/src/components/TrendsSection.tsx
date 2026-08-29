@@ -9,6 +9,7 @@ import {
 } from 'recharts'
 import { useTrends } from '../hooks/useTrends'
 import type { TrendMetricKey, TrendsResult } from '../types'
+import { CLAY, tint } from '../theme'
 
 const WINDOW = 5
 
@@ -35,8 +36,8 @@ function fmtValue(metric: TrendMetricKey, v: number, signed = false): string {
 
 function DeltaChip({ metric, delta }: { metric: TrendMetricKey; delta: NonNullable<TrendsResult['delta']> }) {
   const styles = {
-    improving: { icon: <TrendingUpIcon sx={{ fontSize: 16 }} />, color: '#4a8a68', bg: 'rgba(74,138,104,0.1)' },
-    declining: { icon: <TrendingDownIcon sx={{ fontSize: 16 }} />, color: '#b0574c', bg: 'rgba(176,87,76,0.08)' },
+    improving: { icon: <TrendingUpIcon sx={{ fontSize: 16 }} />, color: CLAY.greenText, bg: tint(CLAY.green, 0.1) },
+    declining: { icon: <TrendingDownIcon sx={{ fontSize: 16 }} />, color: CLAY.errorText, bg: tint(CLAY.red, 0.1) },
     stable: { icon: <TrendingFlatIcon sx={{ fontSize: 16 }} />, color: '#666', bg: 'rgba(0,0,0,0.06)' },
   }[delta.direction]
 
@@ -115,9 +116,9 @@ export default function TrendsSection() {
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={series} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} minTickGap={24} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: CLAY.inkSoft }} axisLine={false} tickLine={false} minTickGap={24} />
               <YAxis
-                tick={{ fontSize: 12, fill: '#888' }}
+                tick={{ fontSize: 12, fill: CLAY.inkSoft }}
                 axisLine={false}
                 tickLine={false}
                 width={46}
@@ -154,7 +155,7 @@ export default function TrendsSection() {
               <Line
                 type="monotone"
                 dataKey="rollingAvg"
-                stroke="#4a8a68"
+                stroke={CLAY.greenText}
                 strokeWidth={2.5}
                 dot={false}
                 connectNulls

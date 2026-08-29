@@ -12,15 +12,20 @@ import { formatCourseName, timeAgo } from '../utils'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import { getReactions } from '../api/reactions'
+import { CLAY } from '../theme'
+import { holeBand, ON_GREEN } from '../scoreColors'
 
-function scoreDiffColor(diff: number | null): string {
-  if (diff == null) return '#aaa'
-  if (diff <= -2) return '#e0b95c'
-  if (diff === -1) return '#4a8a68'
-  if (diff === 0) return '#555'
-  if (diff === 1) return '#d9a63f'
-  return '#b0574c'
+/**
+ * Score relative to par as *text* on a light surface. The previous version
+ * returned one hex that callers used both as text and as a chip background;
+ * the gold branch measured 1.73:1 as text and 1.86:1 under white as a fill,
+ * failing in both directions at once.
+ */
+function scoreDiffText(diff: number | null): string {
+  if (diff == null) return CLAY.inkSoft
+  return holeBand(diff).text
 }
+
 
 function scoreToParLabel(scoreToPar: number) {
   if (scoreToPar === 0) return 'E'
@@ -98,7 +103,7 @@ export default function LiveScorecardPage() {
                   Live
                 </Box>
               }
-              sx={{ bgcolor: 'rgba(99,180,127,0.15)', color: '#4f9d6d', fontWeight: 700 }}
+              sx={{ bgcolor: 'rgba(99,180,127,0.15)', color: CLAY.greenDark, fontWeight: 700 }}
             />
           )}
         </Box>
@@ -108,7 +113,7 @@ export default function LiveScorecardPage() {
       <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 2 }}>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 800, color: scoreDiffColor(scorecard.currentScoreToPar) }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, color: scoreDiffText(scorecard.currentScoreToPar) }}>
               {scoreToParLabel(scorecard.currentScoreToPar)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -178,7 +183,7 @@ function HalfTable({ label, holes, highlightHole }: {
                   {h.number}
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ color: '#e0b95c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
+              <TableCell align="center" sx={{ color: ON_GREEN.gold, fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
                 {label.includes('Front') ? 'Out' : 'In'}
               </TableCell>
             </TableRow>
@@ -212,10 +217,12 @@ function HalfTable({ label, holes, highlightHole }: {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: (h.scoreToPar ?? 0) <= -1 ? '50%' : 1,
                         border: (h.scoreToPar ?? 0) >= 1
-                          ? (h.scoreToPar ?? 0) === 1 ? '1px solid #d9a63f' : '2px solid #b0574c'
+                          ? (h.scoreToPar ?? 0) === 1 ? `1px solid ${CLAY.warningText}` : `2px solid ${CLAY.errorText}`
                           : 'none',
-                        bgcolor: (h.scoreToPar ?? 0) <= -2 ? '#e0b95c' : (h.scoreToPar ?? 0) === -1 ? '#4a8a68' : 'transparent',
-                        color: (h.scoreToPar ?? 0) <= -1 ? '#fff' : scoreDiffColor(h.scoreToPar),
+                        bgcolor: (h.scoreToPar ?? 0) <= -2 ? CLAY.gold : (h.scoreToPar ?? 0) === -1 ? CLAY.green : 'transparent',
+                        color: (h.scoreToPar ?? 0) <= -2 ? CLAY.onGold
+                          : (h.scoreToPar ?? 0) === -1 ? '#fff'
+                          : scoreDiffText(h.scoreToPar),
                         fontWeight: 700, fontSize: '0.8rem',
                       }}
                     >
@@ -230,7 +237,7 @@ function HalfTable({ label, holes, highlightHole }: {
               ))}
               <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8rem' }}>
                 {hasScores ? (
-                  <Box component="span" sx={{ color: scoreDiffColor(subtotalStrokes - subtotalPar) }}>
+                  <Box component="span" sx={{ color: scoreDiffText(subtotalStrokes - subtotalPar) }}>
                     {subtotalStrokes}
                   </Box>
                 ) : '-'}

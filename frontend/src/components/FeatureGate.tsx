@@ -83,7 +83,9 @@ export function FeatureGate({
             href={upgradeHref}
             variant="contained"
             color="secondary"
-            sx={{ color: 'primary.main', fontWeight: 700 }}
+            // No colour override: the palette already pairs gold with the dark
+            // ink (7.06:1). Forcing `primary.main` back on top of it gave 3.38:1.
+            sx={{ fontWeight: 700 }}
           >
             {UPSELL.cta}
           </Button>

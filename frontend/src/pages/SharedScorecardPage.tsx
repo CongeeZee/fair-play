@@ -16,14 +16,25 @@ import type { SharedScorecard } from '../types'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
 import { useAuth } from '../contexts/AuthContext'
+import { CLAY } from '../theme'
+import { holeBand, ON_GREEN } from '../scoreColors'
 
-function scoreDiffColor(diff: number | null): string {
-  if (diff == null) return '#aaa'
-  if (diff <= -2) return '#e0b95c'
-  if (diff === -1) return '#4a8a68'
-  if (diff === 0) return '#555'
-  if (diff === 1) return '#d9a63f'
-  return '#b0574c'
+/**
+ * Score relative to par as *text* on a light surface. The previous version
+ * returned one hex that callers used both as text and as a chip background;
+ * the gold branch measured 1.73:1 as text and 1.86:1 under white as a fill,
+ * failing in both directions at once.
+ */
+function scoreDiffText(diff: number | null): string {
+  if (diff == null) return CLAY.inkSoft
+  return holeBand(diff).text
+}
+
+/** Score relative to par as a filled chip: background plus its foreground. */
+function scoreDiffChip(diff: number | null) {
+  if (diff == null) return { bgcolor: CLAY.inkSoft, color: '#fff' }
+  const b = holeBand(diff)
+  return { bgcolor: b.fill, color: b.on }
 }
 
 function ScoreCell({ strokes, par }: { strokes: number | null; par: number }) {
@@ -39,10 +50,10 @@ function ScoreCell({ strokes, par }: { strokes: number | null; par: number }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: isCircle ? '50%' : 1,
           border: isBorder
-            ? diff === 1 ? '1px solid #d9a63f' : '2px solid #b0574c'
+            ? diff === 1 ? `1px solid ${CLAY.warningText}` : `2px solid ${CLAY.errorText}`
             : 'none',
-          bgcolor: diff <= -2 ? '#e0b95c' : diff === -1 ? '#4a8a68' : 'transparent',
-          color: diff <= -1 ? '#fff' : scoreDiffColor(diff),
+          bgcolor: diff <= -2 ? CLAY.gold : diff === -1 ? CLAY.green : 'transparent',
+          color: diff <= -2 ? CLAY.onGold : diff === -1 ? '#fff' : scoreDiffText(diff),
           fontWeight: 700, fontSize: '0.8rem',
         }}
       >
@@ -79,7 +90,7 @@ function HalfTable({
                   {h.number}
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ color: '#e0b95c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
+              <TableCell align="center" sx={{ color: ON_GREEN.gold, fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
                 {label.includes('Front') ? 'Out' : 'In'}
               </TableCell>
             </TableRow>
@@ -101,7 +112,7 @@ function HalfTable({
               ))}
               <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8rem' }}>
                 {subtotalDiff != null ? (
-                  <Box component="span" sx={{ color: scoreDiffColor(subtotalDiff) }}>
+                  <Box component="span" sx={{ color: scoreDiffText(subtotalDiff) }}>
                     {subtotalStrokes}
                   </Box>
                 ) : '-'}
@@ -185,7 +196,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
                 </Typography>
               </Box>
               {(c.userId === userId || ownerId === userId) && (
-                <IconButton
+                <IconButton aria-label="Delete comment"
                   size="small"
                   onClick={() => deleteMutation.mutate(c.id)}
                   sx={{ mt: -0.25, opacity: 0.5, '&:hover': { opacity: 1 } }}
@@ -210,7 +221,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
             onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) addMutation.mutate() }}
             slotProps={{ input: { sx: { fontSize: '0.85rem' } } }}
           />
-          <IconButton
+          <IconButton aria-label="Post comment"
             onClick={() => addMutation.mutate()}
             disabled={!text.trim() || addMutation.isPending}
             color="primary"
@@ -314,7 +325,7 @@ export default function SharedScorecardPage() {
             <Chip
               label={scoreToParStr}
               sx={{
-                bgcolor: scoreDiffColor(total.scoreToPar),
+                ...scoreDiffChip(total.scoreToPar),
                 color: '#fff',
                 fontWeight: 800,
                 fontSize: '1rem',
@@ -350,7 +361,7 @@ export default function SharedScorecardPage() {
           <Typography variant="body2" color="text.secondary">
             Score: <strong>{total.strokes || '-'}</strong>
           </Typography>
-          <Typography variant="body2" sx={{ fontWeight: 700, color: scoreDiffColor(total.scoreToPar) }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: scoreDiffText(total.scoreToPar) }}>
             {scoreToParStr}
           </Typography>
         </Box>

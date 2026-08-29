@@ -13,6 +13,7 @@ import { formatCourseName } from '../utils'
 import CourseReviewsSection from '../components/CourseReviewsSection'
 import type { CourseHoleStat } from '../types'
 import { CLAY, tint } from '../theme'
+import { holeBand } from '../scoreColors'
 
 function pct(rate: number | null) {
   if (rate == null) return '—'
@@ -25,12 +26,13 @@ function avgStr(v: number | null) {
   return `${sign}${v.toFixed(2)}`
 }
 
+/**
+ * Average-to-par as *text* on a light card. The previous values were the
+ * mid-tone fills: gold read at 1.73:1 and the mid green at 2.98:1.
+ */
 function diffColor(v: number | null) {
   if (v == null) return 'text.secondary'
-  if (v < 0) return '#e0b95c'
-  if (v === 0) return '#4a8a68'
-  if (v <= 1) return '#d9a63f'
-  return '#b0574c'
+  return holeBand(v).text
 }
 
 function holeRating(hole: CourseHoleStat): 'strength' | 'weakness' | 'neutral' {
@@ -101,7 +103,7 @@ export default function CourseStatsPage() {
     <Container maxWidth="lg" sx={{ py: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <IconButton onClick={() => navigate(-1)} size="small">
+        <IconButton aria-label="Go back" onClick={() => navigate(-1)} size="small">
           <ArrowBackIcon />
         </IconButton>
         <Box>
@@ -123,7 +125,7 @@ export default function CourseStatsPage() {
             <Grid size={{ xs: 12, md: 6 }}>
               <Card elevation={2} sx={{ height: '100%', bgcolor: tint(CLAY.greenLight, 0.1) }}>
                 <CardContent sx={{ pb: '12px !important' }}>
-                  <Typography variant="overline" sx={{ color: '#4a8a68', fontWeight: 700, letterSpacing: 1.5 }}>
+                  <Typography variant="overline" sx={{ color: CLAY.greenText, fontWeight: 700, letterSpacing: 1.5 }}>
                     Strongest Holes
                   </Typography>
                   {strongest.map((h) => (
@@ -134,7 +136,7 @@ export default function CourseStatsPage() {
                       <Chip
                         label={avgStr(h.averageScoreToPar)}
                         size="small"
-                        sx={{ bgcolor: '#4a8a68', color: '#fff', fontWeight: 700, height: 22 }}
+                        sx={{ bgcolor: CLAY.green, color: '#fff', fontWeight: 700, height: 22 }}
                       />
                     </Box>
                   ))}
@@ -142,9 +144,9 @@ export default function CourseStatsPage() {
               </Card>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Card elevation={2} sx={{ height: '100%', bgcolor: tint('#b0574c', 0.1) }}>
+              <Card elevation={2} sx={{ height: '100%', bgcolor: tint(CLAY.red, 0.1) }}>
                 <CardContent sx={{ pb: '12px !important' }}>
-                  <Typography variant="overline" sx={{ color: '#b0574c', fontWeight: 700, letterSpacing: 1.5 }}>
+                  <Typography variant="overline" sx={{ color: CLAY.errorText, fontWeight: 700, letterSpacing: 1.5 }}>
                     Weakest Holes
                   </Typography>
                   {weakest.map((h) => (
@@ -155,7 +157,7 @@ export default function CourseStatsPage() {
                       <Chip
                         label={avgStr(h.averageScoreToPar)}
                         size="small"
-                        sx={{ bgcolor: '#b0574c', color: '#fff', fontWeight: 700, height: 22 }}
+                        sx={{ bgcolor: CLAY.redDeep, color: '#fff', fontWeight: 700, height: 22 }}
                       />
                     </Box>
                   ))}
@@ -223,7 +225,7 @@ export default function CourseStatsPage() {
                                 height: 20,
                                 fontSize: '0.7rem',
                                 bgcolor: hole.girRate >= 0.5 ? 'rgba(74,138,104,0.15)' : hole.girRate >= 0.3 ? 'rgba(217,166,63,0.15)' : 'rgba(176,87,76,0.1)',
-                                color: hole.girRate >= 0.5 ? '#4a8a68' : hole.girRate >= 0.3 ? '#7d5a14' : '#b0574c',
+                                color: hole.girRate >= 0.5 ? CLAY.greenText : hole.girRate >= 0.3 ? CLAY.warningText : CLAY.errorText,
                                 fontWeight: 600,
                               }}
                             />
@@ -240,7 +242,7 @@ export default function CourseStatsPage() {
                                 height: 20,
                                 fontSize: '0.7rem',
                                 bgcolor: hole.fairwayRate >= 0.6 ? 'rgba(74,138,104,0.15)' : hole.fairwayRate >= 0.4 ? 'rgba(217,166,63,0.15)' : 'rgba(176,87,76,0.1)',
-                                color: hole.fairwayRate >= 0.6 ? '#4a8a68' : hole.fairwayRate >= 0.4 ? '#7d5a14' : '#b0574c',
+                                color: hole.fairwayRate >= 0.6 ? CLAY.greenText : hole.fairwayRate >= 0.4 ? CLAY.warningText : CLAY.errorText,
                                 fontWeight: 600,
                               }}
                             />

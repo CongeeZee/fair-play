@@ -8,6 +8,7 @@ import ProfileLink from './ProfileLink'
 import ReviewPromptDialog from './ReviewPromptDialog'
 import { getCourseReviews } from '../api/reviews'
 import { CLAY, tint } from '../theme'
+import { scoreBand } from '../scoreColors'
 
 interface CourseReviewsSectionProps {
   courseId: string | number
@@ -17,12 +18,14 @@ interface CourseReviewsSectionProps {
 function scoreToParBadge(stp: number | null) {
   if (stp == null) return null
   const label = stp === 0 ? 'E' : stp > 0 ? `+${stp}` : `${stp}`
-  const color = stp < 0 ? '#e0b95c' : stp === 0 ? '#4a8a68' : stp <= 5 ? '#d9a63f' : '#b0574c'
+  // Was one hex used as a chip fill under white text: gold measured 1.86:1
+  // that way, so the best score on the page was the least readable badge.
+  const b = scoreBand(stp, 5)
   return (
     <Chip
       label={label}
       size="small"
-      sx={{ height: 20, fontSize: '0.7rem', bgcolor: color, color: '#fff', fontWeight: 700 }}
+      sx={{ height: 20, fontSize: '0.7rem', bgcolor: b.fill, color: b.on, fontWeight: 700 }}
     />
   )
 }
@@ -98,7 +101,7 @@ export default function CourseReviewsSection({ courseId, promptableRound }: Cour
                         variant="determinate"
                         value={pct}
                         sx={{ height: 8, borderRadius: 4, bgcolor: 'action.hover',
-                          '& .MuiLinearProgress-bar': { bgcolor: '#e0b95c' } }}
+                          '& .MuiLinearProgress-bar': { bgcolor: CLAY.goldGraphic } }}
                       />
                     </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ width: 30, textAlign: 'right' }}>

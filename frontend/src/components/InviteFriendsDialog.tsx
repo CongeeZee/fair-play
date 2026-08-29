@@ -156,7 +156,7 @@ export default function InviteFriendsDialog({ open, onClose }: Props) {
                   readOnly: true,
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton onClick={handleCopy} edge="end" size="small">
+                      <IconButton aria-label={copied ? "Link copied" : "Copy invite link"} onClick={handleCopy} edge="end" size="small">
                         {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
                       </IconButton>
                     </InputAdornment>

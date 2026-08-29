@@ -1,12 +1,10 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { ThemeProvider } from '@mui/material/styles'
-import CssBaseline from '@mui/material/CssBaseline'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Box, Toolbar, CircularProgress } from '@mui/material'
 
-import theme from './theme'
+import { AppearanceProvider } from './contexts/AppearanceContext'
 import { initAnalytics } from './analytics'
 
 initAnalytics()
@@ -169,14 +167,16 @@ export default function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <BrowserRouter>
+        {/* AppearanceProvider supplies the theme and CssBaseline, and sits
+            inside the router because course density is derived from the route.
+            Everything visual therefore mounts below BrowserRouter now. */}
+        <BrowserRouter>
+          <AppearanceProvider>
             <AuthProvider>
               <Layout />
             </AuthProvider>
-          </BrowserRouter>
-        </ThemeProvider>
+          </AppearanceProvider>
+        </BrowserRouter>
       </QueryClientProvider>
     </GoogleOAuthProvider>
   )

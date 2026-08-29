@@ -28,7 +28,8 @@ import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import CourseSearchInput from '../components/CourseSearchInput'
 import type { TeeTimeSummary } from '../types'
-import { CLAY, raised, tint } from '../theme'
+import { CLAY, raised, tint, greenGradient } from '../theme'
+import { ON_GREEN } from '../scoreColors'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,9 +67,15 @@ function getNextSaturday8am(): string {
 function TeeTimeCard({ tt, onClick, action }: { tt: TeeTimeSummary; onClick?: () => void; action?: React.ReactNode }) {
   const courseName = tt.courseName || 'Course TBD'
   return (
+    /* `action` renders a Button. It used to sit inside the CardActionArea,
+       which put a <button> inside a <button> — invalid HTML that browsers
+       recover from unpredictably, and a screen reader can only reach the outer
+       control. The stopPropagation call that used to be here was papering over
+       the same problem for mouse users. Keeping the action as a sibling of the
+       action area fixes both. */
     <Card variant="outlined" sx={{ mb: 1.5, borderRadius: 2 }}>
       <CardActionArea onClick={onClick} disabled={!onClick} sx={{ p: 0 }}>
-        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: action ? 1 : 1.5 } }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
@@ -98,9 +105,11 @@ function TeeTimeCard({ tt, onClick, action }: { tt: TeeTimeSummary; onClick?: ()
               ))}
             </Box>
           </Box>
-          {action && <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>{action}</Box>}
         </CardContent>
       </CardActionArea>
+      {action && (
+        <Box sx={{ px: 2, pb: 1.5, display: 'flex', justifyContent: 'flex-end' }}>{action}</Box>
+      )}
     </Card>
   )
 }
@@ -352,7 +361,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
       </Button>
 
       {/* Header card */}
-      <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)', color: '#fff', borderRadius: 3 }}>
+      <Card sx={{ mb: 2, background: greenGradient, color: '#fff', borderRadius: 3 }}>
         <CardContent sx={{ py: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>{courseName}</Typography>
           <Typography variant="body1" sx={{ opacity: 0.9, mb: 1 }}>
@@ -363,10 +372,23 @@ function TeeTimeDetailView({ id }: { id: string }) {
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
             {/* Show status only when it's a meaningful non-default state — avoids duplicating 'Open' with visibility */}
+            {/* The non-cancelled fill was 20% white, which flattens to #598970
+                on the banner and carries white at 4.01:1. A light chip with
+                dark green ink reads clearly and is visible as a shape; the
+                cancelled fill is already dark enough for white. */}
             {(tt.status === 'CANCELLED' || tt.status === 'FULL' || tt.status === 'COMPLETED') && (
-              <Chip label={tt.status} size="small" sx={{ bgcolor: tt.status === 'CANCELLED' ? '#b0574c' : 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, fontSize: '0.7rem' }} />
+              <Chip
+                label={tt.status}
+                size="small"
+                sx={{
+                  bgcolor: tt.status === 'CANCELLED' ? CLAY.redDeep : ON_GREEN.soft,
+                  color: tt.status === 'CANCELLED' ? '#fff' : CLAY.greenDark,
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                }}
+              />
             )}
-            <Chip label={tt.visibility === 'FRIENDS' ? 'Open' : 'Invite Only'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontSize: '0.7rem' }} />
+            <Chip label={tt.visibility === 'FRIENDS' ? 'Open' : 'Invite Only'} size="small" sx={{ bgcolor: ON_GREEN.soft, color: CLAY.greenDark, fontSize: '0.7rem' }} />
           </Box>
         </CardContent>
       </Card>
@@ -400,8 +422,10 @@ function TeeTimeDetailView({ id }: { id: string }) {
               key={i}
               sx={{
                 width: 36, height: 36,
-                bgcolor: i < confirmed.length ? '#4a8a68' : 'rgba(0,0,0,0.08)',
-                color: i < confirmed.length ? '#fff' : 'rgba(0,0,0,0.3)',
+                // White initials sit on the filled avatars, and the mid green carried
+                // them at 4.10:1. The empty ones needed a darker placeholder too.
+                bgcolor: i < confirmed.length ? CLAY.green : 'rgba(0,0,0,0.08)',
+                color: i < confirmed.length ? '#fff' : CLAY.inkSoft,
                 fontSize: '0.8rem', fontWeight: 700,
               }}
             >
@@ -425,7 +449,9 @@ function TeeTimeDetailView({ id }: { id: string }) {
                 <ProfileLink userId={p.userId} name={p.name} variant="body2" />
                 {p.userId === Number(user?.id) && <Typography variant="body2" color="text.secondary">(You)</Typography>}
               </Box>
-              <Chip label="Confirmed" size="small" sx={{ bgcolor: '#e8f5e9', color: '#4a8a68', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
+              {/* Was #e8f5e9/#4a8a68 — a leftover cool Material tint that both
+                  clashed with the warm palette and measured 3.64:1. */}
+              <Chip label="Confirmed" size="small" sx={{ bgcolor: tint(CLAY.greenLight, 0.14), color: CLAY.successText, fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
         ))}
@@ -443,7 +469,8 @@ function TeeTimeDetailView({ id }: { id: string }) {
             <Divider />
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ opacity: 0.5 }} />
-              <Chip label={p.status === 'WITHDRAWN' ? 'Withdrew' : 'Declined'} size="small" sx={{ bgcolor: '#fce4ec', color: '#b0574c', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
+              {/* Was #fce4ec/#b0574c — pink Material tint, 4.04:1. */}
+              <Chip label={p.status === 'WITHDRAWN' ? 'Withdrew' : 'Declined'} size="small" sx={{ bgcolor: tint(CLAY.red, 0.14), color: CLAY.errorText, fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
         ))}
@@ -635,6 +662,7 @@ function TeeTimesListView() {
 
           <Fab
             color="primary"
+            aria-label="Create a tee time"
             onClick={() => setShowCreate(true)}
             sx={{ position: 'fixed', bottom: { xs: 'calc(68px + env(safe-area-inset-bottom, 0px))', md: 24 }, right: 16 }}
           >

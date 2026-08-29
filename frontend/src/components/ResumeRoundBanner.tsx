@@ -3,6 +3,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useNavigate } from 'react-router-dom'
 import type { LiveRound } from '../types'
 import { formatCourseName } from '../utils'
+import { ON_GREEN } from '../scoreColors'
+import { CLAY } from '../theme'
 
 /**
  * Prominent "you have a round going" banner.
@@ -44,14 +46,18 @@ export default function ResumeRoundBanner({ round }: { round: LiveRound }) {
                     },
                   }}
                 />
-                <Typography variant="overline" sx={{ color: 'secondary.main', letterSpacing: 1.5, lineHeight: 1.5 }}>
+                {/* `secondary.main` is the raw gold, which measures 3.38:1 on the green
+                    card — the pale on-green step is needed here instead. */}
+                <Typography variant="overline" sx={{ color: ON_GREEN.gold, letterSpacing: 1.5, lineHeight: 1.5 }}>
                   Round in progress
                 </Typography>
               </Box>
               <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
                 {formatCourseName(round.courseName)}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              {/* 70% white flattens to #c1d3c9 on the green — 4.03:1, just under AA.
+                  The named on-green step is 5.28:1. */}
+              <Typography variant="caption" sx={{ color: ON_GREEN.soft }}>
                 Hole {Math.min(round.holesCompleted + 1, round.totalHoles)} of {round.totalHoles}
                 {round.holesCompleted > 0 && (
                   <>
@@ -59,7 +65,7 @@ export default function ResumeRoundBanner({ round }: { round: LiveRound }) {
                     <Chip
                       label={toPar}
                       size="small"
-                      sx={{ height: 16, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'rgba(255,255,255,0.15)', color: '#fff' }}
+                      sx={{ height: 16, fontSize: '0.65rem', fontWeight: 700, bgcolor: ON_GREEN.soft, color: CLAY.greenDark }}
                     />
                   </>
                 )}
@@ -71,6 +77,13 @@ export default function ResumeRoundBanner({ round }: { round: LiveRound }) {
               size="small"
               startIcon={<PlayArrowIcon />}
               component="span"
+              // `component="span"` stops this being a <button> inside a <button>,
+              // but MUI's ButtonBase still gives a non-button element role=button
+              // and tabindex=0 — so it was still a focusable control nested in
+              // one. It is decoration: the whole card is the real target.
+              tabIndex={-1}
+              role={undefined}
+              aria-hidden
               sx={{ flexShrink: 0, fontWeight: 700, pointerEvents: 'none' }}
             >
               Resume

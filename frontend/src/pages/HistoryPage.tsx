@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react'
+import { CLAY } from '../theme'
+import { SCORE } from '../scoreColors'
 import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
 import {
   Box, Container, Typography, CircularProgress, Alert,
-  List, ListItemButton, ListItemText, Paper, Chip, Divider,
+  List, ListItem, ListItemButton, ListItemText, Paper, Chip, Divider,
   IconButton, Dialog, DialogTitle, DialogContent, DialogContentText,
   DialogActions, Button, TextField, InputAdornment, Fab, Tooltip,
   Menu, MenuItem, ListItemIcon,
@@ -146,7 +148,7 @@ export default function HistoryPage() {
               ),
               endAdornment: searchQuery ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchQuery('')} edge="end">
+                  <IconButton aria-label="Clear search" size="small" onClick={() => setSearchQuery('')} edge="end">
                     <ClearIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
@@ -174,52 +176,70 @@ export default function HistoryPage() {
                       diff == null ? null : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
                     // Graded palette: most club golfers live over par, so
                     // reserve red for genuine blow-ups rather than every round.
-                    const chipColor =
-                      diff == null ? '#888'
-                      : diff < 0 ? '#e0b95c'     // under par — gold
-                      : diff === 0 ? '#4a8a68'   // even — green
-                      : diff <= 5 ? '#5c86a8'    // modest over par — clay blue
-                      : diff <= 12 ? '#5c5470'   // typical club score — muted slate
-                      : '#a1453c'                // blow-up round — softened red
+                    //
+                    // Each band names its own foreground rather than assuming
+                    // white. Gold is the reason: white on #e0b95c measures
+                    // 1.86:1, so the "best round" chip was the least legible
+                    // one on the page. It takes the dark ink instead.
+                    const chip =
+                      diff == null ? { bg: CLAY.inkSoft, fg: '#fff' }
+                      : diff < 0 ? { bg: SCORE.under.fill, fg: SCORE.under.on }   // under par — gold
+                      : diff === 0 ? { bg: SCORE.even.fill, fg: SCORE.even.on }   // even — green
+                      : diff <= 5 ? { bg: SCORE.over.fill, fg: SCORE.over.on }    // modest over par — clay blue
+                      : diff <= 12 ? { bg: CLAY.slate, fg: '#fff' }               // typical club score — muted slate
+                      : { bg: SCORE.poor.fill, fg: SCORE.poor.on }                // blow-up round — softened red
 
                     return (
                       <Box key={round.id}>
                         {idx > 0 && <Divider />}
-                        <ListItemButton
-                          onClick={() => navigate(`/rounds/${round.id}`)}
-                          onMouseEnter={() => prefetchRound(round.id)}
-                        >
-                          <ListItemText
-                            primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
-                            secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
-                          />
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-                            {round.totalStrokes != null && (
-                              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                {round.totalStrokes} strokes
-                              </Typography>
-                            )}
-                            {diffStr && (
-                              <Chip
-                                label={diffStr}
-                                size="small"
-                                sx={{ bgcolor: chipColor, color: '#fff', fontWeight: 700, minWidth: 40 }}
-                              />
-                            )}
-                            {round.holesCompleted != null && round.holesCompleted < (round.course?.holes?.length ?? 18) && (
-                              <Typography variant="caption" color="text.secondary">
-                                {round.holesCompleted}/{round.course?.holes?.length ?? 18}
-                              </Typography>
-                            )}
+                        {/* The row-actions button used to sit inside the
+                            ListItemButton, which nests a <button> in a
+                            <button>. Keyboard users could reach the outer
+                            control but never the menu. `secondaryAction` puts
+                            it in the ListItem as a sibling instead, which is
+                            what that prop exists for. */}
+                        <ListItem
+                          disablePadding
+                          secondaryAction={
                             <IconButton
                               size="small"
+                              edge="end"
                               onClick={(e) => openRowMenu(e, round)}
-                              aria-label="round actions"
+                              aria-label={`Actions for the round at ${round.course?.name ? formatCourseName(round.course.name) : 'an unknown course'}`}
                             >
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
-                          </Box>
-                        </ListItemButton>
+                          }
+                        >
+                          <ListItemButton
+                            onClick={() => navigate(`/rounds/${round.id}`)}
+                            onMouseEnter={() => prefetchRound(round.id)}
+                          >
+                            <ListItemText
+                              primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
+                              secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
+                            />
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mr: 3 }}>
+                              {round.totalStrokes != null && (
+                                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                                  {round.totalStrokes} strokes
+                                </Typography>
+                              )}
+                              {diffStr && (
+                                <Chip
+                                  label={diffStr}
+                                  size="small"
+                                  sx={{ bgcolor: chip.bg, color: chip.fg, fontWeight: 700, minWidth: 40 }}
+                                />
+                              )}
+                              {round.holesCompleted != null && round.holesCompleted < (round.course?.holes?.length ?? 18) && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {round.holesCompleted}/{round.course?.holes?.length ?? 18}
+                                </Typography>
+                              )}
+                            </Box>
+                          </ListItemButton>
+                        </ListItem>
                       </Box>
                     )
                   })}

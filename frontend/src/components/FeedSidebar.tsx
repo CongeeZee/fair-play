@@ -9,6 +9,7 @@ import { getTeeTimes } from '../api/teetimes'
 import { getCompetitions } from '../api/competitions'
 import { formatCourseName } from '../utils'
 import type { TeeTimeSummary, CompetitionSummary } from '../types'
+import { CLAY } from '../theme'
 
 const MAX_ITEMS = 3
 
@@ -68,7 +69,7 @@ function TeeTimeRow({ tt, invited }: { tt: TeeTimeSummary; invited?: boolean }) 
         secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
       />
       {invited && (
-        <Chip label="Invited" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#e0b95c', color: '#fff' }} />
+        <Chip label="Invited" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: CLAY.gold, color: CLAY.onGold }} />
       )}
     </ListItemButton>
   )
@@ -76,7 +77,7 @@ function TeeTimeRow({ tt, invited }: { tt: TeeTimeSummary; invited?: boolean }) 
 
 function CompetitionRow({ comp }: { comp: CompetitionSummary }) {
   const navigate = useNavigate()
-  const statusColor = comp.status === 'ACTIVE' ? '#4a8a68' : '#5c86a8'
+  const statusColor = comp.status === 'ACTIVE' ? CLAY.green : CLAY.clayBlue
   return (
     <ListItemButton dense onClick={() => navigate(`/competitions/${comp.id}`)} sx={{ py: 0.75 }}>
       <ListItemText
@@ -89,8 +90,10 @@ function CompetitionRow({ comp }: { comp: CompetitionSummary }) {
         label={comp.myStatus === 'INVITED' ? 'Invited' : comp.status === 'ACTIVE' ? 'Live' : 'Upcoming'}
         size="small"
         sx={{
-          ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700, color: '#fff',
-          bgcolor: comp.myStatus === 'INVITED' ? '#e0b95c' : statusColor,
+          // Gold needs dark ink on it; the green and blue fills take white.
+          ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700,
+          color: comp.myStatus === 'INVITED' ? CLAY.onGold : '#fff',
+          bgcolor: comp.myStatus === 'INVITED' ? CLAY.gold : statusColor,
         }}
       />
     </ListItemButton>
@@ -141,7 +144,7 @@ export default function FeedSidebar() {
       {activeComps.length > 0 && (
         <SidebarSection
           title="Competitions"
-          icon={<EmojiEventsIcon sx={{ fontSize: 18, color: '#e0b95c' }} />}
+          icon={<EmojiEventsIcon sx={{ fontSize: 18, color: CLAY.goldGraphic }} />}
           seeAllTo="/competitions"
         >
           <List disablePadding sx={{ pb: 0.5 }}>

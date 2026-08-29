@@ -26,6 +26,7 @@ import GroupAddIcon from '@mui/icons-material/GroupAdd'
 import MarkEmailUnreadIcon from '@mui/icons-material/MarkEmailUnread'
 import { useAuth } from '../contexts/AuthContext'
 import { resendVerification } from '../api/auth'
+import { CLAY } from '../theme'
 
 /**
  * Shared shell for the three tab lists.
@@ -109,7 +110,7 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
               <ListItem
                 key={f.friendshipId}
                 secondaryAction={
-                  <IconButton edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
+                  <IconButton aria-label={`Remove ${f.name} as a friend`} edge="end" onClick={() => setRemoveTarget({ friendshipId: f.friendshipId, name: f.name })} size="small">
                     <PersonRemoveIcon fontSize="small" />
                   </IconButton>
                 }
@@ -125,7 +126,7 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
                           onClick={(e) => { e.stopPropagation(); navigate(`/live/${live.roundId}`) }}
                           sx={{
                             height: 20, fontSize: '0.6rem', fontWeight: 700,
-                            bgcolor: 'rgba(99,180,127,0.15)', color: '#4f9d6d',
+                            bgcolor: 'rgba(99,180,127,0.15)', color: CLAY.greenDark,
                             cursor: 'pointer',
                           }}
                         />
@@ -200,7 +201,7 @@ function RequestsTab() {
             key={r.friendshipId}
             secondaryAction={
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <IconButton
+                <IconButton aria-label={`Accept friend request from ${r.from.name}`}
                   color="primary"
                   onClick={() => acceptMutation.mutate(r.friendshipId)}
                   disabled={acceptMutation.isPending}
@@ -208,7 +209,7 @@ function RequestsTab() {
                 >
                   <CheckIcon />
                 </IconButton>
-                <IconButton
+                <IconButton aria-label={`Decline friend request from ${r.from.name}`}
                   onClick={() => declineMutation.mutate(r.friendshipId)}
                   disabled={declineMutation.isPending}
                   size="small"
@@ -314,7 +315,7 @@ function FindFriendsTab() {
                 ) : u.isPending ? (
                   <Chip label="Pending" size="small" variant="outlined" />
                 ) : (
-                  <IconButton
+                  <IconButton aria-label={`Add ${u.name} as a friend`}
                     color="primary"
                     onClick={() => addMutation.mutate(u.id)}
                     disabled={addMutation.isPending}

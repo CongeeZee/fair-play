@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Box, Typography, Button } from '@mui/material'
 import { Link } from 'react-router-dom'
+import { CLAY } from '../theme'
 
 interface CTA {
   label: string
@@ -60,7 +61,7 @@ export default function EmptyState({ icon, title, description, primary, secondar
           justifyContent: 'center',
           mx: 'auto',
           mb: 2,
-          color: '#e0b95c',
+          color: CLAY.goldGraphic,
         }}
       >
         {icon}

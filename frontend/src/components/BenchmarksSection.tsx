@@ -3,6 +3,7 @@ import GroupsIcon from '@mui/icons-material/Groups'
 import { useQuery } from '@tanstack/react-query'
 import { getBenchmarks } from '../api/rounds'
 import type { BenchmarkMetricResult } from '../types'
+import { CLAY } from '../theme'
 
 /**
  * "How you compare" — anonymised peer benchmarking. Renders inside
@@ -23,7 +24,7 @@ const fmtValue = (m: BenchmarkMetricResult, v: number | null): string => {
 }
 
 const percentileColor = (p: number) =>
-  p >= 70 ? '#4a8a68' : p >= 40 ? '#e0b95c' : '#b0574c'
+  p >= 70 ? CLAY.greenLight : p >= 40 ? CLAY.goldGraphic : CLAY.red
 
 function PercentileBar({ metric }: { metric: BenchmarkMetricResult }) {
   const p = metric.percentile

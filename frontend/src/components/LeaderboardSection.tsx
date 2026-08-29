@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getLeaderboard, getHandicapLeaderboard } from '../api/rounds'
 import { useAuth } from '../contexts/AuthContext'
+import { CLAY } from '../theme'
 
 function formatScore(val: number | null) {
   if (val == null) return '—'
@@ -109,7 +110,7 @@ export default function LeaderboardSection() {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {i === 0 && entry.avgScoreToPar !== null && (
-                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#e0b95c' }} />
+                              <EmojiEventsIcon titleAccess="Leader" sx={{ fontSize: 16, color: CLAY.goldGraphic }} />
                             )}
                             {i + 1}
                           </Box>
@@ -166,7 +167,7 @@ export default function LeaderboardSection() {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {i === 0 && entry.handicapIndex !== null && (
-                              <EmojiEventsIcon sx={{ fontSize: 16, color: '#e0b95c' }} />
+                              <EmojiEventsIcon titleAccess="Leader" sx={{ fontSize: 16, color: CLAY.goldGraphic }} />
                             )}
                             {i + 1}
                           </Box>
@@ -178,9 +179,11 @@ export default function LeaderboardSection() {
                           {entry.handicapIndex != null ? entry.handicapIndex.toFixed(1) : '—'}
                         </TableCell>
                         <TableCell align="center">
-                          {entry.trend === 'improving' && <TrendingDownIcon sx={{ fontSize: 18, color: '#4a8a68' }} />}
-                          {entry.trend === 'declining' && <TrendingUpIcon sx={{ fontSize: 18, color: '#b0574c' }} />}
-                          {entry.trend === 'stable' && <RemoveIcon sx={{ fontSize: 18, color: '#999' }} />}
+                          {/* The arrow is the only carrier of the trend, so it needs a name for
+                              screen readers and 3:1 against the row for 1.4.11. */}
+                          {entry.trend === 'improving' && <TrendingDownIcon titleAccess="Improving" sx={{ fontSize: 18, color: CLAY.greenLight }} />}
+                          {entry.trend === 'declining' && <TrendingUpIcon titleAccess="Declining" sx={{ fontSize: 18, color: CLAY.red }} />}
+                          {entry.trend === 'stable' && <RemoveIcon titleAccess="Stable" sx={{ fontSize: 18, color: CLAY.inkSoft }} />}
                         </TableCell>
                       </TableRow>
                     )

@@ -19,6 +19,7 @@ import { joinTeeTime } from '../api/teetimes'
 import { addComment } from '../api/reactions'
 import { getLiveRounds } from '../api/live'
 import { CLAY, raised, tint } from '../theme'
+import { scoreBand } from '../scoreColors'
 import { getRecentAchievements } from '../api/achievements'
 import { formatCourseName, timeAgo } from '../utils'
 import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement, RoundPartner } from '../types'
@@ -32,11 +33,14 @@ import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import FeedSidebar from '../components/FeedSidebar'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
-function scoreColor(scoreToPar: number) {
-  if (scoreToPar < 0) return '#e0b95c'
-  if (scoreToPar === 0) return '#4a8a68'
-  if (scoreToPar <= 5) return '#5c86a8'
-  return '#b0574c'
+/**
+ * Returns the chip's background *and* its foreground. The previous version
+ * returned a background only, and every caller paired it with white — which is
+ * unreadable on gold (1.86:1) and short of AA on the mid green (4.09:1).
+ */
+function scoreChip(scoreToPar: number) {
+  const b = scoreBand(scoreToPar, 5)
+  return { bgcolor: b.fill, color: b.on }
 }
 
 function scoreLabel(scoreToPar: number) {
@@ -108,8 +112,7 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
                   size="small"
                   sx={{
                     height: 20, fontSize: '0.65rem', fontWeight: 700,
-                    bgcolor: r.currentScoreToPar < 0 ? '#e0b95c' : r.currentScoreToPar === 0 ? '#4a8a68' : r.currentScoreToPar <= 5 ? '#5c86a8' : '#b0574c',
-                    color: '#fff',
+                    ...scoreChip(r.currentScoreToPar),
                   }}
                 />
               </Box>
@@ -193,7 +196,7 @@ function InlineComments({ roundId, shareId, commentCount, recentComments }: {
             autoFocus
             slotProps={{ input: { sx: { fontSize: '0.8rem', py: 0.5 } } }}
           />
-          <IconButton
+          <IconButton aria-label="Post comment"
             size="small"
             onClick={() => commentMutation.mutate()}
             disabled={!text.trim() || commentMutation.isPending}
@@ -243,9 +246,9 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
 
   return (
     <>
-      <Card elevation={2} sx={{ mb: 3, border: '2px solid', borderColor: 'secondary.main', borderRadius: 2 }}>
+      <Card elevation={2} sx={{ mb: 3, border: '2px solid', borderColor: CLAY.goldGraphic, borderRadius: 2 }}>
         <CardContent sx={{ pb: '12px !important' }}>
-          <Typography variant="overline" color="secondary.main" sx={{ fontWeight: 700, letterSpacing: 1 }}>
+          <Typography variant="overline" sx={{ color: CLAY.goldText, fontWeight: 700, letterSpacing: 1 }}>
             Your latest round
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
@@ -267,11 +270,11 @@ function OwnRoundCard({ round }: { round: OwnLatestRound }) {
                 <Chip
                   label={scoreLabel(round.scoreToPar)}
                   size="small"
-                  sx={{ bgcolor: scoreColor(round.scoreToPar), color: '#fff', fontWeight: 700, mt: 0.5, height: 22 }}
+                  sx={{ ...scoreChip(round.scoreToPar), fontWeight: 700, mt: 0.5, height: 22 }}
                 />
               </Box>
               {round.shareId && (
-                <IconButton size="small" onClick={handleShare}>
+                <IconButton aria-label="Share round" size="small" onClick={handleShare}>
                   <ShareIcon fontSize="small" />
                 </IconButton>
               )}
@@ -335,7 +338,7 @@ function FeedCard({ round }: { round: FeedRound }) {
         {round.viewerTagged && (
           <Typography
             variant="overline"
-            sx={{ color: '#e0b95c', fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25, lineHeight: 1.2 }}
+            sx={{ color: CLAY.goldText, fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.25, lineHeight: 1.2 }}
           >
             You were tagged
           </Typography>
@@ -359,7 +362,7 @@ function FeedCard({ round }: { round: FeedRound }) {
             <Chip
               label={scoreLabel(round.scoreToPar)}
               size="small"
-              sx={{ bgcolor: scoreColor(round.scoreToPar), color: '#fff', fontWeight: 700, mt: 0.5, height: 22 }}
+              sx={{ ...scoreChip(round.scoreToPar), fontWeight: 700, mt: 0.5, height: 22 }}
             />
           </Box>
         </Box>
@@ -517,7 +520,7 @@ function NotificationPrompt() {
     <Card elevation={2} sx={{ mb: 3, bgcolor: tint(CLAY.gold, 0.18), borderRadius: 2 }}>
       <CardContent sx={{ pb: '8px !important' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-          <NotificationsActiveIcon sx={{ color: '#e0b95c', mt: 0.25 }} />
+          <NotificationsActiveIcon sx={{ color: CLAY.goldText, mt: 0.25 }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
               Get notified when friends post rounds
@@ -526,7 +529,7 @@ function NotificationPrompt() {
               Stay in the loop without opening the app
             </Typography>
           </Box>
-          <IconButton size="small" onClick={handleDismiss} sx={{ mt: -0.5, mr: -0.5 }}>
+          <IconButton aria-label="Dismiss" size="small" onClick={handleDismiss} sx={{ mt: -0.5, mr: -0.5 }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -628,10 +631,10 @@ export default function FeedPage() {
         subtitle="What you and your mates have been playing"
         action={
           <Box>
-            <IconButton onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
+            <IconButton aria-label="Feed settings" onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
               <SettingsIcon fontSize="small" />
             </IconButton>
-            <IconButton onClick={handleRefresh} disabled={isRefetching} size="small">
+            <IconButton aria-label="Refresh feed" onClick={handleRefresh} disabled={isRefetching} size="small">
               <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
             </IconButton>
           </Box>

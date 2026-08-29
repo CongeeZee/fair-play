@@ -29,6 +29,7 @@ import { formatCourseName } from '../utils'
 import type { RoundHole, NewlyUnlockedAchievement, StablefordInfo } from '../types'
 import { capture, AnalyticsEvent } from '../analytics'
 import { CLAY, raised, pressed } from '../theme'
+import { scoreBand, ON_GREEN } from '../scoreColors'
 
 const TEE_DIRECTIONS = [
   { value: 'fairway', label: 'Fairway' },
@@ -40,23 +41,26 @@ const TEE_DIRECTIONS = [
 const STROKE_QUICK_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 // These colours are only ever rendered on the dark green hole header, so they
-// have to read against primary.main (#2f6b4c). Birdie, par and double were all
-// under a 2:1 ratio there — par in particular was mid-grey on dark green.
+// have to read against primary.main (#2f6b4c). An earlier pass raised them but
+// measurement showed four of the five still short of 4.5:1 — eagle 3.38, birdie
+// 3.29, bogey 2.85 and double 2.14. Only par cleared. A hue stays legible on a
+// dark backdrop only by getting genuinely pale, which is why these are tints
+// rather than the saturated versions used on light surfaces.
 function scoreLabel(diff: number, strokes: number) {
-  if (strokes === 1) return { label: 'Ace!', color: '#e0b95c' }
-  if (diff <= -2) return { label: 'Eagle', color: '#e0b95c' }
-  if (diff === -1) return { label: 'Birdie', color: '#8bc9a0' }
-  if (diff === 0) return { label: 'Par', color: '#e9e1d3' }
-  if (diff === 1) return { label: 'Bogey', color: '#d9a63f' }
-  return { label: diff === 2 ? 'Double' : `+${diff}`, color: '#d97d74' }
+  if (strokes === 1) return { label: 'Ace!', color: ON_GREEN.gold }
+  if (diff <= -2) return { label: 'Eagle', color: ON_GREEN.gold }
+  if (diff === -1) return { label: 'Birdie', color: ON_GREEN.green }
+  if (diff === 0) return { label: 'Par', color: ON_GREEN.neutral }
+  if (diff === 1) return { label: 'Bogey', color: ON_GREEN.gold }
+  return { label: diff === 2 ? 'Double' : `+${diff}`, color: ON_GREEN.red }
 }
 
-function scoreDiffColor(diff: number | null): string {
-  if (diff == null) return '#aaa'
-  if (diff < 0) return '#e0b95c'
-  if (diff === 0) return '#4a8a68'
-  if (diff <= 3) return '#5c86a8'
-  return '#b0574c'
+
+/** Score-relative-to-par as a *filled chip*: background plus its foreground. */
+function scoreDiffChip(diff: number | null) {
+  if (diff == null) return { bgcolor: CLAY.inkSoft, color: '#fff' }
+  const b = scoreBand(diff, 3)
+  return { bgcolor: b.fill, color: b.on }
 }
 
 interface HoleScoreState {
@@ -100,7 +104,7 @@ function Stepper({
         {label}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <IconButton
+        <IconButton aria-label={`Decrease ${label}`}
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
           sx={{ borderRadius: 2.2, width: 40, height: 40, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
@@ -110,7 +114,7 @@ function Stepper({
         <Typography variant="h6" sx={{ minWidth: 28, textAlign: 'center', fontWeight: 700 }}>
           {value || '–'}
         </Typography>
-        <IconButton
+        <IconButton aria-label={`Increase ${label}`}
           onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
           sx={{ borderRadius: 2.2, width: 40, height: 40, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
         >
@@ -179,7 +183,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                   key={h.id}
                   align="center"
                   sx={{
-                    color: h.number - 1 === currentHoleIndex ? '#e0b95c' : '#fff',
+                    color: h.number - 1 === currentHoleIndex ? ON_GREEN.gold : '#fff',
                     fontWeight: h.number - 1 === currentHoleIndex ? 800 : 600,
                     py: 0.75,
                     fontSize: '0.7rem',
@@ -191,7 +195,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                   {h.number}
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ color: '#e0b95c', fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
+              <TableCell align="center" sx={{ color: ON_GREEN.gold, fontWeight: 800, py: 0.75, fontSize: '0.7rem' }}>
                 {label === 'Front 9' ? 'Out' : 'In'}
               </TableCell>
             </TableRow>
@@ -226,21 +230,22 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                         width: 26, height: 26, mx: 'auto',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         borderRadius: diff != null && diff <= -1 ? '50%' : 1,
-                        border: isCurrent ? '2px solid #e0b95c'
-                          : diff === 1 ? '1px solid #d9a63f'
-                          : diff != null && diff >= 2 ? '2px solid #b0574c'
+                        border: isCurrent ? `2px solid ${CLAY.goldText}`
+                          : diff === 1 ? `1px solid ${CLAY.warningText}`
+                          : diff != null && diff >= 2 ? `2px solid ${CLAY.errorText}`
                           : 'none',
                         bgcolor:
                           diff == null ? 'transparent'
-                          : diff <= -2 ? '#e0b95c'
-                          : diff === -1 ? '#4a8a68'
+                          : diff <= -2 ? CLAY.gold
+                          : diff === -1 ? CLAY.green
                           : 'transparent',
                         color:
                           diff == null ? 'text.disabled'
-                          : diff <= -1 ? '#fff'
+                          : diff <= -2 ? CLAY.onGold
+                          : diff === -1 ? '#fff'
                           : diff === 0 ? 'text.primary'
-                          : diff === 1 ? '#d9a63f'
-                          : '#b0574c',
+                          : diff === 1 ? CLAY.warningText
+                          : CLAY.errorText,
                         fontWeight: s ? 700 : 400,
                         fontSize: '0.78rem',
                       }}
@@ -269,8 +274,8 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
                         fontSize: '0.75rem',
                         fontWeight: pts != null && pts >= 3 ? 800 : 500,
                         color: pts == null ? 'text.disabled'
-                          : pts >= 3 ? '#e0b95c'
-                          : pts === 0 ? '#b0574c'
+                          : pts >= 3 ? CLAY.goldText
+                          : pts === 0 ? CLAY.errorText
                           : 'text.secondary',
                       }}
                     >
@@ -298,7 +303,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
         {totalDiff != null && (
           <Chip
             label={totalDiff === 0 ? 'E' : totalDiff > 0 ? `+${totalDiff}` : totalDiff}
-            sx={{ bgcolor: scoreDiffColor(totalDiff), color: '#fff', fontWeight: 800, fontSize: '0.9rem' }}
+            sx={{ ...scoreDiffChip(totalDiff), fontWeight: 800, fontSize: '0.9rem' }}
           />
         )}
       </DialogTitle>
@@ -612,7 +617,7 @@ export default function RoundPage() {
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             {(round as { shareId?: string }).shareId && (
               <Tooltip title="Share scorecard">
-                <IconButton size="small" onClick={handleShare}>
+                <IconButton aria-label="Share round" size="small" onClick={handleShare}>
                   <ShareIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
@@ -650,8 +655,8 @@ export default function RoundPage() {
                 )}
                 {saveStatus === 'saved' && (
                   <>
-                    <CheckCircleIcon sx={{ fontSize: 14, color: '#4a8a68' }} />
-                    <Typography variant="caption" sx={{ color: '#4a8a68' }}>Saved</Typography>
+                    <CheckCircleIcon sx={{ fontSize: 14, color: CLAY.successText }} />
+                    <Typography variant="caption" sx={{ color: CLAY.successText }}>Saved</Typography>
                   </>
                 )}
               </Box>
@@ -660,7 +665,7 @@ export default function RoundPage() {
               <Chip
                 label={totalDiff === 0 ? 'E' : totalDiff > 0 ? `+${totalDiff}` : totalDiff}
                 size="small"
-                sx={{ bgcolor: scoreDiffColor(totalDiff), color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}
+                sx={{ ...scoreDiffChip(totalDiff), fontWeight: 700, fontSize: '0.75rem' }}
               />
             )}
           </Box>
@@ -678,7 +683,7 @@ export default function RoundPage() {
         </Typography>
         {pendingCount > 0 && (
           <Tooltip title={`${pendingCount} score${pendingCount > 1 ? 's' : ''} pending — tap to sync`}>
-            <IconButton size="small" onClick={flush} sx={{ color: '#e6ae4d' }}>
+            <IconButton aria-label="Retry sync" size="small" onClick={flush} sx={{ color: '#e6ae4d' }}>
               <CloudSyncIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -731,7 +736,7 @@ export default function RoundPage() {
                 Strokes
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <IconButton
+                <IconButton aria-label="Remove a stroke"
                   onClick={() => updateStrokes(holeId, Math.max(1, score.strokes - 1))}
                   sx={{ borderRadius: 2.2, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
                 >
@@ -740,7 +745,7 @@ export default function RoundPage() {
                 <Typography variant="h5" sx={{ minWidth: 36, textAlign: 'center', fontWeight: 800 }}>
                   {score.strokes || '–'}
                 </Typography>
-                <IconButton
+                <IconButton aria-label="Add a stroke"
                   onClick={() => updateStrokes(holeId, score.strokes + 1)}
                   sx={{ borderRadius: 2.2, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
                 >
@@ -753,15 +758,18 @@ export default function RoundPage() {
               {STROKE_QUICK_VALUES.map((n) => {
                 const isSelected = score.strokes === n
                 const nDiff = n - hole.par
-                const chipBg = isSelected
-                  ? nDiff <= -2 ? '#bf9738'
-                    : nDiff === -1 ? '#4a8a68'
-                    // Par is the good, expected outcome — it was a dead grey,
-                    // which read as "disabled" next to the coloured neighbours.
-                    : nDiff === 0 ? '#2f6b4c'
-                    : nDiff === 1 ? '#c08b20'
-                    : '#b0574c'
-                  : undefined
+                // Par is the good, expected outcome — it was a dead grey once,
+                // which read as "disabled" next to the coloured neighbours.
+                //
+                // Each band names its own foreground. Three of the five carried
+                // white below 4.5:1 before, the eagle chip worst at 2.73:1, and
+                // this is the most-tapped control on the course screen.
+                const chip = !isSelected ? null
+                  : nDiff <= -2 ? { bg: CLAY.gold, fg: CLAY.onGold }
+                  : nDiff === -1 ? { bg: CLAY.greenLight, fg: '#fff' }
+                  : nDiff === 0 ? { bg: CLAY.green, fg: '#fff' }
+                  : nDiff === 1 ? { bg: CLAY.warningText, fg: '#fff' }
+                  : { bg: CLAY.redDeep, fg: '#fff' }
                 return (
                   <Box
                     key={n}
@@ -773,14 +781,14 @@ export default function RoundPage() {
                       // Clay pebbles rather than hairline squares: unselected sit
                       // just proud of the card, selected press in so the choice
                       // reads as a physical state, not just a colour swap.
-                      bgcolor: isSelected ? chipBg : CLAY.surface,
+                      bgcolor: chip ? chip.bg : CLAY.surface,
                       boxShadow: isSelected ? pressed(1.6) : raised(2),
-                      color: isSelected ? '#fff' : 'text.primary',
+                      color: chip ? chip.fg : 'text.primary',
                       fontWeight: isSelected ? 800 : 600,
                       fontSize: '0.875rem',
                       transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                       '&:hover': {
-                        bgcolor: isSelected ? chipBg : CLAY.surface,
+                        bgcolor: chip ? chip.bg : CLAY.surface,
                         transform: isSelected ? 'none' : 'translateY(-1px)',
                         boxShadow: isSelected ? pressed(1.6) : raised(2.8),
                       },
@@ -808,7 +816,7 @@ export default function RoundPage() {
                   <Button
                     variant={score.approachResult === 'gir' ? 'contained' : 'outlined'}
                     onClick={() => updateField(holeId, 'approachResult', score.approachResult === 'gir' ? '' : 'gir')}
-                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? '#4a8a68 !important' : undefined }}
+                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? `${CLAY.green} !important` : undefined }}
                   >
                     Hit Green ✓
                   </Button>
@@ -863,7 +871,7 @@ export default function RoundPage() {
                   <Button
                     variant={score.approachResult === 'gir' ? 'contained' : 'outlined'}
                     onClick={() => updateField(holeId, 'approachResult', score.approachResult === 'gir' ? '' : 'gir')}
-                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? '#4a8a68 !important' : undefined }}
+                    sx={{ textTransform: 'none', fontWeight: score.approachResult === 'gir' ? 700 : 400, bgcolor: score.approachResult === 'gir' ? `${CLAY.green} !important` : undefined }}
                   >
                     GIR ✓
                   </Button>
@@ -941,13 +949,18 @@ export default function RoundPage() {
           const hasScore = s && s.strokes > 0
           const isCurrent = idx === currentHoleIndex
           const holeDiff = hasScore ? s.strokes - h.par : null
-          const dotColor = isCurrent
-            ? 'primary.main'
-            : !hasScore ? 'divider'
-            : holeDiff! < 0 ? '#e0b95c'
-            : holeDiff === 0 ? '#4a8a68'
-            : holeDiff! <= 2 ? '#d9a63f'
-            : '#b0574c'
+          // Colour is the only carrier on these dots, so 1.4.11 applies at
+          // 3:1 against the card. Gold (1.73:1) and amber (2.05:1) cannot meet
+          // that as fills without ceasing to look gold, so each dot keeps its
+          // hue and gains a ring in the AA-level variant of the same hue. The
+          // ring is what defines the shape; the fill carries the meaning.
+          const dot = isCurrent
+            ? { bg: 'primary.main', ring: CLAY.greenDark }
+            : !hasScore ? { bg: 'divider', ring: CLAY.inkSoft }
+            : holeDiff! < 0 ? { bg: CLAY.gold, ring: CLAY.goldText }
+            : holeDiff === 0 ? { bg: CLAY.green, ring: CLAY.greenDark }
+            : holeDiff! <= 2 ? { bg: CLAY.goldLight, ring: CLAY.warningText }
+            : { bg: CLAY.red, ring: CLAY.errorText }
           return (
             <Tooltip key={h.id} title={`Hole ${h.number}${hasScore ? ` — ${s.strokes} strokes` : ''}`} arrow>
               <Box
@@ -956,9 +969,9 @@ export default function RoundPage() {
                   width: 14, height: 14,
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  bgcolor: dotColor,
-                  border: isCurrent ? '2px solid' : 'none',
-                  borderColor: 'primary.dark',
+                  bgcolor: dot.bg,
+                  border: isCurrent ? '2px solid' : '1px solid',
+                  borderColor: dot.ring,
                   transition: 'all 0.15s',
                   // Larger tap target on mobile
                   p: 0,

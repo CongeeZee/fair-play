@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { getHandicapHistory } from '../api/rounds'
 import { formatCourseName } from '../utils'
+import { CLAY } from '../theme'
 
 export default function HandicapTrendChart() {
   const { data: history } = useQuery({
@@ -60,7 +61,7 @@ export default function HandicapTrendChart() {
                     : chartData.filter((_, i) => i % Math.ceil(chartData.length / 10) === 0 || i === chartData.length - 1).map((d) => d.index)
                 }
                 tickFormatter={(i) => chartData[i]?.date ?? ''}
-                tick={{ fontSize: 11, fill: '#888' }}
+                tick={{ fontSize: 11, fill: CLAY.inkSoft }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -68,7 +69,7 @@ export default function HandicapTrendChart() {
                 domain={[minVal, maxVal]}
                 reversed
                 tickFormatter={(v) => v.toFixed(1)}
-                tick={{ fontSize: 12, fill: '#888' }}
+                tick={{ fontSize: 12, fill: CLAY.inkSoft }}
                 axisLine={false}
                 tickLine={false}
                 width={40}

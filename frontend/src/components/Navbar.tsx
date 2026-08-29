@@ -1,9 +1,51 @@
-import { AppBar, Toolbar, Typography, Button, Box, Badge, Avatar, useScrollTrigger } from '@mui/material'
+import { AppBar, Toolbar, Typography, Button, Box, Badge, Avatar, IconButton, Tooltip, useScrollTrigger } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import WbSunnyIcon from '@mui/icons-material/WbSunny'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
+import { useAppearance } from '../contexts/AppearanceContext'
 import { getFriendRequests } from '../api/friends'
+
+/**
+ * Sunlight mode has no settings page to live in — the app has no settings page
+ * at all — and burying it would defeat the point: it is needed at the moment
+ * the user walks out of the clubhouse, not before. So it sits in the bar on
+ * every screen size, including mobile, which is the size that actually goes
+ * outdoors.
+ *
+ * State is carried by the same pressed-pill treatment the active nav links
+ * use, plus `aria-pressed` for anyone not reading the shadow.
+ */
+function SunlightToggle() {
+  const { appearance, toggleAppearance } = useAppearance()
+  const on = appearance === 'sunlight'
+
+  return (
+    <Tooltip title={on ? 'Switch back to normal view' : 'Sunlight mode — high contrast for bright light'}>
+      <IconButton
+        onClick={toggleAppearance}
+        aria-label="Sunlight mode"
+        aria-pressed={on}
+        size="small"
+        sx={{
+          color: on ? 'var(--c-goldOnGreen)' : 'rgba(255,255,255,0.86)',
+          borderRadius: 999,
+          boxShadow: on
+            ? 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)'
+            : 'none',
+          bgcolor: on ? 'rgba(19,48,33,0.28)' : 'transparent',
+          '&:hover': {
+            color: '#fff',
+            bgcolor: on ? 'rgba(19,48,33,0.32)' : 'rgba(255,255,255,0.1)',
+          },
+        }}
+      >
+        <WbSunnyIcon sx={{ fontSize: 20 }} />
+      </IconButton>
+    </Tooltip>
+  )
+}
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -46,13 +88,27 @@ export default function Navbar() {
       sx={{
         // A clay slab rather than a flat bar: soft gradient face plus a top
         // inset highlight, so the bar reads as moulded like the cards below it.
+        // Driven by the palette custom properties so the bar follows sunlight
+        // mode with the rest of the app instead of staying clay-green.
+        // The gradient used to run greenMid → green, so the *top* of the bar
+        // was its lightest point (#468262) and every white foreground on it
+        // measured against that: 78% white came out at 3.45:1 and even full
+        // white at 4.54:1. axe missed it because `background` is a
+        // background-*image*, so getComputedStyle reports backgroundColor as
+        // transparent and the check walks up to the page base instead.
+        // Running green → greenDark keeps the moulded top-lit look while
+        // making the lightest stop #2f6b4c, where full white is 6.31:1.
         background: solid
-          ? 'linear-gradient(180deg, #37795a 0%, #2f6b4c 100%)'
+          ? 'linear-gradient(180deg, var(--c-green) 0%, var(--c-greenDark) 100%)'
           : 'transparent',
         backdropFilter: !solid ? 'blur(10px)' : 'none',
-        borderBottom: !solid ? '1px solid rgba(255,255,255,0.1)' : 'none',
+        borderBottom: !solid
+          ? '1px solid rgba(255,255,255,0.1)'
+          // In sunlight mode --c-borderW is 2px and --c-borderC is near-black,
+          // giving the bar a hard edge; in clay it resolves to 0px/transparent.
+          : 'var(--c-borderW) solid var(--c-borderC)',
         boxShadow: solid
-          ? '0 8px 24px 0 rgba(31, 74, 52, 0.28), inset 0 1px 0 0 rgba(255,255,255,0.16)'
+          ? '0 calc(8px * var(--c-depth)) calc(24px * var(--c-depth)) 0 rgba(31, 74, 52, 0.28), inset 0 1px 0 0 rgba(255,255,255,0.16)'
           : 'none',
         transition: 'background 0.3s ease, box-shadow 0.3s ease',
       }}
@@ -92,7 +148,12 @@ export default function Navbar() {
                   fontWeight: active ? 700 : 500,
                   // Active tab becomes a pressed-in pill — the clay equivalent
                   // of the old gold underline.
-                  color: active ? '#f2d492' : 'rgba(255,255,255,0.78)',
+                  // `goldLight` is 4.39:1 on the bar — under AA by a whisker.
+                  // `goldOnGreen` exists for exactly this backdrop (4.70:1),
+                  // and 86% white gives the inactive links 5.15:1 instead of
+                  // the 4.55:1 that 78% left, which was passing on ~1% of
+                  // headroom.
+                  color: active ? 'var(--c-goldOnGreen)' : 'rgba(255,255,255,0.86)',
                   borderRadius: 999,
                   px: 2,
                   py: 0.6,
@@ -118,6 +179,10 @@ export default function Navbar() {
 
         {/* On mobile with user, push sign-out to right */}
         {user && <Box sx={{ display: { xs: 'block', md: 'none' }, flexGrow: 1 }} />}
+
+        <Box sx={{ mr: { xs: 0.5, md: 1.5 }, display: 'flex' }}>
+          <SunlightToggle />
+        </Box>
 
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
@@ -154,13 +219,23 @@ export default function Navbar() {
             <Button
               variant="outlined"
               size="small"
+              // `inherit` matters: the theme gives outlined buttons a page-surface
+              // fill so they read as raised clay, and this one sits on the green
+              // bar with white text. Left as the default `primary`, it got the
+              // cream fill under white text and measured 1.06:1 — a rectangle
+              // with an invisible label.
+              color="inherit"
               onClick={handleLogout}
               sx={{
                 display: { xs: 'none', md: 'inline-flex' },
-                color: 'rgba(255,255,255,0.8)',
-                borderColor: 'rgba(255,255,255,0.3)',
+                color: '#fff',
+                // The border is the only thing that makes this read as a
+                // button, so 1.4.11 applies to it at 3:1. 30% white was
+                // 1.92:1 against the bar — a control outlined in something
+                // you cannot see is just a word.
+                borderColor: 'rgba(255,255,255,0.6)',
                 fontSize: '0.8rem',
-                '&:hover': { borderColor: '#fff', color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.12)' },
               }}
             >
               Sign out
@@ -173,7 +248,7 @@ export default function Navbar() {
             <Button
               component={Link}
               to="/login"
-              sx={{ color: 'rgba(255,255,255,0.8)', '&:hover': { color: '#fff' } }}
+              sx={{ color: 'rgba(255,255,255,0.86)', '&:hover': { color: '#fff' } }}
             >
               Sign In
             </Button>

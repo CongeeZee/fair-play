@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react'
 import { Popover, Typography, Box, IconButton } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { CLAY, raised, tint } from '../theme'
+import { ON_GREEN } from '../scoreColors'
 
 interface Props {
   storageKey: string
@@ -56,10 +57,10 @@ export default function FirstTimeTooltip({
         <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
           {message}
         </Typography>
-        <IconButton
+        <IconButton aria-label="Dismiss tip"
           size="small"
           onClick={handleClose}
-          sx={{ position: 'absolute', top: 4, right: 4, color: 'rgba(255,255,255,0.6)' }}
+          sx={{ position: 'absolute', top: 4, right: 4, color: ON_GREEN.soft }}
         >
           <CloseIcon sx={{ fontSize: 16 }} />
         </IconButton>
@@ -80,7 +81,7 @@ export function FirstTimeCard({ storageKey, message, action }: { storageKey: str
 
   return (
     <Box sx={{ bgcolor: tint(CLAY.gold, 0.18), boxShadow: raised(3), borderRadius: 2, p: 2, mb: 3, position: 'relative' }}>
-      <IconButton size="small" onClick={handleDismiss} sx={{ position: 'absolute', top: 4, right: 4 }}>
+      <IconButton aria-label="Dismiss tip" size="small" onClick={handleDismiss} sx={{ position: 'absolute', top: 4, right: 4 }}>
         <CloseIcon sx={{ fontSize: 16 }} />
       </IconButton>
       <Typography variant="body2" color="text.secondary" sx={{ pr: 3 }}>

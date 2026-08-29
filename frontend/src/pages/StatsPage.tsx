@@ -38,7 +38,8 @@ import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import type { Round, InsightSuggestion } from '../types'
-import { CLAY, raised, pressed, tint } from '../theme'
+import { CLAY, raised, pressed, tint, greenGradient } from '../theme'
+import { SENTIMENT, scoreBand, ON_GREEN } from '../scoreColors'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -83,7 +84,7 @@ function ImprovementCard({ rounds }: { rounds: Round[] }) {
   const declined = delta > 0.4
 
   const TrendIcon = improved ? TrendingDownIcon : declined ? TrendingUpIcon : TrendingFlatIcon
-  const trendColor = improved ? '#4a8a68' : declined ? '#b0574c' : '#68786d'
+  const trendColor = improved ? SENTIMENT.good.text : declined ? SENTIMENT.bad.text : CLAY.inkSoft
   // Solid, not translucent. A semi-transparent tint composites against the clay
   // page base (#e9e1d3) and lands *darker* than the page, so a raised card reads
   // as a sunken smudge. These are those same tints pre-composited over the clay
@@ -162,19 +163,19 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
               domain={[0, chartData.length - 1]}
               ticks={chartData.map((d) => d.index)}
               tickFormatter={(i) => chartData[i]?.date ?? ''}
-              tick={{ fontSize: 12, fill: '#888' }}
+              tick={{ fontSize: 12, fill: CLAY.inkSoft }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               domain={[minVal - 1, maxVal + 1]}
               tickFormatter={(v) => v === 0 ? 'E' : v > 0 ? `+${v}` : `${v}`}
-              tick={{ fontSize: 12, fill: '#888' }}
+              tick={{ fontSize: 12, fill: CLAY.inkSoft }}
               axisLine={false}
               tickLine={false}
               width={36}
             />
-            <ReferenceLine y={0} stroke="#4a8a68" strokeDasharray="4 4" strokeWidth={1.5} />
+            <ReferenceLine y={0} stroke={CLAY.greenText} strokeDasharray="4 4" strokeWidth={1.5} />
             <Tooltip
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
@@ -201,12 +202,12 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
             <Line
               type="monotone"
               dataKey="scoreToPar"
-              stroke="#5c86a8"
+              stroke={CLAY.infoText}
               strokeWidth={2.5}
               dot={(props) => {
                 const { cx, cy, payload } = props
                 const score = payload.scoreToPar
-                const color = score < 0 ? '#b0574c' : score === 0 ? '#4a8a68' : '#5c86a8'
+                const color = score < 0 ? CLAY.errorText : score === 0 ? CLAY.greenText : CLAY.infoText
                 return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={2} />
               }}
               activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
@@ -219,15 +220,17 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
 }
 
 function severityIcon(s: InsightSuggestion['severity']) {
-  if (s === 'high') return <WarningAmberIcon sx={{ fontSize: 18, color: '#b0574c' }} />
-  if (s === 'medium') return <InfoOutlinedIcon sx={{ fontSize: 18, color: '#d9a63f' }} />
-  return <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#4a8a68' }} />
+  if (s === 'high') return <WarningAmberIcon sx={{ fontSize: 18, color: CLAY.errorText }} />
+  if (s === 'medium') return <InfoOutlinedIcon sx={{ fontSize: 18, color: CLAY.warningText }} />
+  return <CheckCircleOutlineIcon sx={{ fontSize: 18, color: CLAY.successText }} />
 }
 
 function severityBg(s: InsightSuggestion['severity']) {
-  if (s === 'high') return { bg: tint('#b0574c', 0.12), text: '#b0574c' }
-  if (s === 'medium') return { bg: tint('#d9a63f', 0.16), text: '#7d5a14' }
-  return { bg: tint(CLAY.greenLight, 0.12), text: '#4a8a68' }
+  // The text sits on the tint, not on the raw surface, so it is measured
+  // against the composited result — 3.88:1 and 3.29:1 before this.
+  if (s === 'high') return { bg: tint(CLAY.red, 0.12), text: CLAY.errorText }
+  if (s === 'medium') return { bg: tint(CLAY.gold, 0.16), text: CLAY.warningText }
+  return { bg: tint(CLAY.greenLight, 0.12), text: CLAY.successText }
 }
 
 function MetricPill({ label, value }: { label: string; value: string }) {
@@ -334,11 +337,11 @@ export default function StatsPage() {
 
   const breakdownItems = breakdown
     ? [
-        { label: 'Eagles', value: breakdown.eagles, color: '#e0b95c' },
-        { label: 'Birdies', value: breakdown.birdies, color: '#4a8a68' },
-        { label: 'Pars', value: breakdown.pars, color: '#68786d' },
-        { label: 'Bogeys', value: breakdown.bogeys, color: '#d9a63f' },
-        { label: 'Double+', value: breakdown.doublesOrWorse, color: '#b0574c' },
+        { label: 'Eagles', value: breakdown.eagles, color: CLAY.goldText },
+        { label: 'Birdies', value: breakdown.birdies, color: CLAY.greenText },
+        { label: 'Pars', value: breakdown.pars, color: CLAY.inkSoft },
+        { label: 'Bogeys', value: breakdown.bogeys, color: CLAY.warningText },
+        { label: 'Double+', value: breakdown.doublesOrWorse, color: CLAY.errorText },
       ]
     : []
 
@@ -371,39 +374,39 @@ export default function StatsPage() {
     />
 
       {/* Handicap Index hero */}
-      <Card elevation={2} sx={{ mb: 4, background: 'linear-gradient(135deg, #2f6b4c 0%, #4a8a68 100%)' }}>
+      <Card elevation={2} sx={{ mb: 4, background: greenGradient }}>
         <CardContent sx={{ py: 3 }}>
           <Grid container spacing={3} alignItems="center">
             <Grid size={{ xs: 12, sm: 'auto' }}>
               <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>
+                <Typography variant="overline" sx={{ color: ON_GREEN.soft, letterSpacing: 2 }}>
                   {hasLinked ? 'Official Handicap' : 'World Handicap System'}
                 </Typography>
                 <Typography variant="h1" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1, fontSize: { xs: '4rem', sm: '5rem' } }}>
                   {hcapDisplay}
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5 }}>
+                <Typography variant="body2" sx={{ color: ON_GREEN.soft, mt: 0.5 }}>
                   Handicap Index
                 </Typography>
               </Box>
             </Grid>
             <Grid size={{ xs: 12, sm: 'grow' }}>
               {hasLinked ? (
-                <Box sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                <Box sx={{ color: ON_GREEN.soft }}>
                   <Chip
                     label={linkedHandicap.source === 'golf_australia' ? 'Golf Australia' : linkedHandicap.source === 'ghin' ? 'GHIN / USGA' : 'Manual'}
                     size="small"
-                    sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600, mb: 0.5 }}
+                    sx={{ bgcolor: ON_GREEN.soft, color: CLAY.greenDark, fontWeight: 700, mb: 0.5 }}
                   />
                   {linkedHandicap.playerName && (
                     <Typography variant="body2">{linkedHandicap.playerName}</Typography>
                   )}
                   {linkedHandicap.clubName && (
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'block' }}>
+                    <Typography variant="caption" sx={{ color: ON_GREEN.soft, display: 'block' }}>
                       {linkedHandicap.clubName}
                     </Typography>
                   )}
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: ON_GREEN.soft, display: 'block', mt: 0.5 }}>
                     Last synced: {new Date(linkedHandicap.lastSynced).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
                   </Typography>
                   <Box sx={{ mt: 1.5, display: 'flex', gap: 1 }}>
@@ -413,7 +416,8 @@ export default function StatsPage() {
                         startIcon={refreshing ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
                         onClick={handleRefresh}
                         disabled={refreshing}
-                        sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                        color="inherit"
+                        sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: '0.7rem' }}
                         variant="outlined"
                       >
                         Refresh
@@ -423,7 +427,8 @@ export default function StatsPage() {
                       size="small"
                       startIcon={<LinkOffIcon />}
                       onClick={handleUnlink}
-                      sx={{ color: 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem' }}
+                      color="inherit"
+                      sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: '0.7rem' }}
                       variant="outlined"
                     >
                       Unlink
@@ -431,11 +436,11 @@ export default function StatsPage() {
                   </Box>
                 </Box>
               ) : handicap && handicap.handicapIndex != null ? (
-                <Box sx={{ color: 'rgba(255,255,255,0.85)' }}>
+                <Box sx={{ color: ON_GREEN.soft }}>
                   <Typography variant="body2">
                     Based on best <strong>{handicap.differentialsUsed}</strong> of last <strong>{handicap.totalEligible}</strong> eligible rounds
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <Typography variant="caption" sx={{ color: ON_GREEN.soft }}>
                     Eligible rounds require course rating &amp; slope data
                   </Typography>
                   <Box sx={{ mt: 1.5 }}>
@@ -443,7 +448,8 @@ export default function StatsPage() {
                       size="small"
                       startIcon={<LinkIcon />}
                       onClick={() => setLinkDialogOpen(true)}
-                      sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                      color="inherit"
+                      sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: '0.7rem' }}
                       variant="outlined"
                     >
                       Link official handicap
@@ -451,11 +457,11 @@ export default function StatsPage() {
                   </Box>
                 </Box>
               ) : (
-                <Box sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                <Box sx={{ color: ON_GREEN.soft }}>
                   <Typography variant="body2">
                     Your estimated index appears after 3 eligible rounds — {handicap?.totalEligible ?? 0} recorded so far
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <Typography variant="caption" sx={{ color: ON_GREEN.soft }}>
                     Eligible rounds need course rating &amp; slope — play courses found via search
                   </Typography>
                   <Box sx={{ mt: 1.5 }}>
@@ -463,7 +469,8 @@ export default function StatsPage() {
                       size="small"
                       startIcon={<LinkIcon />}
                       onClick={() => setLinkDialogOpen(true)}
-                      sx={{ color: 'rgba(255,255,255,0.8)', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}
+                      color="inherit"
+                      sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: '0.7rem' }}
                       variant="outlined"
                     >
                       Link official handicap
@@ -528,7 +535,7 @@ export default function StatsPage() {
                             {d.differential.toFixed(1)}
                           </Typography>
                           {d.used && (
-                            <Chip label="used" size="small" sx={{ bgcolor: '#4a8a68', color: '#fff', height: 18, fontSize: 10 }} />
+                            <Chip label="used" size="small" sx={{ bgcolor: CLAY.green, color: '#fff', height: 18, fontSize: 10 }} />
                           )}
                         </Box>
                       </TableCell>
@@ -561,9 +568,9 @@ export default function StatsPage() {
             value={formatScore(stats.averageScoreToPar)}
             color={
               stats.averageScoreToPar == null ? undefined
-              : stats.averageScoreToPar < 0 ? '#4a8a68'
-              : stats.averageScoreToPar === 0 ? '#68786d'
-              : '#b0574c'
+              : stats.averageScoreToPar < 0 ? CLAY.greenText
+              : stats.averageScoreToPar === 0 ? CLAY.inkSoft
+              : CLAY.errorText
             }
           />
         </Grid>
@@ -571,14 +578,14 @@ export default function StatsPage() {
           <StatCard
             label="Best Round"
             value={formatScore(stats.bestScoreToPar)}
-            color={stats.bestScoreToPar != null && stats.bestScoreToPar < 0 ? '#e0b95c' : '#4a8a68'}
+            color={stats.bestScoreToPar != null && stats.bestScoreToPar < 0 ? CLAY.goldText : CLAY.greenText}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard
             label="Worst Round"
             value={formatScore(stats.worstScoreToPar)}
-            color="#b0574c"
+            color={CLAY.errorText}
           />
         </Grid>
       </Grid>
@@ -642,7 +649,7 @@ export default function StatsPage() {
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <LightbulbIcon sx={{ color: '#e0b95c' }} />
+              <LightbulbIcon sx={{ color: CLAY.goldText }} />
               <Typography variant="h6" color="primary.main" fontWeight={700}>
                 Game Insights
               </Typography>
@@ -735,7 +742,7 @@ export default function StatsPage() {
             {courseStats.map((c, idx) => {
               const diffStr = c.averageScoreToPar === 0 ? 'E' : c.averageScoreToPar > 0 ? `+${c.averageScoreToPar.toFixed(1)}` : c.averageScoreToPar.toFixed(1)
               const bestStr = c.bestScoreToPar === 0 ? 'E' : c.bestScoreToPar > 0 ? `+${c.bestScoreToPar}` : `${c.bestScoreToPar}`
-              const chipColor = c.averageScoreToPar < 0 ? '#e0b95c' : c.averageScoreToPar === 0 ? '#4a8a68' : c.averageScoreToPar <= 10 ? '#5c86a8' : '#b0574c'
+              const chipBand = scoreBand(c.averageScoreToPar, 10)
               return (
                 <Box key={c.courseId}>
                   {idx > 0 && <Divider />}
@@ -747,7 +754,7 @@ export default function StatsPage() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="caption" color="text.secondary" display="block">Avg</Typography>
-                        <Chip label={diffStr} size="small" sx={{ bgcolor: chipColor, color: '#fff', fontWeight: 700, height: 22 }} />
+                        <Chip label={diffStr} size="small" sx={{ bgcolor: chipBand.fill, color: chipBand.on, fontWeight: 700, height: 22 }} />
                       </Box>
                       <ChevronRightIcon sx={{ color: 'text.secondary' }} />
                     </Box>
