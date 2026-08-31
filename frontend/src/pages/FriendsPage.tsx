@@ -28,6 +28,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { resendVerification } from '../api/auth'
 import { CLAY } from '../theme'
 import { getApiErrorMessage } from '../api/errorMessage'
+import { formatHandicap } from '../utils'
 
 /**
  * Shared shell for the three tab lists.
@@ -133,7 +134,7 @@ function FriendsTab({ onInvite, onFindFriends }: { onInvite: () => void; onFindF
                       )}
                     </Box>
                   }
-                  secondary={live ? live.courseName.replace(/\s*—.*$/, '') : (f.handicapIndex != null ? `Handicap: ${f.handicapIndex.toFixed(1)}` : 'No handicap')}
+                  secondary={live ? live.courseName.replace(/\s*—.*$/, '') : (f.handicapIndex != null ? `Handicap: ${formatHandicap(f.handicapIndex)}` : 'No handicap')}
                 />
               </ListItem>
             )

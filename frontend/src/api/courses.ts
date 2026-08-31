@@ -19,12 +19,16 @@ export interface TeeOption {
   gender: 'male' | 'female'
   totalYards: number
   parTotal: number
+  courseRating: number | null
+  slopeRating: number | null
 }
 
 export interface CourseTees {
   courseName: string
   clubName?: string
   tees: TeeOption[]
+  /** Tee names that appear for both genders and so need the gender shown. */
+  duplicateNames: string[]
 }
 
 export const searchExternalCourses = (q: string) =>

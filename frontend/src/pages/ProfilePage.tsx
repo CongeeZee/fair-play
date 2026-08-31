@@ -24,7 +24,7 @@ import { getUserReviews } from '../api/reviews'
 import { removeFriend, blockUser } from '../api/friends'
 import StarRating from '../components/StarRating'
 import { useAuth } from '../contexts/AuthContext'
-import { formatCourseName, timeAgo } from '../utils'
+import { formatCourseName, timeAgo, formatHandicap } from '../utils'
 import PageHeader from '../components/PageHeader'
 import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
 import { CLAY } from '../theme'
@@ -70,7 +70,7 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
       {profile.handicapIndex != null && (
         <>
           <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main', mt: 0.5, lineHeight: 1.1 }}>
-            {profile.handicapIndex.toFixed(1)}
+            {formatHandicap(profile.handicapIndex)}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 1.5, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
             Handicap Index

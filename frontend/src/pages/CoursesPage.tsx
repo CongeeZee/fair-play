@@ -16,7 +16,7 @@ import CourseSearchInput, { type CourseSearchResult } from '../components/Course
 import type { TeeOption } from '../api/courses'
 import { createRound, getRounds } from '../api/rounds'
 import { capture, AnalyticsEvent } from '../analytics'
-import { formatCourseName } from '../utils'
+import { formatCourseName, teeKey, parseTeeKey, formatTeeName } from '../utils'
 import type { Round } from '../types'
 import FirstTimeTooltip from '../components/FirstTimeTooltip'
 
@@ -24,6 +24,8 @@ interface TeeDialog {
   externalCourseId: string
   courseName: string
   tees: TeeOption[]
+  /** Tee names present for both genders, which are the ones that need labelling. */
+  duplicateNames: string[]
 }
 
 // Derive unique recently played courses from rounds history
@@ -87,15 +89,21 @@ export default function CoursesPage() {
     setLoadingTees(externalId)
     try {
       const data = await getExternalCourseTees(externalId)
-      const courseName = data.clubName
-        ? `${data.courseName} (${data.clubName})`
-        : data.courseName || displayName
+      // The club and the course are usually the same string, and appending it
+      // regardless gave "Avondale Golf Club (Avondale Golf Club)". Only worth
+      // showing when the layout is actually named something else — the import
+      // on the server has always guarded this the same way.
+      const courseName =
+        data.clubName && data.clubName !== data.courseName
+          ? `${data.courseName} (${data.clubName})`
+          : data.courseName || displayName
       setTeeDialog({
         externalCourseId: externalId,
         courseName,
         tees: data.tees,
+        duplicateNames: data.duplicateNames,
       })
-      setSelectedTee(data.tees[0]?.name ?? '')
+      setSelectedTee(data.tees[0] ? teeKey(data.tees[0]) : '')
     } catch {
       // silently ignore
     } finally {
@@ -124,9 +132,12 @@ export default function CoursesPage() {
     if (!teeDialog || !selectedTee) return
     setStartingRound(true)
     try {
+      // `selectedTee` is the composite "gender:name" key — see teeKey().
+      const tee = parseTeeKey(selectedTee)
       const round = await createRound({
         externalCourseId: teeDialog.externalCourseId,
-        teeName: selectedTee,
+        teeName: tee?.name ?? selectedTee,
+        teeGender: tee?.gender,
       })
       capture(AnalyticsEvent.RoundStarted, {
         externalCourseId: teeDialog.externalCourseId,
@@ -241,19 +252,30 @@ export default function CoursesPage() {
                 value={selectedTee}
                 onChange={(e) => setSelectedTee(e.target.value)}
               >
-                {teeDialog?.tees.map((tee, i) => (
+                {teeDialog?.tees.map((tee) => (
                   <FormControlLabel
-                    key={`${tee.name}-${i}`}
-                    value={tee.name}
+                    key={teeKey(tee)}
+                    value={teeKey(tee)}
                     control={<Radio />}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
-                        <Typography>
-                          {tee.name.split(',').map(s => s.trim()).filter(s => !/^\d+$/.test(s) && s.toUpperCase() !== 'USGA').join(' ')}
-                        </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, flexWrap: 'wrap' }}>
+                        <Typography>{formatTeeName(tee.name)}</Typography>
+                        {/* Only where it is doing work: the tees that would
+                            otherwise render as two identical rows. */}
+                        {teeDialog.duplicateNames.includes(tee.name) && (
+                          <Chip
+                            label={tee.gender === 'female' ? "Women's" : "Men's"}
+                            size="small"
+                            color="secondary"
+                            sx={{ fontWeight: 700 }}
+                          />
+                        )}
                         <Chip label={`${tee.totalYards} yds`} size="small" variant="outlined" />
                         <Typography variant="caption" color="text.secondary">
                           Par {tee.parTotal}
+                          {tee.courseRating != null && tee.slopeRating != null
+                            ? ` · ${tee.courseRating}/${tee.slopeRating}`
+                            : ''}
                         </Typography>
                       </Box>
                     }

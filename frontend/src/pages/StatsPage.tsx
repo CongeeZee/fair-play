@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 import { getStats, getHandicap, getRounds, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
-import { formatCourseName } from '../utils'
+import { formatCourseName, formatHandicap, formatDifferential } from '../utils'
 import PageHeader from '../components/PageHeader'
 import LinkHandicapDialog from '../components/LinkHandicapDialog'
 import HandicapTrendChart from '../components/HandicapTrendChart'
@@ -353,11 +353,11 @@ export default function StatsPage() {
   // Use linked handicap if available, otherwise use calculated
   const hasLinked = linkedHandicap != null
   const displayIndex = hasLinked ? linkedHandicap.handicapIndex : handicap?.handicapIndex
-  const hcapDisplay =
-    displayIndex == null ? '–'
-    : displayIndex === 0 ? '0.0'
-    : displayIndex > 0 ? `+${displayIndex.toFixed(1)}`
-    : displayIndex.toFixed(1)
+  // This had the convention inverted: it put a "+" on positive indexes and
+  // left a better-than-scratch one as "-4.7". In golf the plus belongs to the
+  // player who gives strokes back, so the signs were saying the opposite of
+  // what they meant.
+  const hcapDisplay = displayIndex == null ? '–' : formatHandicap(displayIndex)
 
   return (
     <Box>
@@ -557,8 +557,17 @@ export default function StatsPage() {
                       <TableCell align="center">{d.slopeRating}</TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                          <Typography variant="body2" fontWeight={d.used ? 700 : 400}>
-                            {d.differential.toFixed(1)}
+                          <Typography
+                            variant="body2"
+                            fontWeight={d.used ? 700 : 400}
+                            /* A differential below the course rating now reads
+                               "+3.9", matching the Index it feeds — which makes
+                               it hard to tell from a genuine 4.0 at a glance, so
+                               the plus ones take the same red the under-par
+                               scores use. */
+                            sx={d.differential < 0 ? { color: scoreBand(-1).text } : undefined}
+                          >
+                            {formatDifferential(d.differential)}
                           </Typography>
                           {d.used && (
                             <Chip label="used" size="small" sx={{ bgcolor: CLAY.green, color: '#fff', height: 18, fontSize: 10 }} />

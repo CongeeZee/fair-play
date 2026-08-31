@@ -17,6 +17,7 @@ import CourseSearchInput, { type CourseSearchResult } from '../components/Course
 import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import { getLiveRounds } from '../api/live'
 import { CLAY, raised, tint } from '../theme'
+import { teeKey, parseTeeKey, formatTeeName } from '../utils'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -59,7 +60,12 @@ export default function PlayPage() {
     mutationFn: async () => {
       if (!selectedCourse) throw new Error('No course selected')
       if (selectedCourse.source === 'external') {
-        return createRound({ externalCourseId: selectedCourse.id, teeName: selectedTee })
+        const tee = parseTeeKey(selectedTee)
+        return createRound({
+          externalCourseId: selectedCourse.id,
+          teeName: tee?.name ?? selectedTee,
+          teeGender: tee?.gender,
+        })
       }
       return createRound({ courseId: selectedCourse.id })
     },
@@ -87,10 +93,11 @@ export default function PlayPage() {
   const hasTeeTimeContent = myUpcoming.length > 0 || invitations.length > 0
   const totalUpcoming = (data?.myUpcoming?.length ?? 0) + (data?.invitations?.length ?? 0)
 
-  // Default the tee selection to the first one once loaded
+  // Default the tee selection to the first one once loaded. `selectedTee` holds
+  // the composite "gender:name" key, not the bare name — see teeKey().
   useEffect(() => {
     if (teesQuery.data && teesQuery.data.tees.length > 0 && !selectedTee) {
-      setSelectedTee(teesQuery.data.tees[0].name)
+      setSelectedTee(teeKey(teesQuery.data.tees[0]))
     }
   }, [teesQuery.data, selectedTee])
 
@@ -227,19 +234,34 @@ export default function PlayPage() {
                       value={selectedTee}
                       onChange={(e) => setSelectedTee(e.target.value)}
                     >
-                      {teesQuery.data.tees.map((tee, i) => (
+                      {teesQuery.data.tees.map((tee) => (
                         <FormControlLabel
-                          key={`${tee.name}-${i}`}
-                          value={tee.name}
+                          key={teeKey(tee)}
+                          value={teeKey(tee)}
                           control={<Radio size="small" />}
                           label={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                               <Typography variant="body2">
-                                {tee.name.split(',').map(s => s.trim()).filter(s => !/^\d+$/.test(s) && s.toUpperCase() !== 'USGA').join(' ')}
+                                {formatTeeName(tee.name)}
                               </Typography>
+                              {/* Only shown where it is doing work. Every tee
+                                  carrying "Men's"/"Women's" is noise; the two
+                                  that would otherwise be identical rows need
+                                  it to be choosable at all. */}
+                              {teesQuery.data.duplicateNames.includes(tee.name) && (
+                                <Chip
+                                  label={tee.gender === 'female' ? "Women's" : "Men's"}
+                                  size="small"
+                                  color="secondary"
+                                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
+                                />
+                              )}
                               <Chip label={`${tee.totalYards} yds`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                               <Typography variant="caption" color="text.secondary">
                                 Par {tee.parTotal}
+                                {tee.courseRating != null && tee.slopeRating != null
+                                  ? ` · ${tee.courseRating}/${tee.slopeRating}`
+                                  : ''}
                               </Typography>
                             </Box>
                           }

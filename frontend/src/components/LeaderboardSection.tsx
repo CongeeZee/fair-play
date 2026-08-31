@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getLeaderboard, getHandicapLeaderboard } from '../api/rounds'
 import { useAuth } from '../contexts/AuthContext'
 import { CLAY } from '../theme'
+import { formatHandicap } from '../utils'
 
 function formatScore(val: number | null) {
   if (val == null) return '—'
@@ -176,7 +177,7 @@ export default function LeaderboardSection() {
                           {entry.name}{isMe ? ' (you)' : ''}
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
-                          {entry.handicapIndex != null ? entry.handicapIndex.toFixed(1) : '—'}
+                          {entry.handicapIndex != null ? formatHandicap(entry.handicapIndex) : '—'}
                         </TableCell>
                         <TableCell align="center">
                           {/* The arrow is the only carrier of the trend, so it needs a name for

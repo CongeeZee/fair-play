@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getFriends } from '../api/friends'
 import { setRoundPartners } from '../api/rounds'
 import type { RoundPartner } from '../types'
+import { formatHandicap } from '../utils'
 
 interface Props {
   roundId: string | number
@@ -119,7 +120,7 @@ export default function PlayingPartnersPicker({ roundId, partners }: Props) {
                     <Checkbox edge="start" checked={checked} tabIndex={-1} disableRipple size="small" />
                     <ListItemText
                       primary={f.name}
-                      secondary={f.handicapIndex != null ? `HCP ${f.handicapIndex.toFixed(1)}` : undefined}
+                      secondary={f.handicapIndex != null ? `HCP ${formatHandicap(f.handicapIndex)}` : undefined}
                     />
                   </ListItemButton>
                 )

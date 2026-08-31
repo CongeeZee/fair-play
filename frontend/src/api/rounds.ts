@@ -2,7 +2,7 @@ import client from './client'
 import axios from 'axios'
 import type { Round, Stats, HandicapResult, HandicapHistoryPoint, CourseStatsSummary, CourseDetailStats, InsightsResult, StrokesGainedResult, SharedScorecard, FeedResponse, LeaderboardEntry, HandicapLeaderboardEntry, NewlyUnlockedAchievement, RoundHole, RoundPartner } from '../types'
 
-export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; playedAt?: string }) =>
+export const createRound = (params: { courseId?: string; externalCourseId?: string; teeName?: string; teeGender?: 'male' | 'female'; playedAt?: string }) =>
   client.post<Round>('/rounds', params).then((r) => r.data)
 
 export interface HoleScore {

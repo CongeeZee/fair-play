@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Dot,
 } from 'recharts'
 import { getHandicapHistory } from '../api/rounds'
-import { formatCourseName } from '../utils'
+import { formatCourseName, formatHandicap } from '../utils'
 import { CLAY } from '../theme'
 
 export default function HandicapTrendChart() {
@@ -90,7 +90,7 @@ export default function HandicapTrendChart() {
                         {d.date} · Round {d.roundNumber}
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 800, color: '#2f6b4c', my: 0.25 }}>
-                        {d.handicapIndex.toFixed(1)}
+                        {formatHandicap(d.handicapIndex)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{
                         maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'

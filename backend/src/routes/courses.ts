@@ -61,19 +61,48 @@ router.get("/tees/:externalId", moderateLimiter, async (req: Request, res: Respo
     );
     if (!response.ok) { res.status(502).json({ error: "External API error" }); return; }
 
-    type TeeSet = { tee_name: string; total_yards: number; par_total: number };
+    type TeeSet = {
+      tee_name: string;
+      total_yards: number;
+      par_total: number;
+      course_rating?: number;
+      slope_rating?: number;
+    };
     type CourseResp = {
       course_name: string; club_name?: string;
       tees?: { male?: TeeSet[]; female?: TeeSet[] };
     };
     const { course } = (await response.json()) as { course: CourseResp };
 
+    const map = (t: TeeSet, gender: "male" | "female") => ({
+      name: t.tee_name,
+      gender,
+      totalYards: t.total_yards,
+      parTotal: t.par_total,
+      // Surfaced so the picker can show what actually separates two tee sets
+      // of the same colour — and because these are the numbers the handicap
+      // differential is computed from.
+      courseRating: t.course_rating ?? null,
+      slopeRating: t.slope_rating ?? null,
+    });
+
     const tees = [
-      ...(course.tees?.male ?? []).map((t) => ({ name: t.tee_name, gender: "male", totalYards: t.total_yards, parTotal: t.par_total })),
-      ...(course.tees?.female ?? []).map((t) => ({ name: t.tee_name, gender: "female", totalYards: t.total_yards, parTotal: t.par_total })),
+      ...(course.tees?.male ?? []).map((t) => map(t, "male")),
+      ...(course.tees?.female ?? []).map((t) => map(t, "female")),
     ];
 
-    const result = { courseName: course.course_name, clubName: course.club_name, tees };
+    /* A tee is identified by (gender, name), never by name alone. Most clubs
+       list the same colours for men and women off different rating plates —
+       Avondale's men's and women's White are 6315/par 71 and 6276/par 72 — so
+       the name on its own is ambiguous for roughly half the tees this endpoint
+       returns. `duplicateNames` tells the client which ones need the gender
+       shown to be tellable apart. */
+    const seen = new Set<string>();
+    const duplicateNames = [
+      ...new Set(tees.filter((t) => (seen.has(t.name) ? true : (seen.add(t.name), false))).map((t) => t.name)),
+    ];
+
+    const result = { courseName: course.course_name, clubName: course.club_name, tees, duplicateNames };
     cacheSet(cacheKey, result);
     res.json(result);
   } catch (err) {

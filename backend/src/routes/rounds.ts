@@ -800,16 +800,40 @@ router.get("/leaderboard/handicap", async (req: AuthRequest, res: Response) => {
 
 // Fetch a course from golfcourseapi.com and upsert it into our DB.
 // Returns the local Course record (with holes).
-async function importExternalCourse(externalId: string, teeName?: string) {
-  // Short-circuit: if we know the tee name we can build the exact DB key
-  // and skip the external API call entirely if the course is already cached.
+async function importExternalCourse(
+  externalId: string,
+  teeName?: string,
+  teeGender?: "male" | "female"
+) {
+  /* Short-circuit: skip the external API when this exact tee is already
+     imported. The free tier allows 300 calls a day, so this matters.
+
+     Two keys can hold it. `<id>_<tee>_<gender>` is unambiguous. `<id>_<tee>`
+     is the legacy shape, kept for tees that were already imported (see the
+     note on `dbExternalId` below), and it does NOT identify a gender on its
+     own — returning it for any gender is what made a women's tee resolve to
+     the men's course. The stored name settles it: a female tee always carries
+     the "(Women's)" qualifier, so a legacy row without one is male. That holds
+     for rows written before this change too, because the old resolution
+     matched the men's list first. */
+  const WOMENS = "(Women's)";
   if (teeName) {
-    const dbExternalId = `${externalId}_${teeName}`;
-    const existing = await prisma.course.findUnique({
-      where: { externalId: dbExternalId },
+    const legacyKey = `${externalId}_${teeName}`;
+    const keys = teeGender ? [legacyKey, `${externalId}_${teeName}_${teeGender}`] : [legacyKey];
+    const candidates = await prisma.course.findMany({
+      where: { externalId: { in: keys } },
       include: { holes: { orderBy: { number: "asc" } } },
     });
-    if (existing) return existing;
+
+    const exact = candidates.find((c) => c.externalId !== legacyKey);
+    if (exact) return exact;
+
+    const legacyRow = candidates.find((c) => c.externalId === legacyKey);
+    if (legacyRow) {
+      const rowIsWomens = legacyRow.name.endsWith(WOMENS);
+      // With no gender requested, behave exactly as before.
+      if (!teeGender || rowIsWomens === (teeGender === "female")) return legacyRow;
+    }
   }
 
   const apiKey = process.env.GOLF_API_KEY;
@@ -840,21 +864,52 @@ async function importExternalCourse(externalId: string, teeName?: string) {
 
   const { course: data } = (await response.json()) as { course: ExternalCourse };
 
-  const allTees = [...(data.tees?.male ?? []), ...(data.tees?.female ?? [])];
-  const teeSet = teeName
-    ? allTees.find((t) => t.tee_name === teeName)
-    : (data.tees?.male?.[0] ?? data.tees?.female?.[0]);
-  if (!teeSet || !teeSet.holes?.length) {
+  const male = (data.tees?.male ?? []).map((t) => ({ tee: t, gender: "male" as const }));
+  const female = (data.tees?.female ?? []).map((t) => ({ tee: t, gender: "female" as const }));
+  const allTees = [...male, ...female];
+
+  /* Resolve on (name, gender), not name alone.
+     Clubs commonly list the same colour for both, off different rating plates.
+     Matching on the name meant `find` always returned the men's set: a player
+     choosing the women's White at Avondale silently got the men's — different
+     par, different yardages, and a different course rating and slope, which
+     then fed a wrong Score Differential into their Handicap Index. */
+  const picked = teeName
+    ? allTees.find((t) => t.tee.tee_name === teeName && (!teeGender || t.gender === teeGender))
+    : allTees[0];
+  const teeSet = picked?.tee;
+  if (!picked || !teeSet || !teeSet.holes?.length) {
     throw new Error("No hole data available for this course");
   }
 
   const baseName = data.club_name && data.club_name !== data.course_name
     ? `${data.course_name} (${data.club_name})`
     : data.course_name;
-  const courseName = `${baseName} — ${teeSet.tee_name} Tees`;
+  /* The em dash is the delimiter `formatCourseName` splits on to separate the
+     club from the tee set; it is never rendered.
 
-  // Include tee name in the key so each tee set is stored as its own course
-  const dbExternalId = `${data.id}_${teeSet.tee_name}`;
+     Every women's tee carries the qualifier, not just the ambiguous ones. It
+     reads as useful on its own, and it is what lets the cache lookup above
+     tell a legacy-keyed row's gender without a schema column or an API call.
+     Men's tees stay unqualified, which is also the name they have always had,
+     so nothing already imported is renamed. */
+  const genderSuffix = picked.gender === "female" ? ` ${WOMENS}` : "";
+  const courseName = `${baseName} — ${teeSet.tee_name} Tees${genderSuffix}`;
+
+  /* The key includes the tee name so each tee set is its own course, and the
+     gender only when it has to be.
+
+     Before this, both genders' "White" mapped to `<id>_White` and collapsed
+     into one row — whichever was imported first won, and the second silently
+     inherited its holes and rating. Appending the gender unconditionally would
+     have fixed that but orphaned every course already imported, splitting
+     players' histories in two. So the tee the old code would have resolved to
+     keeps the old key, and only the ones it could never reach get a new one. */
+  const legacyPick = allTees.find((t) => t.tee.tee_name === teeSet.tee_name);
+  const dbExternalId =
+    legacyPick === picked
+      ? `${data.id}_${teeSet.tee_name}`
+      : `${data.id}_${teeSet.tee_name}_${picked.gender}`;
 
   // Upsert course so concurrent requests don't create duplicates
   const course = await prisma.course.upsert({
@@ -887,6 +942,9 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       courseId: z.number().int().positive().optional(),
       externalCourseId: z.string().optional(),
       teeName: z.string().optional(),
+      // Optional so an older client, or a queued offline round created before
+      // this shipped, still resolves the way it always did.
+      teeGender: z.enum(["male", "female"]).optional(),
       playedAt: z.coerce.date().optional(),
     })
     .refine((d) => d.courseId != null || d.externalCourseId != null, {
@@ -899,13 +957,13 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const { courseId, externalCourseId, teeName, playedAt } = result.data;
+  const { courseId, externalCourseId, teeName, teeGender, playedAt } = result.data;
 
   try {
     let resolvedCourseId: number;
 
     if (externalCourseId) {
-      const course = await importExternalCourse(externalCourseId, teeName);
+      const course = await importExternalCourse(externalCourseId, teeName, teeGender);
       resolvedCourseId = course.id;
     } else {
       const course = await prisma.course.findUnique({ where: { id: courseId! } });
