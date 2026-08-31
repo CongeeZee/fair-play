@@ -1075,17 +1075,44 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const schema = z.object({
-    // Max 20 strokes per hole is generous but prevents garbage data
-    strokes: z.number().int().min(1).max(20),
-    putts: z.number().int().min(0).max(20).optional(),
-    teeShotDirection: z.enum(["fairway", "left", "right", "penalty"]).optional(),
-    teeShotDistance: z.enum(["short", "on", "long"]).optional(),
-    approachResult: z.enum(["gir", "short", "long", "left", "right"]).optional(),
-    sandShots: z.number().int().min(0).max(20).optional(),
-    penalties: z.number().int().min(0).max(20).optional(),
-    hazards: z.number().int().min(0).max(20).optional(),
-  });
+  const schema = z
+    .object({
+      // Max 20 strokes per hole is generous but prevents garbage data
+      strokes: z.number().int().min(1).max(20),
+      putts: z.number().int().min(0).max(20).optional(),
+      teeShotDirection: z.enum(["fairway", "left", "right", "penalty"]).optional(),
+      teeShotDistance: z.enum(["short", "on", "long"]).optional(),
+      approachResult: z.enum(["gir", "short", "long", "left", "right"]).optional(),
+      sandShots: z.number().int().min(0).max(20).optional(),
+      penalties: z.number().int().min(0).max(20).optional(),
+      hazards: z.number().int().min(0).max(20).optional(),
+    })
+    /* Every one of these is a subset of the strokes played on the hole, so
+       none can exceed the hole's score. Putts are the strict case — you cannot
+       hole out in putts alone, since something has to have got the ball onto
+       the green — so they cap at strokes - 1, while a sand shot or a penalty
+       can in principle account for every stroke on the hole.
+
+       The client clamps these as you tap, but the client is not the only way
+       in: the offline queue replays whatever was captured at the time, so a
+       score edited downward after the fact could otherwise land a hole with
+       three penalties on a score of two. */
+    .superRefine((v, ctx) => {
+      const cap = (field: "putts" | "sandShots" | "penalties" | "hazards", max: number) => {
+        const value = v[field];
+        if (value != null && value > max) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [field],
+            message: `${field} cannot exceed ${max} on a hole scored ${v.strokes}`,
+          });
+        }
+      };
+      cap("putts", v.strokes - 1);
+      cap("sandShots", v.strokes);
+      cap("penalties", v.strokes);
+      cap("hazards", v.strokes);
+    });
 
   const result = schema.safeParse(req.body);
   if (!result.success) {
@@ -1279,7 +1306,9 @@ router.get("/handicap", async (req: AuthRequest, res: Response) => {
             _count: { select: { holes: true } },
           },
         },
-        roundHoles: { select: { strokes: true } },
+        // `hole.par` is selected here and nowhere else that computes
+        // differentials: this is the only caller that renders a to-par column.
+        roundHoles: { select: { strokes: true, hole: { select: { par: true } } } },
       },
       orderBy: { playedAt: "desc" },
       take: 20,

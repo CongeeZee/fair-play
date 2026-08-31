@@ -174,20 +174,23 @@ export default function HistoryPage() {
                     const diff = round.scoreToPar
                     const diffStr =
                       diff == null ? null : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
-                    // Graded palette: most club golfers live over par, so
-                    // reserve red for genuine blow-ups rather than every round.
+                    // Five bands rather than the shared scale's four: most
+                    // club golfers live over par, and a list of whole rounds is
+                    // the one place with enough range to be worth grading
+                    // finely. Under par is red and everything over par runs
+                    // blue into slate, which is the scorecard convention the
+                    // shared SCORE scale follows.
                     //
                     // Each band names its own foreground rather than assuming
-                    // white. Gold is the reason: white on #e0b95c measures
-                    // 1.86:1, so the "best round" chip was the least legible
-                    // one on the page. It takes the dark ink instead.
+                    // white, because a band is free to be light — that is why
+                    // `on` exists at all.
                     const chip =
                       diff == null ? { bg: CLAY.inkSoft, fg: '#fff' }
-                      : diff < 0 ? { bg: SCORE.under.fill, fg: SCORE.under.on }   // under par — gold
+                      : diff < 0 ? { bg: SCORE.under.fill, fg: SCORE.under.on }   // under par — red
                       : diff === 0 ? { bg: SCORE.even.fill, fg: SCORE.even.on }   // even — green
                       : diff <= 5 ? { bg: SCORE.over.fill, fg: SCORE.over.on }    // modest over par — clay blue
-                      : diff <= 12 ? { bg: CLAY.slate, fg: '#fff' }               // typical club score — muted slate
-                      : { bg: SCORE.poor.fill, fg: SCORE.poor.on }                // blow-up round — softened red
+                      : diff <= 12 ? { bg: CLAY.infoText, fg: '#fff' }            // typical club score — deep blue
+                      : { bg: SCORE.poor.fill, fg: SCORE.poor.on }                // blow-up round — slate
 
                     return (
                       <Box key={round.id}>

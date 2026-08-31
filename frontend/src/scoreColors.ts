@@ -13,7 +13,7 @@ import { CLAY } from './theme'
  * So a band exposes three values instead of one:
  *   fill — dark enough that `on` is readable against it
  *   on   — the foreground to pair with `fill`, never assumed to be white
- *   text — the same hue pushed dark enough to read on a light surface
+ *   text — the same hue, at the step that reads on a card in either mode
  *
  * All six are theme custom properties, so they follow sunlight mode without
  * any call site knowing that sunlight mode exists.
@@ -29,11 +29,27 @@ export interface ScoreBand {
   text: string
 }
 
+/**
+ * The four bands follow the scorecard, not the traffic light.
+ *
+ * On a printed card, under par is written in red and over par in black or
+ * blue — universally, and for long enough that a golfer reads a red number as
+ * "under" before they read the number itself. This scale used to run gold for
+ * under and red for a blow-up round, which is the software convention (red =
+ * bad) applied to a domain that already had its own. Under is now red, and the
+ * blow-up band moves to slate so red keeps exactly one meaning here.
+ *
+ * Note that `SENTIMENT` below still uses red for "worse" — that scale is about
+ * a direction of travel (a handicap trending up, a GIR rate falling), where
+ * red-is-bad is the reader's expectation and there is no scorecard to defer
+ * to. The two are deliberately not unified; see the note above `ON_GREEN` for
+ * the same argument about backdrops.
+ */
 export const SCORE: Record<'under' | 'even' | 'over' | 'poor', ScoreBand> = {
-  under: { fill: CLAY.gold, on: CLAY.onGold, text: CLAY.goldText },
+  under: { fill: CLAY.redDeep, on: '#ffffff', text: CLAY.errorText },
   even: { fill: CLAY.green, on: '#ffffff', text: CLAY.greenText },
   over: { fill: CLAY.clayBlue, on: '#ffffff', text: CLAY.infoText },
-  poor: { fill: CLAY.redDeep, on: '#ffffff', text: CLAY.errorText },
+  poor: { fill: CLAY.slate, on: '#ffffff', text: CLAY.slateText },
 }
 
 /** Bands for a score relative to par, with a caller-supplied "modest" cutoff. */

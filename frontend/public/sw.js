@@ -1,5 +1,5 @@
 // Bump this when shipping a new build to invalidate the precache.
-const CACHE_VERSION = 'fairplay-shell-v1'
+const CACHE_VERSION = 'fairplay-shell-v2'
 
 // Files that must be available offline for the app to launch. The Vite-built
 // JS/CSS are hash-named, so we only precache the document + the static icons
@@ -10,6 +10,7 @@ const PRECACHE_URLS = [
   '/favicon.svg',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/manifest.webmanifest',
 ]
 

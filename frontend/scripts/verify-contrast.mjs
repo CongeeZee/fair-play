@@ -70,6 +70,21 @@ const cases = (p) => [
   ['divider on surface (1.4.11)', p.divider, p.surface, 3],
   ['divider on base (1.4.11)', p.divider, p.base, 3],
   ['borderC on surface (1.4.11)', p.borderC, p.surface, 3],
+  /* The four score bands (scoreColors.ts). Under par is red and a blow-up
+     round is slate, following the scorecard rather than the traffic light, so
+     the red and slate steps now carry score meaning and have to hold up
+     everywhere a score is written — including the sunken wells the stat tiles
+     and table rows sit in, not just a white card. */
+  ['score under text on surface', p.errorText, p.surface, 4.5],
+  ['score under text on base', p.errorText, p.base, 4.5],
+  ['score under text on sunken', p.errorText, p.sunken, 4.5],
+  ['score even text on base', p.greenText, p.base, 4.5],
+  ['score even text on sunken', p.greenText, p.sunken, 4.5],
+  ['score over text on base', p.infoText, p.base, 4.5],
+  ['score over text on sunken', p.infoText, p.sunken, 4.5],
+  ['score poor text on surface', p.slateText, p.surface, 4.5],
+  ['score poor text on base', p.slateText, p.base, 4.5],
+  ['score poor text on sunken', p.slateText, p.sunken, 4.5],
 ]
 
 let fails = 0

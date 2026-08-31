@@ -18,6 +18,13 @@ export interface RoundDifferential {
   playedAt: Date;
   courseName: string;
   gross: number;
+  /**
+   * Gross strokes relative to the par of the holes actually played. Null when
+   * the caller did not select each hole's par — `getUserHandicapIndex` and the
+   * benchmarks job only ever want the index out of this, so they are not made
+   * to fetch a column they will throw away.
+   */
+  scoreToPar: number | null;
   courseRating: number;
   slopeRating: number;
   differential: number;
@@ -44,7 +51,7 @@ export function calculateDifferentials(
       slopeRating: number | null;
       _count: { holes: number };
     };
-    roundHoles: Array<{ strokes: number }>;
+    roundHoles: Array<{ strokes: number; hole?: { par: number } }>;
   }>
 ): RoundDifferential[] {
   return rounds
@@ -60,11 +67,17 @@ export function calculateDifferentials(
     .map((r) => {
       const gross = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
       const diff = (113 / r.course.slopeRating!) * (gross - r.course.courseRating!);
+      // Par is only summed when every hole carries one, so a partial select
+      // cannot silently produce a to-par figure measured against fewer holes
+      // than the gross it is subtracted from.
+      const pars = r.roundHoles.map((rh) => rh.hole?.par);
+      const hasPar = pars.every((p): p is number => typeof p === "number");
       return {
         roundId: r.id,
         playedAt: r.playedAt,
         courseName: r.course.name,
         gross,
+        scoreToPar: hasPar ? gross - pars.reduce((a, b) => a + b, 0) : null,
         courseRating: r.course.courseRating!,
         slopeRating: r.course.slopeRating!,
         differential: parseFloat(diff.toFixed(1)),

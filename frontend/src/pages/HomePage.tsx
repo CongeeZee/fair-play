@@ -93,14 +93,20 @@ export default function HomePage() {
           Track your rounds. Know your handicap. Elevate your game.
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {/* The two CTAs were sized for the desktop hero and inherited straight
+            onto a 375px phone, where `px: 5` on a `size="large"` button left
+            them filling most of the width and reading as oversized slabs. They
+            now step down on xs — still 44px tall, so the tap target is intact —
+            and `nowrap` keeps "Get Started" on one line at the tighter padding
+            rather than breaking into two and making the pair uneven. */}
+        <Box sx={{ display: 'flex', gap: { xs: 1.5, sm: 2 }, flexWrap: 'wrap', justifyContent: 'center', '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
           <Button
             variant="contained"
             color="secondary"
             component={Link}
             to="/register"
             size="large"
-            sx={{ px: 5, py: 1.5, fontSize: '1rem' }}
+            sx={{ px: { xs: 3, sm: 5 }, py: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9375rem', sm: '1rem' } }}
           >
             Get Started
           </Button>
@@ -110,7 +116,7 @@ export default function HomePage() {
             to="/login"
             size="large"
             sx={{
-              px: 5, py: 1.5, fontSize: '1rem',
+              px: { xs: 3, sm: 5 }, py: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9375rem', sm: '1rem' },
               color: '#fff',
               // The theme gives outlined buttons a pale clay fill, which turns
               // grey and muddy over the dark hero photo — use a translucent

@@ -39,7 +39,7 @@ import LinkOffIcon from '@mui/icons-material/LinkOff'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import type { Round, InsightSuggestion } from '../types'
 import { CLAY, raised, pressed, tint, greenGradient } from '../theme'
-import { SENTIMENT, scoreBand, ON_GREEN } from '../scoreColors'
+import { SENTIMENT, scoreBand, holeBand, ON_GREEN } from '../scoreColors'
 
 function formatScore(val: number | undefined) {
   if (val == null) return '–'
@@ -335,13 +335,18 @@ export default function StatsPage() {
     ? breakdown.eagles + breakdown.birdies + breakdown.pars + breakdown.bogeys + breakdown.doublesOrWorse
     : 0
 
+  /* Colours come from `holeBand` rather than being picked here, so this list
+     and every scorecard in the app read from one scale. Eagles and birdies
+     share a colour because the scorecard convention they follow has one red
+     for "under par" and does not grade it — each row is labelled, so nothing
+     is riding on the two being told apart by hue. */
   const breakdownItems = breakdown
     ? [
-        { label: 'Eagles', value: breakdown.eagles, color: CLAY.goldText },
-        { label: 'Birdies', value: breakdown.birdies, color: CLAY.greenText },
-        { label: 'Pars', value: breakdown.pars, color: CLAY.inkSoft },
-        { label: 'Bogeys', value: breakdown.bogeys, color: CLAY.warningText },
-        { label: 'Double+', value: breakdown.doublesOrWorse, color: CLAY.errorText },
+        { label: 'Eagles', value: breakdown.eagles, color: holeBand(-2).text },
+        { label: 'Birdies', value: breakdown.birdies, color: holeBand(-1).text },
+        { label: 'Pars', value: breakdown.pars, color: holeBand(0).text },
+        { label: 'Bogeys', value: breakdown.bogeys, color: holeBand(1).text },
+        { label: 'Double+', value: breakdown.doublesOrWorse, color: holeBand(2).text },
       ]
     : []
 
@@ -509,6 +514,7 @@ export default function StatsPage() {
                     <TableCell>Course</TableCell>
                     <TableCell>Date</TableCell>
                     <TableCell align="center">Score</TableCell>
+                    <TableCell align="center">To Par</TableCell>
                     <TableCell align="center">Rating</TableCell>
                     <TableCell align="center">Slope</TableCell>
                     <TableCell align="center">Differential</TableCell>
@@ -527,6 +533,26 @@ export default function StatsPage() {
                         {new Date(d.playedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                       </TableCell>
                       <TableCell align="center">{d.gross}</TableCell>
+                      {/* Sits beside the gross it is derived from, coloured on
+                          the same scale as every other score in the app. A
+                          differential is measured against course rating, not
+                          par, so this is the figure a golfer actually quotes
+                          and it was the one thing the table didn't show. */}
+                      <TableCell
+                        align="center"
+                        sx={{
+                          fontWeight: 600,
+                          color: d.scoreToPar == null ? 'text.disabled' : scoreBand(d.scoreToPar).text,
+                        }}
+                      >
+                        {d.scoreToPar == null
+                          ? '–'
+                          : d.scoreToPar === 0
+                            ? 'E'
+                            : d.scoreToPar > 0
+                              ? `+${d.scoreToPar}`
+                              : `${d.scoreToPar}`}
+                      </TableCell>
                       <TableCell align="center">{d.courseRating}</TableCell>
                       <TableCell align="center">{d.slopeRating}</TableCell>
                       <TableCell align="center">
@@ -562,30 +588,29 @@ export default function StatsPage() {
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard label="Rounds Played" value={String(stats.roundsPlayed)} />
         </Grid>
+        {/* All three read their colour from the shared score scale instead of
+            hand-rolling a ternary each. The old versions disagreed with it and
+            with each other — "Worst Round" was unconditionally red even when it
+            was level par, and a sub-par best round came out gold. */}
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard
             label="Average Score"
             value={formatScore(stats.averageScoreToPar)}
-            color={
-              stats.averageScoreToPar == null ? undefined
-              : stats.averageScoreToPar < 0 ? CLAY.greenText
-              : stats.averageScoreToPar === 0 ? CLAY.inkSoft
-              : CLAY.errorText
-            }
+            color={stats.averageScoreToPar == null ? undefined : scoreBand(stats.averageScoreToPar).text}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard
             label="Best Round"
             value={formatScore(stats.bestScoreToPar)}
-            color={stats.bestScoreToPar != null && stats.bestScoreToPar < 0 ? CLAY.goldText : CLAY.greenText}
+            color={stats.bestScoreToPar == null ? undefined : scoreBand(stats.bestScoreToPar).text}
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <StatCard
             label="Worst Round"
             value={formatScore(stats.worstScoreToPar)}
-            color={CLAY.errorText}
+            color={stats.worstScoreToPar == null ? undefined : scoreBand(stats.worstScoreToPar).text}
           />
         </Grid>
       </Grid>

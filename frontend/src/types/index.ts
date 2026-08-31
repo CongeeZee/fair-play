@@ -110,6 +110,8 @@ export interface HandicapDifferential {
   playedAt: string
   courseName: string
   gross: number
+  /** Gross relative to par. Null when the round's hole pars weren't available. */
+  scoreToPar: number | null
   courseRating: number
   slopeRating: number
   differential: number

@@ -442,12 +442,28 @@ export default function RoundPage() {
     })
   }
 
+  /**
+   * Putts, sand shots and penalties are all subsets of the strokes played on
+   * the hole, so lowering the score has to bring them down with it — otherwise
+   * correcting a 6 to a 4 leaves a hole recorded as having taken five penalty
+   * strokes out of four. Putts cap one lower than the rest: you cannot hole out
+   * in putts alone, since something had to get the ball onto the green.
+   *
+   * The steppers below cap on the way up; this is the way down. The server
+   * enforces the same rule, because the offline queue can replay a score
+   * captured before an edit.
+   */
   const updateStrokes = (holeId: string, newStrokes: number) => {
     setHoleScores((prev) => {
       const cur = prev[holeId] ?? defaultScore()
-      // If strokes drops below putts + 1, clamp putts down
-      const newPutts = cur.putts > 0 && newStrokes > 0 ? Math.min(cur.putts, newStrokes - 1) : cur.putts
-      const updated = { ...cur, strokes: newStrokes, putts: newPutts }
+      const clamp = (v: number, max: number) => (v > 0 ? Math.min(v, Math.max(0, max)) : v)
+      const updated = {
+        ...cur,
+        strokes: newStrokes,
+        putts: newStrokes > 0 ? clamp(cur.putts, newStrokes - 1) : cur.putts,
+        sandShots: newStrokes > 0 ? clamp(cur.sandShots, newStrokes) : cur.sandShots,
+        penalties: newStrokes > 0 ? clamp(cur.penalties, newStrokes) : cur.penalties,
+      }
       saveHole(holeId, updated)
       return { ...prev, [holeId]: updated }
     })
@@ -902,9 +918,9 @@ export default function RoundPage() {
 
           <Stepper label="Putts" value={score.putts} onChange={(v) => updatePutts(holeId, v, score.strokes)} max={score.strokes > 0 ? score.strokes - 1 : 0} />
           <Divider />
-          <Stepper label="Sand Shots" value={score.sandShots} onChange={(v) => updateField(holeId, 'sandShots', v)} />
+          <Stepper label="Sand Shots" value={score.sandShots} onChange={(v) => updateField(holeId, 'sandShots', v)} max={score.strokes} />
           <Divider />
-          <Stepper label="Penalties" value={score.penalties} onChange={(v) => updateField(holeId, 'penalties', v)} />
+          <Stepper label="Penalties" value={score.penalties} onChange={(v) => updateField(holeId, 'penalties', v)} max={score.strokes} />
         </Box>
       </Paper>
 

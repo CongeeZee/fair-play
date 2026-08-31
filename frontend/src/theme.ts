@@ -100,6 +100,10 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
     successText: '#2d5a3e',
     warningText: '#6e4912',
     slate: '#5c5470',
+    // Slate as *text*, for the blow-up-round band. The fill above already
+    // clears 7:1 on white, so light mode needs no separate step — it is a
+    // token only so dark mode has somewhere to diverge.
+    slateText: '#5c5470',
 
     // Solved to clear the 3:1 non-text minimum on both surface and base;
     // the old warm hairline measured 1.8:1 here and vanished outdoors.
@@ -182,6 +186,7 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
     successText: '#7ec9a0',
     warningText: '#e2bc72',
     slate: '#5c5470',
+    slateText: '#b8aecb',
 
     // 3:1 against `surface`, so a table rule or a list separator is still a
     // line and not a suggestion. MUI's stock dark divider is white at 12%,
@@ -264,6 +269,7 @@ const CLAY = {
   redDeep: v('redDeep'),
   clayBlue: v('clayBlue'),
   slate: v('slate'),
+  slateText: v('slateText'),
   errorText: v('errorText'),
   successText: v('successText'),
   warningText: v('warningText'),
@@ -537,7 +543,15 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           },
           text: { '&:active': { transform: 'none' } },
           sizeSmall: { paddingInline: 14, minHeight: 'auto' },
-          sizeLarge: { paddingInline: 28, minHeight: v('tapLg') },
+          /* Large buttons are mostly full-width form submits, where the inline
+             padding does nothing, and hero CTAs, where on a phone it was the
+             difference between a button and a slab. Height is untouched — that
+             is the tap target. */
+          sizeLarge: {
+            paddingInline: 20,
+            minHeight: v('tapLg'),
+            '@media (min-width:600px)': { paddingInline: 28 },
+          },
         },
       },
 
