@@ -241,11 +241,24 @@ export default function Navbar() {
         )}
 
         {!user && (
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          /* `alignItems: center` is what actually lets Get Started be smaller.
+             A flex row defaults to `stretch`, so the gold pill was being pulled
+             up to the height of the Sign In button beside it — shrinking its
+             own padding changed its width and nothing else. */
+          <Box sx={{ display: 'flex', gap: { xs: 0.5, md: 1 }, alignItems: 'center' }}>
             <Button
               component={Link}
               to="/login"
-              sx={{ color: 'rgba(255,255,255,0.86)', '&:hover': { color: '#fff' } }}
+              size="small"
+              sx={{
+                color: 'rgba(255,255,255,0.86)',
+                '&:hover': { color: '#fff' },
+                // Stepped down with Get Started so the pair still reads as a
+                // pair. Shrinking only one of them looks like a mistake.
+                fontSize: { xs: '0.72rem', md: '0.875rem' },
+                px: { xs: 0.75, md: 1.75 },
+                minHeight: { xs: 30, md: 36 },
+              }}
             >
               Sign In
             </Button>
@@ -255,6 +268,16 @@ export default function Navbar() {
               component={Link}
               to="/register"
               size="small"
+              /* A filled gold pill is the heaviest thing in the bar, and at
+                 the desktop size it took up a quarter of a 390px toolbar next
+                 to the wordmark, the appearance toggle and Sign In. It steps
+                 down on xs and is unchanged from md up. 30px still clears the
+                 24px minimum target size comfortably. */
+              sx={{
+                fontSize: { xs: '0.72rem', md: '0.8125rem' },
+                px: { xs: 1.25, md: 2 },
+                minHeight: { xs: 30, md: 36 },
+              }}
             >
               Get Started
             </Button>

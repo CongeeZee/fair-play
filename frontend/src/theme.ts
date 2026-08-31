@@ -538,6 +538,14 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
             // near-white. The navbar's Sign out button measured 1.06:1 that
             // way — legible only as a rectangle. Scoping to the explicit
             // colour variants keeps the effect where the backdrop is known.
+            //
+            // NOTE the selector below is two classes, so it beats anything
+            // `sx` emits — an `sx={{ bgcolor }}` on an outlined primary button
+            // is silently ignored, which is how the hero's Sign In button
+            // ended up white-on-white at 1.00:1 despite setting its own
+            // background. If a button needs its own fill over a known
+            // backdrop, give it `color="inherit"` rather than fighting this
+            // with specificity.
             '&.MuiButton-colorPrimary, &.MuiButton-colorSecondary, &.MuiButton-colorSuccess, &.MuiButton-colorError, &.MuiButton-colorWarning, &.MuiButton-colorInfo':
               { backgroundColor: v('surface') },
           },

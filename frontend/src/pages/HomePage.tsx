@@ -115,12 +115,23 @@ export default function HomePage() {
             component={Link}
             to="/login"
             size="large"
+            /* `inherit` is load-bearing, not decoration. The theme fills
+               outlined buttons with the page surface so they read as a raised
+               tile, scoped to the explicit colour variants — and this button,
+               left on the default `primary`, matched that scope. The rule is
+               `.css-root.MuiButton-colorPrimary`, two classes, so it outranks
+               anything `sx` can emit from a single class: the `bgcolor` below
+               was being ignored and the button rendered as white text on the
+               white surface, at 1.00:1. Invisible, not merely low contrast.
+               `inherit` is outside the scoped selector, which is what that
+               scoping exists for — the navbar's Sign out button uses it for
+               exactly the same reason. */
+            color="inherit"
             sx={{
               px: { xs: 3, sm: 5 }, py: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9375rem', sm: '1rem' },
               color: '#fff',
-              // The theme gives outlined buttons a pale clay fill, which turns
-              // grey and muddy over the dark hero photo — use a translucent
-              // dark clay pill here instead.
+              // A translucent dark pill, so the button reads as glass over the
+              // hero photo rather than as a pale tile punched out of it.
               bgcolor: 'rgba(20,40,28,0.38)',
               backdropFilter: 'blur(6px)',
               borderColor: 'rgba(255,255,255,0.45)',
