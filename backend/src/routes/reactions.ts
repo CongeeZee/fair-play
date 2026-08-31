@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { sendPushToUser } from "../lib/pushNotification";
 
 const router = Router();
@@ -15,18 +16,7 @@ function isAllowedEmoji(s: string): s is AllowedEmoji {
 
 router.use(requireAuth);
 
-// Middleware: require email verification
-router.use(async (req: AuthRequest, res: Response, next) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId! },
-    select: { emailVerified: true },
-  });
-  if (!user?.emailVerified) {
-    res.status(403).json({ error: "Verify your email first" });
-    return;
-  }
-  next();
-});
+router.use(requireVerifiedEmail("Verify your email first"));
 
 // Helper: check if userId is friend of or is targetUserId
 async function isFriendOrSelf(userId: number, targetUserId: number): Promise<boolean> {

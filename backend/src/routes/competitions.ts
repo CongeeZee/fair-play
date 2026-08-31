@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { getUserHandicapIndex } from "../lib/userHandicap";
 import { calculateStableford, courseHandicapFrom } from "../lib/stableford";
 import { sendPushToUser } from "../lib/pushNotification";
@@ -10,18 +11,7 @@ const router = Router();
 
 router.use(requireAuth);
 
-// Middleware: require email verification
-router.use(async (req: AuthRequest, res: Response, next) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId! },
-    select: { emailVerified: true },
-  });
-  if (!user?.emailVerified) {
-    res.status(403).json({ error: "Verify your email to use competitions" });
-    return;
-  }
-  next();
-});
+router.use(requireVerifiedEmail("Verify your email to use competitions"));
 
 // Helper: derive competition status from dates
 function compStatus(startDate: Date, endDate: Date): "UPCOMING" | "ACTIVE" | "COMPLETED" {
@@ -65,15 +55,55 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  if (courseId) {
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) {
+  // Duplicates in the request would become duplicate participant rows, which
+  // the composite unique on (competitionId, userId) rejects — and since the
+  // participants are now created inside the competition insert, that failure
+  // would take the whole creation down rather than being skipped.
+  const inviteIds = [...new Set(inviteUserIds ?? [])].filter((id) => id !== req.userId!);
+
+  try {
+    /* These three reads have no dependency on each other, so they go out
+       together. Run sequentially they were three serial round-trips before
+       the insert had even started; against a managed database in another
+       region that is the dominant cost of creating a competition. */
+    const [course, friendships, creator] = await Promise.all([
+      courseId
+        ? prisma.course.findUnique({ where: { id: courseId }, select: { id: true } })
+        : Promise.resolve(null),
+      inviteIds.length > 0
+        ? prisma.friendship.findMany({
+            where: {
+              status: "ACCEPTED",
+              OR: [
+                { requesterId: req.userId!, addresseeId: { in: inviteIds } },
+                { addresseeId: req.userId!, requesterId: { in: inviteIds } },
+              ],
+            },
+            select: { requesterId: true, addresseeId: true },
+          })
+        : Promise.resolve([]),
+      inviteIds.length > 0
+        ? prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } })
+        : Promise.resolve(null),
+    ]);
+
+    if (courseId && !course) {
       res.status(404).json({ error: "Course not found" });
       return;
     }
-  }
 
-  try {
+    // Only actual friends can be invited: an id the caller is not friends with
+    // is dropped rather than rejected, so one stale id cannot fail the create.
+    const friendIdSet = new Set(
+      friendships.map((f) => (f.requesterId === req.userId! ? f.addresseeId : f.requesterId))
+    );
+    const validIds = inviteIds.filter((id) => friendIdSet.has(id));
+
+    /* Creator and invitees are created in the same statement as the
+       competition. Besides saving another round-trip, it makes the invite list
+       atomic with the competition: the old second `createMany` could fail and
+       leave a competition that had been reported as created with nobody
+       invited to it. */
     const comp = await prisma.competition.create({
       data: {
         name,
@@ -83,7 +113,10 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         endDate,
         scoringType,
         participants: {
-          create: { userId: req.userId!, status: "ACCEPTED" },
+          create: [
+            { userId: req.userId!, status: "ACCEPTED" as const },
+            ...validIds.map((userId) => ({ userId, status: "INVITED" as const })),
+          ],
         },
       },
       include: {
@@ -92,33 +125,8 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       },
     });
 
-    // Invite friends if provided
-    if (inviteUserIds && inviteUserIds.length > 0) {
-      const friendships = await prisma.friendship.findMany({
-        where: {
-          status: "ACCEPTED",
-          OR: [
-            { requesterId: req.userId!, addresseeId: { in: inviteUserIds } },
-            { addresseeId: req.userId!, requesterId: { in: inviteUserIds } },
-          ],
-        },
-      });
-      const friendIdSet = new Set(
-        friendships.map((f) => (f.requesterId === req.userId! ? f.addresseeId : f.requesterId))
-      );
-      const validIds = inviteUserIds.filter((id) => friendIdSet.has(id));
-
-      if (validIds.length > 0) {
-        await prisma.competitionParticipant.createMany({
-          data: validIds.map((userId) => ({ competitionId: comp.id, userId, status: "INVITED" as const })),
-          skipDuplicates: true,
-        });
-
-        const creator = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-        for (const userId of validIds) {
-          sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${name}`, `/competitions/${comp.id}`).catch(() => {});
-        }
-      }
+    for (const userId of validIds) {
+      sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${name}`, `/competitions/${comp.id}`).catch(() => {});
     }
 
     res.status(201).json({ ...comp, status: compStatus(comp.startDate, comp.endDate) });
@@ -534,14 +542,17 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
 router.get("/:id/eligible-rounds", async (req: AuthRequest, res: Response) => {
   const compId = String(req.params.id);
 
-  const comp = await prisma.competition.findUnique({ where: { id: compId } });
+  // The competition and its existing submissions are independent reads, so
+  // they go out together rather than one after the other.
+  const [comp, submitted] = await Promise.all([
+    prisma.competition.findUnique({ where: { id: compId } }),
+    prisma.competitionRound.findMany({
+      where: { competitionId: compId },
+      select: { roundId: true },
+    }),
+  ]);
   if (!comp) { res.status(404).json({ error: "Competition not found" }); return; }
 
-  // Already submitted rounds to this comp
-  const submitted = await prisma.competitionRound.findMany({
-    where: { competitionId: compId },
-    select: { roundId: true },
-  });
   const submittedIds = new Set(submitted.map((r) => r.roundId));
 
   const rounds = await prisma.round.findMany({

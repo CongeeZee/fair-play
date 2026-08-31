@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { moderateLimiter } from "../middleware/rateLimiter";
 
 const authedRouter = Router();
@@ -11,18 +12,7 @@ publicRouter.use(moderateLimiter);
 
 authedRouter.use(requireAuth);
 
-// Require verified email for write/protected endpoints
-authedRouter.use(async (req: AuthRequest, res: Response, next) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId! },
-    select: { emailVerified: true },
-  });
-  if (!user?.emailVerified) {
-    res.status(403).json({ error: "Verify your email first" });
-    return;
-  }
-  next();
-});
+authedRouter.use(requireVerifiedEmail("Verify your email first"));
 
 const reviewBodySchema = z.object({
   rating: z.number().int().min(1).max(5),

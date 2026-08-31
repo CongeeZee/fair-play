@@ -16,6 +16,9 @@ export default defineConfig({
           if (!id.includes('node_modules')) return
           if (id.includes('@mui') || id.includes('@emotion')) return 'mui'
           if (id.includes('@tanstack')) return 'query'
+          // Named so the async analytics chunk is identifiable in a waterfall;
+          // it is dynamically imported, so this never pulls it into the entry.
+          if (id.includes('posthog-js')) return 'posthog'
           if (id.includes('react-router')) return 'react-vendor'
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react-vendor'
         },

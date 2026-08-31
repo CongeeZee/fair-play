@@ -134,9 +134,13 @@ function CreateCompDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const [selectedFriends, setSelectedFriends] = useState<number[]>([])
   const [error, setError] = useState('')
 
+  // The dialog is mounted for the whole page, so without `enabled` this fired
+  // a friends request on every visit to Competitions whether or not anyone
+  // opened the create flow.
   const { data: friends } = useQuery({
     queryKey: ['friends'],
     queryFn: getFriends,
+    enabled: open,
   })
 
   const createMutation = useMutation({
@@ -321,7 +325,7 @@ function InviteDialog({ open, onClose, compId, existingUserIds }: {
 }) {
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<number[]>([])
-  const { data: friends } = useQuery({ queryKey: ['friends'], queryFn: getFriends })
+  const { data: friends } = useQuery({ queryKey: ['friends'], queryFn: getFriends, enabled: open })
 
   const available = friends?.filter((f) => !existingUserIds.includes(f.id)) ?? []
 

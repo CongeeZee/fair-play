@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
 import { sendPushToUser } from "../lib/pushNotification";
 
@@ -9,18 +10,7 @@ const router = Router();
 
 router.use(requireAuth);
 
-// Middleware: require email verification for all friend routes
-router.use(async (req: AuthRequest, res: Response, next) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId! },
-    select: { emailVerified: true },
-  });
-  if (!user?.emailVerified) {
-    res.status(403).json({ error: "Verify your email to use social features" });
-    return;
-  }
-  next();
-});
+router.use(requireVerifiedEmail("Verify your email to use social features"));
 
 // GET /friends — list accepted friends
 router.get("/", async (req: AuthRequest, res: Response) => {

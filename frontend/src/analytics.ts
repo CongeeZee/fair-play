@@ -14,8 +14,6 @@
 //   competition_joined   — the user accepted an invite to a competition
 //   invite_link_created  — the user generated a shareable scorecard/invite link
 
-import posthog from 'posthog-js'
-
 export const AnalyticsEvent = {
   SignupCompleted: 'signup_completed',
   RoundStarted: 'round_started',
@@ -51,23 +49,77 @@ const HOST =
   (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ??
   'https://us.i.posthog.com'
 
-let initialised = false
+/**
+ * posthog-js is ~190 kB raw / 64 kB gzipped. It used to be a static import,
+ * which put it in the entry chunk's static graph: every visitor downloaded and
+ * parsed it before the first route could render, and visitors on a build with
+ * no `VITE_POSTHOG_KEY` downloaded it to run `initAnalytics`'s early return.
+ * It was the single largest thing on the critical path that the first paint
+ * did not need.
+ *
+ * So it is loaded on demand instead, off the critical path entirely. The
+ * consequence to manage is that `capture()` can now be called before the
+ * library has arrived — during the very first seconds of a session, which is
+ * exactly when signup and onboarding events fire. Those are buffered and
+ * replayed on load rather than dropped, so the event stream is unchanged;
+ * only its timing moves.
+ */
+type PostHog = typeof import('posthog-js').default
 
-export function initAnalytics() {
-  if (initialised || !KEY || typeof window === 'undefined') return
-  posthog.init(KEY, {
-    api_host: HOST,
-    capture_pageview: true,
-    // Don't auto-capture every DOM interaction — we use explicit events only
-    autocapture: false,
-    // Don't persist identifiers across sessions for anonymous users beyond
-    // PostHog's default; nothing extra to configure here.
-  })
-  initialised = true
+let client: PostHog | null = null
+let loading: Promise<PostHog | null> | null = null
+
+/** Calls made before the library finished loading, replayed in order. */
+const pending: Array<(ph: PostHog) => void> = []
+
+function load(): Promise<PostHog | null> {
+  if (!loading) {
+    loading = import('posthog-js')
+      .then(({ default: posthog }) => {
+        posthog.init(KEY!, {
+          api_host: HOST,
+          capture_pageview: true,
+          // Don't auto-capture every DOM interaction — we use explicit events only
+          autocapture: false,
+          // Don't persist identifiers across sessions for anonymous users beyond
+          // PostHog's default; nothing extra to configure here.
+        })
+        client = posthog
+        for (const call of pending.splice(0)) call(posthog)
+        return posthog
+      })
+      .catch(() => {
+        // An ad blocker or a network failure must never break the app. Drop
+        // the buffer so it cannot grow without bound over a long session.
+        pending.length = 0
+        return null
+      })
+  }
+  return loading
 }
 
-function enabled(): boolean {
-  return initialised && !!KEY
+/**
+ * Run `fn` against the live client, loading it first if necessary. A no-op
+ * when there is no key, which is the dev/local case: nothing is fetched and
+ * nothing leaks to PostHog.
+ */
+function withClient(fn: (ph: PostHog) => void) {
+  if (!KEY || typeof window === 'undefined') return
+  if (client) {
+    fn(client)
+    return
+  }
+  pending.push(fn)
+  void load()
+}
+
+/**
+ * Start the fetch. Called once at boot; it deliberately does not await, so
+ * nothing about app startup is gated on analytics.
+ */
+export function initAnalytics() {
+  if (!KEY || typeof window === 'undefined') return
+  void load()
 }
 
 /**
@@ -78,8 +130,7 @@ export function capture<E extends AnalyticsEventName>(
   event: E,
   props: AnalyticsEventProps[E],
 ) {
-  if (!enabled()) return
-  posthog.capture(event, props as Record<string, unknown>)
+  withClient((ph) => ph.capture(event, props as Record<string, unknown>))
 }
 
 /**
@@ -87,14 +138,12 @@ export function capture<E extends AnalyticsEventName>(
  * PostHog is for product analytics, not user records.
  */
 export function identify(userId: string | number) {
-  if (!enabled()) return
-  posthog.identify(String(userId))
+  withClient((ph) => ph.identify(String(userId)))
 }
 
 /**
  * Clear the identified user on logout so subsequent events are anonymous.
  */
 export function resetAnalytics() {
-  if (!enabled()) return
-  posthog.reset()
+  withClient((ph) => ph.reset())
 }
