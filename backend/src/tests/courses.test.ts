@@ -12,14 +12,15 @@ vi.mock("../lib/email", () => ({
 }));
 
 // Disable rate limiting for functional tests
-vi.mock("../middleware/rateLimiter", () => {
+vi.mock("../middleware/rateLimiter", async (importOriginal) => {
+  // Every export is replaced with a passthrough, derived from the real module
+  // rather than listed by hand. The hand-written version named four of the six
+  // limiters, so adding `signupLimiter` to the app broke six test files at
+  // import time — they reported "0 test" and stopped running entirely, which
+  // is quiet enough to miss.
+  const actual = await importOriginal<typeof import("../middleware/rateLimiter")>();
   const passthrough = (_req: unknown, _res: unknown, next: () => void) => next();
-  return {
-    strictLimiter: passthrough,
-    moderateLimiter: passthrough,
-    standardLimiter: passthrough,
-    refreshLimiter: passthrough,
-  };
+  return Object.fromEntries(Object.keys(actual).map((name) => [name, passthrough]));
 });
 
 const { default: app } = await import("../app");

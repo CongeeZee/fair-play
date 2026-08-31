@@ -1296,7 +1296,10 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
 router.get("/handicap", async (req: AuthRequest, res: Response) => {
   try {
     const rounds = await prisma.round.findMany({
-      where: { userId: req.userId! },
+      where: {
+        userId: req.userId!,
+        course: { courseRating: { not: null }, slopeRating: { not: null } },
+      },
       include: {
         course: {
           select: {
@@ -1311,7 +1314,18 @@ router.get("/handicap", async (req: AuthRequest, res: Response) => {
         roundHoles: { select: { strokes: true, hole: { select: { par: true } } } },
       },
       orderBy: { playedAt: "desc" },
-      take: 20,
+      /* WHS wants the 20 most recent *acceptable* scores, not the acceptable
+         ones among the 20 most recent rounds. Filtering rating and slope in
+         SQL removes the dominant reason a round is unacceptable, and the 60
+         gives headroom for the remaining one — a round that was started and
+         never fully scored — so the twenty are still found when a player has a
+         run of abandoned rounds. `calculateHandicapIndex` takes the most
+         recent twenty of whatever survives.
+
+         Taking 20 rounds up front, as this did, meant one unrated course in
+         the last twenty scores shrank the pool to 19 and moved the player onto
+         a different row of the allocation table. */
+      take: 60,
     });
 
     const differentials = calculateDifferentials(rounds);

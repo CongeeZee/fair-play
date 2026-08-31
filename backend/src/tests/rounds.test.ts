@@ -8,14 +8,15 @@ vi.mock("../lib/email", () => ({
 }));
 
 // Disable rate limiting for functional tests
-vi.mock("../middleware/rateLimiter", () => {
+vi.mock("../middleware/rateLimiter", async (importOriginal) => {
+  // Every export is replaced with a passthrough, derived from the real module
+  // rather than listed by hand. The hand-written version named four of the six
+  // limiters, so adding `signupLimiter` to the app broke six test files at
+  // import time — they reported "0 test" and stopped running entirely, which
+  // is quiet enough to miss.
+  const actual = await importOriginal<typeof import("../middleware/rateLimiter")>();
   const passthrough = (_req: unknown, _res: unknown, next: () => void) => next();
-  return {
-    strictLimiter: passthrough,
-    moderateLimiter: passthrough,
-    standardLimiter: passthrough,
-    refreshLimiter: passthrough,
-  };
+  return Object.fromEntries(Object.keys(actual).map((name) => [name, passthrough]));
 });
 
 // Mock fetch for OSM/external API calls triggered during round creation
@@ -344,8 +345,15 @@ describe("GET /rounds/handicap", () => {
     // differential = (113/113) × (gross - 72) = gross - 72 = 8 to 17
     // Best 8 differentials: 8,8,9,9,10,10,11,11 (each score appears twice)
     // avg = (8+8+9+9+10+10+11+11)/8 = 76/8 = 9.5
-    // adjustment for 20 rounds = 0, × 0.96 = 9.12, truncated = 9.1
-    expect(res.body.handicapIndex).toBe(9.1);
+    // adjustment for 20 rounds = 0, so the Index is 9.5.
+    //
+    // This assertion used to read 9.1, with a comment deriving it as
+    // "× 0.96 = 9.12, truncated": it was written from what the implementation
+    // did rather than from the Rules of Handicapping, so it locked in the
+    // retired bonus-for-excellence multiplier instead of catching it. The file
+    // had also not executed in some time — a stale `vi.mock` of the rate
+    // limiter was throwing at import, which vitest reports as "0 test".
+    expect(res.body.handicapIndex).toBe(9.5);
   }, 60000); // Increased timeout for seeding 20 rounds against remote DB
 });
 

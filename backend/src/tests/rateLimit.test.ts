@@ -11,11 +11,18 @@ vi.mock("../lib/email", () => ({
 vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("mocked")));
 
 describe("Rate limiting", () => {
-  describe("Auth endpoints (strict — 5/min)", () => {
-    it("returns 429 after 5 requests to /auth/login", async () => {
+  /**
+   * Sign-in moved off `strictLimiter` (5/min, all requests counted) onto
+   * `authLimiter` (20/min, `skipSuccessfulRequests`) so a correct password is
+   * never throttled while wrong guesses still cap brute force. These tests
+   * were left asserting the old 5/min budget and had been failing on every run
+   * since; the numbers below now come from `authLimiter`'s configuration.
+   */
+  describe("Sign-in (auth — 20 failures/min)", () => {
+    it("returns 429 after 20 failed requests to /auth/login", async () => {
       const responses: number[] = [];
 
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 22; i++) {
         const res = await request(app).post("/auth/login").send({
           email: "rate@test.com",
           password: "password123",
@@ -23,16 +30,17 @@ describe("Rate limiting", () => {
         responses.push(res.status);
       }
 
-      // First 5 should get through (401 because user doesn't exist)
-      expect(responses.slice(0, 5).every((s) => s === 401)).toBe(true);
-      // 6th+ should be rate limited
-      expect(responses[5]).toBe(429);
-      expect(responses[6]).toBe(429);
+      // The first 20 get through (401 — the user does not exist)
+      expect(responses.slice(0, 20).every((s) => s === 401)).toBe(true);
+      // 21st onward are throttled
+      expect(responses[20]).toBe(429);
+      expect(responses[21]).toBe(429);
     });
 
     it("returns correct JSON body and Retry-After header on 429", async () => {
-      // Exhaust the limit
-      for (let i = 0; i < 5; i++) {
+      // Exhaust the limit. A different email to keep this independent of the
+      // test above — the limiter keys on IP, but the intent is clearer.
+      for (let i = 0; i < 20; i++) {
         await request(app).post("/auth/login").send({
           email: "header@test.com",
           password: "pass",
