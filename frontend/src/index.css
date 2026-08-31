@@ -1,14 +1,29 @@
-/* Claymorphism base tokens.
-   Mirrors CLAY.* in src/theme.ts — kept in sync by hand because plain CSS
-   (body background, focus rings, scrollbars) is painted before React mounts. */
+/* Pre-mount paint.
+   Everything here is painted before React (and therefore before MUI's
+   CssBaseline, which owns the real `--c-*` blocks) has mounted, so it cannot
+   read those tokens. It restates only the handful of values needed to avoid a
+   flash of the wrong appearance, keyed off the same `data-appearance`
+   attribute that AppearanceContext writes to <html> at module scope.
+
+   Keep in sync with PALETTES in src/theme.ts. */
 :root {
-  --clay-base: #e9e1d3;
-  --clay-surface: #faf6ee;
-  --clay-sunken: #e4dbcb;
-  --clay-shade: rgba(163, 148, 122, 0.42);
-  --clay-light: rgba(255, 255, 255, 0.92);
-  --clay-green: #2f6b4c;
-  --clay-gold: #e0b95c;
+  --boot-base: #f2f1ec;
+  --boot-green: #2c6347;
+  --boot-wash-light: rgba(255, 255, 255, 0.55);
+  --boot-wash-green: rgba(44, 99, 71, 0.06);
+  --boot-scroll: rgba(42, 49, 41, 0.5);
+  color-scheme: light;
+}
+
+:root[data-appearance='dark'] {
+  --boot-base: #12171a;
+  --boot-green: #7fc79c;
+  /* The light wash would read as a grey smear on a near-black ground, so in
+     dark mode both washes are green and the top-left one is the dimmer. */
+  --boot-wash-light: rgba(126, 201, 160, 0.05);
+  --boot-wash-green: rgba(44, 99, 71, 0.16);
+  --boot-scroll: rgba(233, 239, 235, 0.35);
+  color-scheme: dark;
 }
 
 *, *::before, *::after {
@@ -20,10 +35,10 @@ body {
   font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
   /* Two very low-contrast radial washes stop the flat base colour from
      looking like dead space behind the raised cards. */
-  background-color: var(--clay-base);
+  background-color: var(--boot-base);
   background-image:
-    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.55) 0%, transparent 42%),
-    radial-gradient(circle at 88% 92%, rgba(47, 107, 76, 0.06) 0%, transparent 45%);
+    radial-gradient(circle at 12% 8%, var(--boot-wash-light) 0%, transparent 42%),
+    radial-gradient(circle at 88% 92%, var(--boot-wash-green) 0%, transparent 45%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -35,7 +50,7 @@ body {
 
 /* Rounded, soft focus ring rather than the default square outline. */
 :focus-visible {
-  outline: 2px solid var(--clay-green);
+  outline: 2px solid var(--boot-green);
   outline-offset: 2px;
   border-radius: 10px;
 }
@@ -43,5 +58,5 @@ body {
 /* Firefox scrollbars (WebKit is handled in the MUI CssBaseline overrides). */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(163, 148, 122, 0.5) transparent;
+  scrollbar-color: var(--boot-scroll) transparent;
 }

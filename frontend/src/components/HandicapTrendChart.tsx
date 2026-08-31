@@ -47,7 +47,7 @@ export default function HandicapTrendChart() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Your handicap index after each round · lower is better
         </Typography>
-        <Box sx={{ bgcolor: '#e9e1d3', borderRadius: 2, p: { xs: 1, sm: 2 } }}>
+        <Box sx={{ bgcolor: CLAY.sunken, borderRadius: 2, p: { xs: 1, sm: 2 } }}>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" />

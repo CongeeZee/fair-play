@@ -6,11 +6,16 @@ import type { Shadows, Theme } from '@mui/material/styles'
  *
  * Two independent axes:
  *
- *   appearance  'clay'     — the default. Soft claymorphic surfaces, depth
- *                            carried by two-tone shadows.
- *               'sunlight' — high-contrast light mode for playing outdoors.
- *                            Depth is carried by BORDERS, because shadows are
- *                            the first thing to disappear under glare.
+ *   appearance  'light' — the default. The high-contrast palette that used to
+ *                         be opt-in "sunlight" mode: text solved to AAA and
+ *                         depth carried by BORDERS rather than shadow, because
+ *                         a shadow is the first thing to disappear under glare.
+ *                         It is the default because the app is used outdoors,
+ *                         and nobody predicts they will need the readable
+ *                         palette before they walk to the first tee.
+ *               'dark'  — the same structure inverted for low light: dark
+ *                         surfaces, light ink, borders kept (they are what
+ *                         separates one dark card from another).
  *
  *   density     'comfortable' — the default.
  *               'course'      — applied automatically on the three screens
@@ -23,24 +28,25 @@ import type { Shadows, Theme } from '@mui/material/styles'
  * About ten files import `CLAY`, `raised`, `pressed` and `tint` directly and
  * use them inside `sx`. If those were static JS values, switching appearance
  * would restyle everything driven by the MUI theme and silently leave those
- * call sites on clay colours — the exact "half-converted" result this work is
- * meant to avoid. Emitting `var(--c-*)` instead means the switch is a single
+ * call sites on the light palette — the exact "half-converted" result this
+ * work is meant to avoid. Emitting `var(--c-*)` instead means the switch is a single
  * data attribute on <html>, every existing call site follows it for free, and
  * there is no re-render cost.
  * ------------------------------------------------------------------ */
 
-export type Appearance = 'clay' | 'sunlight'
+export type Appearance = 'light' | 'dark'
 export type Density = 'comfortable' | 'course'
 
 /**
  * Raw palette values per appearance.
  *
- * Every text colour here was solved against the lightest background it can
- * land on, not picked by eye: clay targets WCAG AA (4.5:1) and sunlight targets
- * AAA (7:1). The sunlight target is higher because bright ambient light adds a
- * roughly constant reflected luminance to the screen, which compresses the
- * effective ratio — designing to 7:1 indoors is what leaves usable margin
- * outdoors.
+ * Every text colour was solved against the worst background it can land on,
+ * not picked by eye, and `npm run verify:contrast` re-measures every pairing
+ * in both appearances. Light targets AAA (7:1) where it can rather than AA,
+ * because bright ambient light adds a roughly constant reflected luminance to
+ * the screen and compresses the effective ratio — designing past the minimum
+ * indoors is what leaves usable margin outdoors. Dark is solved to the same
+ * table with the surfaces inverted.
  *
  * The fill/text split matters: the previous palette used one hex for both a
  * filled chip (with white text on it) and coloured text on a light card. Those
@@ -48,75 +54,7 @@ export type Density = 'comfortable' | 'course'
  * two thirds of the old pairs failed. `green` is a fill, `greenText` is text.
  */
 const PALETTES: Record<Appearance, Record<string, string>> = {
-  clay: {
-    base: '#e9e1d3',
-    surface: '#faf6ee',
-    sunken: '#e4dbcb',
-    surfaceHi: '#fffdf8',
-    focus: '#efe8da',
-
-    shade: 'rgba(158, 141, 111, 0.52)',
-    shadeSoft: 'rgba(158, 141, 111, 0.3)',
-    light: 'rgba(255, 255, 255, 0.92)',
-    /** Multiplier on every clay shadow. 1 = full clay. */
-    depth: '1',
-    /** Border width used by interactive surfaces. Zero in clay: shadow is the cue. */
-    borderW: '0px',
-    borderC: 'transparent',
-
-    ink: '#2b3a30',
-    inkSoft: '#57645b',
-
-    green: '#2f6b4c',
-    greenMid: '#468262',
-    greenDark: '#1f4a34',
-    greenText: '#396b50',
-
-    gold: '#e0b95c',
-    goldLight: '#f2d492',
-    goldText: '#765e23',
-    onGold: '#3a2f12',
-    // Gold *on the green bar or a green banner*. Neither `gold` (3.38:1) nor
-    // `goldLight` (4.39:1) clears 4.5:1 against #2f6b4c, so on-green gold needs
-    // its own step. This is 4.70:1 and still unmistakably gold rather than cream.
-    goldOnGreen: '#f5dca4',
-    // Secondary text on a green banner. The old #c1d3c9 measured 4.03:1.
-    onGreenSoft: '#e4ede8',
-    // Gold as a *meaningful graphic* on a light surface — a filled star, a
-    // progress bar, a chart series. WCAG 1.4.11 wants 3:1 for these and `gold`
-    // manages 1.73:1 on cream, so a filled star was barely distinguishable
-    // from an empty one. `goldText` (#765e23) would clear it easily but reads
-    // as brown; this is the shallowest darkening that still passes on all
-    // three light surfaces while staying recognisably gold — 4.03:1 on the
-    // card, 3.34:1 on the page base, 3.16:1 in a sunken well. The first
-    // attempt (#9c7a1c) was measured against the card and the base only and
-    // came out at 2.93:1 in a well, which is where the stat tiles live.
-    goldGraphic: '#95751a',
-
-    // Darkened from #547a99, which carried white text at 4.54:1 — passing, but
-    // with about 1% of headroom. Anti-aliasing and any future nudge to the
-    // value would drop it under. 5.07:1 leaves room.
-    clayBlue: '#4e7291',
-    infoText: '#44647f',
-    red: '#b0574c',
-    redDeep: '#a1453c',
-    errorText: '#a73e32',
-    successText: '#366b4b',
-    warningText: '#845815',
-    slate: '#5c5470',
-
-    divider: 'rgba(158, 141, 111, 0.22)',
-    scrollThumb: 'rgba(163, 148, 122, 0.45)',
-    scrollThumbHi: 'rgba(163, 148, 122, 0.7)',
-    skeleton: 'rgba(163, 148, 122, 0.2)',
-
-    alertSuccess: '#dfeee4',
-    alertError: '#f7e2df',
-    alertWarning: '#f8ecd6',
-    alertInfo: '#e0e9f1',
-  },
-
-  sunlight: {
+  light: {
     base: '#f2f1ec',
     surface: '#ffffff',
     sunken: '#e6e4db',
@@ -125,6 +63,7 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
 
     // Shadows are nearly switched off. A soft shadow conveys nothing once
     // reflected glare lifts the black level, so structure moves to borders.
+    // `depth` scales every shadow offset in the app from one place.
     shade: 'rgba(0, 0, 0, 0.22)',
     shadeSoft: 'rgba(0, 0, 0, 0.12)',
     light: 'rgba(255, 255, 255, 0)',
@@ -144,13 +83,13 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
     goldLight: '#f2d492',
     goldText: '#634e1d',
     onGold: '#1a1508',
-    // Sunlight's green bar is #2c6347, marginally darker, so these clear by
-    // more (5.25:1 and 5.89:1). Held identical to clay so the bar does not
-    // shift hue when the mode is toggled.
+    // The green bar is #2c6347, so these clear at 5.25:1 and 5.89:1. Held
+    // identical in dark mode so the bar does not shift hue when toggled.
     goldOnGreen: '#f5dca4',
     onGreenSoft: '#e4ede8',
-    // Sunlight surfaces are lighter, so the graphic gold goes one step deeper
-    // to keep the same headroom: 4.37:1 on white, 3.86:1 on the tinted base.
+    // Gold as a meaningful graphic (a filled star, a bar) on a light surface.
+    // WCAG 1.4.11 wants 3:1 and raw `gold` manages 1.73:1, so it needs its own
+    // darker step: 4.37:1 on white, 3.86:1 on the tinted base.
     goldGraphic: '#96741b',
 
     clayBlue: '#4a6c88',
@@ -173,6 +112,98 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
     alertError: '#f6ded9',
     alertWarning: '#f7e9cd',
     alertInfo: '#dde8f0',
+
+    /* Foreground for a filled success/warning/error/info swatch. The status
+       `main` values above are the *text* steps; MUI also paints them as fills
+       and needs a foreground that survives the inversion, so it is a token
+       rather than a hardcoded white. */
+    onStatus: '#ffffff',
+    actionHover: 'rgba(47, 107, 76, 0.06)',
+    actionSelected: 'rgba(47, 107, 76, 0.1)',
+  },
+
+  /* Dark.
+   *
+   * Not a tint of light with the lightness flipped: the roles are re-solved.
+   * Surfaces climb *toward* the viewer (base is the darkest thing on screen,
+   * a card is lighter, a hover state lighter still), which is the inverse of
+   * light mode where a sunken well is darker than its card. Every `*Text`
+   * token becomes a light step, because it now sits on a dark card; every
+   * *fill* — the green bar, the gold chip, the red badge — is unchanged, so a
+   * chip means the same thing in both modes and the brand green never shifts.
+   *
+   * Borders stay on (`borderW: 1px`). In light mode they replace shadow under
+   * glare; in dark mode they do the same job for a different reason, since a
+   * dark shadow on a dark ground separates nothing. */
+  dark: {
+    base: '#12171a',
+    surface: '#1c2327',
+    sunken: '#161c20',
+    surfaceHi: '#242c31',
+    focus: '#2a3339',
+
+    shade: 'rgba(0, 0, 0, 0.62)',
+    shadeSoft: 'rgba(0, 0, 0, 0.4)',
+    // A near-black ground has no white bevel to give; the inset highlight is
+    // a whisper of white instead, or every raised surface gets a milky rim.
+    light: 'rgba(255, 255, 255, 0.05)',
+    depth: '0.8',
+    // 1px rather than light mode's 2px: the line is doing the same structural
+    // job, but nothing here has to survive glare, so it can be a hairline.
+    borderW: '1px',
+    borderC: '#6e7c81',
+
+    ink: '#e9efeb',
+    inkSoft: '#a3aeaa',
+
+    // Fills, held identical to light mode. `green` carries white at 7.35:1 on
+    // either ground because the ground is not what it is measured against.
+    green: '#2c6347',
+    greenMid: '#3e7357',
+    greenDark: '#14331f',
+    // Text, not a fill — inverted to a light step so it reads on a dark card.
+    greenText: '#7fc79c',
+
+    gold: '#e0b95c',
+    goldLight: '#f2d492',
+    goldText: '#e3c079',
+    onGold: '#1a1508',
+    goldOnGreen: '#f5dca4',
+    onGreenSoft: '#e4ede8',
+    // On a dark card raw `gold` clears 1.4.11 several times over, so the
+    // graphic step and the fill step converge — no separate darkening needed.
+    goldGraphic: '#e0b95c',
+
+    clayBlue: '#4a6c88',
+    infoText: '#93bcd8',
+    red: '#a35046',
+    redDeep: '#8c342a',
+    errorText: '#f0a096',
+    successText: '#7ec9a0',
+    warningText: '#e2bc72',
+    slate: '#5c5470',
+
+    // 3:1 against `surface`, so a table rule or a list separator is still a
+    // line and not a suggestion. MUI's stock dark divider is white at 12%,
+    // which measures 1.5:1 and disappears the moment the row it separates has
+    // any content in it.
+    divider: '#657377',
+    scrollThumb: 'rgba(233, 239, 235, 0.28)',
+    scrollThumbHi: 'rgba(233, 239, 235, 0.5)',
+    skeleton: 'rgba(233, 239, 235, 0.1)',
+
+    // Alert grounds are tinted *darker* than the card, so a banner reads as
+    // inset rather than as another card floating on the page.
+    alertSuccess: '#16301f',
+    alertError: '#331a17',
+    alertWarning: '#302512',
+    alertInfo: '#15242e',
+
+    // White on a light status fill would be unreadable; the fills are the
+    // light steps here, so their foreground is the page's darkest ink.
+    onStatus: '#101619',
+    actionHover: 'rgba(255, 255, 255, 0.07)',
+    actionSelected: 'rgba(255, 255, 255, 0.13)',
   },
 }
 
@@ -205,8 +236,8 @@ const v = (name: string) => `var(--c-${name})`
  * Token accessors. These return `var(--c-*)` strings, so anything that consumes
  * them tracks the active appearance automatically.
  *
- * The name `CLAY` is kept because ~10 files already import it; renaming it
- * would be a large diff for no behavioural gain.
+ * The name `CLAY` predates the light/dark split and is kept because ~10 files
+ * already import it; renaming it would be a large diff for no behavioural gain.
  */
 const CLAY = {
   base: v('base'),
@@ -240,11 +271,11 @@ const CLAY = {
 }
 
 /**
- * The signature raised-clay shadow.
+ * The signature raised-surface shadow.
  *
- * Every offset is multiplied by `--c-depth`, which is 1 in clay and 0.28 in
- * sunlight. That single var is what lets the same component overrides serve
- * both appearances: in sunlight the shadows shrink to almost nothing and the
+ * Every offset is multiplied by `--c-depth`, which is 0.28 in light and 0.8
+ * in dark. That single var is what lets the same component overrides serve
+ * both appearances: in light the shadows shrink to almost nothing and the
  * border vars take over as the structural cue.
  */
 const scale = (n: number) => `calc(${n}px * ${v('depth')})`
@@ -253,7 +284,7 @@ const raised = (d: number) =>
   [
     `${scale(d * 1.0)} ${scale(d * 1.3)} ${scale(d * 2.6)} 0 ${v('shade')}`,
     // There used to be a second OUTER shadow here, offset up-left in
-    // `--c-light` (near-opaque white). On the clay page background it read as
+    // `--c-light` (near-opaque white). On the light page background it read as
     // soft two-tone depth, but it is painted outside the element, so on any
     // dark backdrop it became a white halo — the hero's "Get Started" button
     // and every dialog glowed. The bevel below gives the same lift from
@@ -273,9 +304,8 @@ const pressed = (d: number) =>
  * Flatten an accent tint onto the raised surface and return a solid colour.
  *
  * A translucent `rgba(accent, 0.08)` card background composites against
- * whatever is *behind* it. On the clay base (#e9e1d3, darker than the card
- * surface) that made a raised card land darker than the page and read as a
- * sunken smudge. `color-mix` does the flattening in the browser, which — unlike
+ * whatever is *behind* it. On a page base darker than the card surface that
+ * made a raised card land darker than the page and read as a sunken smudge. `color-mix` does the flattening in the browser, which — unlike
  * the previous JS implementation — keeps working when the surface changes with
  * the appearance.
  *
@@ -364,6 +394,11 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
     shape: { borderRadius: isCourse ? 7 : 10 },
     shadows: shadowScale,
     palette: {
+      /* Tells MUI which way round the world is. Every surface and text colour
+         is given explicitly below, but `mode` is what makes the components we
+         do *not* override — Backdrop, the Dialog scrim, ripples, the default
+         Divider — pick the right end of their own scales. */
+      mode: appearance,
       primary: {
         main: P.green,
         light: P.greenMid,
@@ -390,15 +425,15 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
          this codebase. These are the text-safe values; the fill-safe ones are
          exposed separately as CLAY.red / CLAY.greenLight / CLAY.clayBlue.
          `contrastText` is given explicitly rather than left to MUI, so the
-         white-on-fill pairings are the ones the audit measured. */
-      success: { main: P.successText, light: P.greenMid, dark: P.greenDark, contrastText: '#ffffff' },
-      warning: { main: P.warningText, light: P.goldLight, dark: P.goldText, contrastText: '#ffffff' },
-      error: { main: P.errorText, light: P.red, dark: P.redDeep, contrastText: '#ffffff' },
-      info: { main: P.infoText, light: P.clayBlue, dark: P.infoText, contrastText: '#ffffff' },
+         on-fill pairings are the ones the audit measured, in both modes. */
+      success: { main: P.successText, light: P.greenMid, dark: P.greenDark, contrastText: P.onStatus },
+      warning: { main: P.warningText, light: P.goldLight, dark: P.goldText, contrastText: P.onStatus },
+      error: { main: P.errorText, light: P.red, dark: P.redDeep, contrastText: P.onStatus },
+      info: { main: P.infoText, light: P.clayBlue, dark: P.infoText, contrastText: P.onStatus },
       divider: P.divider,
       action: {
-        hover: 'rgba(47, 107, 76, 0.06)',
-        selected: 'rgba(47, 107, 76, 0.1)',
+        hover: P.actionHover,
+        selected: P.actionSelected,
       },
     },
     typography: {
@@ -411,18 +446,37 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
       h6: { fontFamily: '"Playfair Display", serif' },
       button: { fontWeight: 700, letterSpacing: '0.01em' },
       /* Course mode lifts body text a step. Small secondary labels are the
-         first thing to become unreadable at arm's length in sun. */
-      body2: isCourse ? { fontSize: '0.95rem' } : undefined,
-      caption: isCourse ? { fontSize: '0.82rem' } : undefined,
+         first thing to become unreadable at arm's length in sun.
+
+         Spread rather than `body2: isCourse ? {...} : undefined`. MUI builds
+         the typography object by spreading this input over its defaults, and a
+         spread does not skip explicit `undefined`s — so the old form did not
+         mean "leave body2 alone" in comfortable density, it meant
+         `body2: undefined`, deleting the variant outright. Nothing noticed
+         until a component read a field off one: `StepIcon` does
+         `theme.typography.caption.fontSize`, so every Stepper in the app threw
+         "Cannot read properties of undefined (reading 'fontSize')" during
+         render. The app's only Stepper is the Create Competition wizard, which
+         made creating a competition impossible — it took the whole app down to
+         the root error boundary ("Something went wrong. Please reload the
+         page.") the moment the dialog opened. */
+      ...(isCourse
+        ? {
+            body2: { fontSize: '0.95rem' },
+            caption: { fontSize: '0.82rem' },
+          }
+        : {}),
     },
     components: {
       MuiCssBaseline: {
         styleOverrides: {
-          /* Both appearances are emitted, scoped by a data attribute on
-             <html>. Switching mode is then one attribute write — no React
-             re-render, no flash, and `var()` consumers update instantly. */
-          ':root': { ...varsFor(PALETTES.clay), ...varsFor(DENSITY.comfortable) },
-          '[data-appearance="sunlight"]': varsFor(PALETTES.sunlight),
+          /* Light is emitted unscoped so it is what `:root` resolves to
+             before React mounts — the default appearance is the one you get
+             for free. Dark is layered on top by a data attribute on <html>,
+             so switching mode is one attribute write: no React re-render, no
+             flash, and every `var()` consumer updates instantly. */
+          ':root': { ...varsFor(PALETTES.light), ...varsFor(DENSITY.comfortable) },
+          '[data-appearance="dark"]': varsFor(PALETTES.dark),
           '[data-density="course"]': varsFor(DENSITY.course),
           body: { backgroundColor: v('base') },
           '*::-webkit-scrollbar': { width: 10, height: 10 },
@@ -437,9 +491,8 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
             background: v('scrollThumbHi'),
             backgroundClip: 'content-box',
           },
-          /* Visible focus ring. The clay style removes borders, which left
-             keyboard focus relying on MUI's default outline against a
-             low-contrast surface. */
+          /* Visible focus ring in the brand green. The default UA outline
+             was all but invisible against these surfaces. */
           ':focus-visible': {
             outline: `3px solid ${v('green')}`,
             outlineOffset: 2,
@@ -461,8 +514,8 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           },
           contained: {
             boxShadow: raised(3),
-            // In sunlight and on course screens this is what actually defines
-            // the button's edge, since the shadow is turned down to nearly nil.
+            // This is what actually defines the button's edge in light mode
+            // and on course screens, where the shadow is turned down to nil.
             border: `${v('borderW')} solid ${v('borderC')}`,
             '&:hover': { boxShadow: raised(4) },
             '&:active': { boxShadow: pressed(2.5) },
@@ -551,7 +604,7 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
               borderWidth: v('borderW'),
             },
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: 'rgba(47, 107, 76, 0.35)',
+              borderColor: v('greenText'),
             },
             '&.Mui-focused': { backgroundColor: v('focus') },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
@@ -813,4 +866,4 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
 }
 
 export { CLAY, raised, pressed, tint, greenGradient, PALETTES }
-export default buildTheme('clay', 'comfortable')
+export default buildTheme('light', 'comfortable')

@@ -1,6 +1,7 @@
 import { AppBar, Toolbar, Typography, Button, Box, Badge, Avatar, IconButton, Tooltip, useScrollTrigger } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
-import WbSunnyIcon from '@mui/icons-material/WbSunny'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import LightModeIcon from '@mui/icons-material/LightMode'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,40 +9,36 @@ import { useAppearance } from '../contexts/AppearanceContext'
 import { getFriendRequests } from '../api/friends'
 
 /**
- * Sunlight mode has no settings page to live in — the app has no settings page
- * at all — and burying it would defeat the point: it is needed at the moment
- * the user walks out of the clubhouse, not before. So it sits in the bar on
- * every screen size, including mobile, which is the size that actually goes
- * outdoors.
+ * Light/dark switch. The app has no settings page to bury it in, and it sits
+ * in the bar at every screen size — including mobile, which is the size that
+ * actually goes outdoors and comes back in again.
  *
- * State is carried by the same pressed-pill treatment the active nav links
- * use, plus `aria-pressed` for anyone not reading the shadow.
+ * The icon shows the mode you would get by pressing it, not the one you are
+ * in: a toggle that pictures the current state gives you nothing you cannot
+ * already see by looking at the page. `aria-label` says the same thing in
+ * words, and there is no `aria-pressed` — this is an action, not a state, so
+ * a pressed-pill treatment would be claiming something the icon contradicts.
  */
-function SunlightToggle() {
+function AppearanceToggle() {
   const { appearance, toggleAppearance } = useAppearance()
-  const on = appearance === 'sunlight'
+  const dark = appearance === 'dark'
+  const label = dark ? 'Switch to light mode' : 'Switch to dark mode'
 
   return (
-    <Tooltip title={on ? 'Switch back to normal view' : 'Sunlight mode — high contrast for bright light'}>
+    <Tooltip title={label}>
       <IconButton
         onClick={toggleAppearance}
-        aria-label="Sunlight mode"
-        aria-pressed={on}
+        aria-label={label}
         size="small"
         sx={{
-          color: on ? 'var(--c-goldOnGreen)' : 'rgba(255,255,255,0.86)',
+          color: 'rgba(255,255,255,0.86)',
           borderRadius: 999,
-          boxShadow: on
-            ? 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)'
-            : 'none',
-          bgcolor: on ? 'rgba(19,48,33,0.28)' : 'transparent',
-          '&:hover': {
-            color: '#fff',
-            bgcolor: on ? 'rgba(19,48,33,0.32)' : 'rgba(255,255,255,0.1)',
-          },
+          '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
         }}
       >
-        <WbSunnyIcon sx={{ fontSize: 20 }} />
+        {dark
+          ? <LightModeIcon sx={{ fontSize: 20 }} />
+          : <DarkModeIcon sx={{ fontSize: 20 }} />}
       </IconButton>
     </Tooltip>
   )
@@ -86,10 +83,10 @@ export default function Navbar() {
       position="fixed"
       elevation={0}
       sx={{
-        // A clay slab rather than a flat bar: soft gradient face plus a top
+        // A moulded slab rather than a flat bar: soft gradient face plus a top
         // inset highlight, so the bar reads as moulded like the cards below it.
-        // Driven by the palette custom properties so the bar follows sunlight
-        // mode with the rest of the app instead of staying clay-green.
+        // Driven by the palette custom properties so the bar follows the
+        // appearance with the rest of the app.
         // The gradient used to run greenMid → green, so the *top* of the bar
         // was its lightest point (#468262) and every white foreground on it
         // measured against that: 78% white came out at 3.45:1 and even full
@@ -104,8 +101,8 @@ export default function Navbar() {
         backdropFilter: !solid ? 'blur(10px)' : 'none',
         borderBottom: !solid
           ? '1px solid rgba(255,255,255,0.1)'
-          // In sunlight mode --c-borderW is 2px and --c-borderC is near-black,
-          // giving the bar a hard edge; in clay it resolves to 0px/transparent.
+          // --c-borderW/--c-borderC give the bar a hard edge: 2px near-black
+          // in light mode, a 1px slate hairline in dark.
           : 'var(--c-borderW) solid var(--c-borderC)',
         boxShadow: solid
           ? '0 calc(8px * var(--c-depth)) calc(24px * var(--c-depth)) 0 rgba(31, 74, 52, 0.28), inset 0 1px 0 0 rgba(255,255,255,0.16)'
@@ -146,8 +143,8 @@ export default function Navbar() {
                 sx={{
                   fontSize: '0.875rem',
                   fontWeight: active ? 700 : 500,
-                  // Active tab becomes a pressed-in pill — the clay equivalent
-                  // of the old gold underline.
+                  // Active tab becomes a pressed-in pill, in place of the old
+                  // gold underline.
                   // `goldLight` is 4.39:1 on the bar — under AA by a whisker.
                   // `goldOnGreen` exists for exactly this backdrop (4.70:1),
                   // and 86% white gives the inactive links 5.15:1 instead of
@@ -181,7 +178,7 @@ export default function Navbar() {
         {user && <Box sx={{ display: { xs: 'block', md: 'none' }, flexGrow: 1 }} />}
 
         <Box sx={{ mr: { xs: 0.5, md: 1.5 }, display: 'flex' }}>
-          <SunlightToggle />
+          <AppearanceToggle />
         </Box>
 
         {user && (

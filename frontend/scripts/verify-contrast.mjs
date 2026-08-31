@@ -10,7 +10,7 @@ function palette(name) {
   for (const m of body.matchAll(/^\s{4}(\w+): '(#[0-9a-fA-F]{6})',/gm)) out[m[1]] = m[2]
   return out
 }
-const P = { clay: palette('clay'), sunlight: palette('sunlight') }
+const P = { light: palette('light'), dark: palette('dark') }
 
 const sr = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
 const lum = (h) => { const n = h.replace('#', ''); const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16)); return 0.2126 * sr(r) + 0.7152 * sr(g) + 0.0722 * sr(b) }
@@ -53,10 +53,27 @@ const cases = (p) => [
   ['60% white border on green (1.4.11)', over('#ffffff', 0.6, p.green), p.green, 3],
   ['greenDark on onGreenSoft chip', p.greenDark, p.onGreenSoft, 4.5],
   ['gold brand mark on green (1.4.11)', p.gold, p.green, 3],
+  // Alert banners: each standard severity paints `alert*` under `*Text`.
+  ['successText on alertSuccess', p.successText, p.alertSuccess, 4.5],
+  ['errorText on alertError', p.errorText, p.alertError, 4.5],
+  ['warningText on alertWarning', p.warningText, p.alertWarning, 4.5],
+  ['infoText on alertInfo', p.infoText, p.alertInfo, 4.5],
+  // MUI paints the status `main` values as fills too, with `onStatus` on top.
+  ['onStatus on successText fill', p.onStatus, p.successText, 4.5],
+  ['onStatus on errorText fill', p.onStatus, p.errorText, 4.5],
+  ['onStatus on warningText fill', p.onStatus, p.warningText, 4.5],
+  ['onStatus on infoText fill', p.onStatus, p.infoText, 4.5],
+  // Body text on the raised card and the page itself.
+  ['ink on base', p.ink, p.base, 4.5],
+  ['ink on sunken', p.ink, p.sunken, 4.5],
+  // Dividers and borders are non-text structure: 1.4.11 wants 3:1.
+  ['divider on surface (1.4.11)', p.divider, p.surface, 3],
+  ['divider on base (1.4.11)', p.divider, p.base, 3],
+  ['borderC on surface (1.4.11)', p.borderC, p.surface, 3],
 ]
 
 let fails = 0
-for (const mode of ['clay', 'sunlight']) {
+for (const mode of ['light', 'dark']) {
   console.log(`\n--- ${mode} ---`)
   for (const [label, fg, bg, min] of cases(P[mode])) {
     const r = ratio(fg, bg)

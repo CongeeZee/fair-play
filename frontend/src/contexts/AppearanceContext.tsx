@@ -33,21 +33,28 @@ export function densityForPath(pathname: string): Density {
   return COURSE_ROUTES.some((p) => matchPath(p, pathname)) ? 'course' : 'comfortable'
 }
 
+/**
+ * The stored value predates the light/dark split: it used to be `clay` (the
+ * old soft default) or `sunlight` (the opt-in high-contrast mode). Both now
+ * map to `light` — `sunlight` *is* the light palette, and anyone who was on
+ * clay is moved onto it rather than being dropped into dark mode, which is
+ * not what they chose. Only an explicit `dark` opts out.
+ */
 function readStored(): Appearance {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'sunlight' ? 'sunlight' : 'clay'
+    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   } catch {
     // Private-mode Safari throws on localStorage access rather than returning
     // null. Falling back to the default beats taking the whole app down.
-    return 'clay'
+    return 'light'
   }
 }
 
 /**
- * Applied at module scope, before React's first render, so the page does not
- * paint in clay and then snap to sunlight. It is a single attribute write; the
- * CSS custom property blocks that respond to it are emitted by the theme's
- * CssBaseline override.
+ * Applied at module scope, before React's first render, so a dark-mode user
+ * does not get a flash of the light page first. It is a single attribute
+ * write; the CSS custom property blocks that respond to it are emitted by the
+ * theme's CssBaseline override.
  */
 if (typeof document !== 'undefined') {
   document.documentElement.setAttribute('data-appearance', readStored())
@@ -93,7 +100,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   const setAppearance = useCallback((a: Appearance) => setAppearanceState(a), [])
   const toggleAppearance = useCallback(
-    () => setAppearanceState((a) => (a === 'clay' ? 'sunlight' : 'clay')),
+    () => setAppearanceState((a) => (a === 'light' ? 'dark' : 'light')),
     [],
   )
 

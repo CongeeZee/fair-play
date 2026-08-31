@@ -68,7 +68,7 @@ export default function EmptyState({ icon, title, description, primary, secondar
       </Box>
       <Typography
         variant="h6"
-        sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#2f6b4c', mb: 1 }}
+        sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: CLAY.greenText, mb: 1 }}
       >
         {title}
       </Typography>

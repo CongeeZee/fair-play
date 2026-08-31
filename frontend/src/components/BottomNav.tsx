@@ -55,16 +55,18 @@ export default function BottomNav() {
         borderBottomLeftRadius: 0,
         borderBottomRightRadius: 0,
         overflow: 'hidden',
-        boxShadow: '0 -8px 24px 0 rgba(163,148,122,0.5)',
+        // Follows --c-shade so the bar casts a warm shadow on the light page
+        // and a real black one in dark mode, where a warm grey glowed.
+        boxShadow: '0 -8px 24px 0 var(--c-shade)',
       }}
     >
       <BottomNavigation
         value={currentValue === -1 ? false : currentValue}
         sx={{
           // Was `#37795a → #2f6b4c` in literal hex, which had two problems: the
-          // bar stayed clay-green when sunlight mode was on, and its light stop
-          // carried the 55% white labels at 2.74:1. Same invariant as the top
-          // bar now — green down to greenDark, so #2f6b4c is the worst case.
+          // bar did not follow the appearance, and its light stop carried the
+          // 55% white labels at 2.74:1. Same invariant as the top bar now —
+          // green down to greenDark, so the worst case is `green` itself.
           background: 'linear-gradient(180deg, var(--c-green) 0%, var(--c-greenDark) 100%)',
           boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.18)',
           height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
