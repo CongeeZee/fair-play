@@ -252,7 +252,12 @@ const scale = (n: number) => `calc(${n}px * ${v('depth')})`
 const raised = (d: number) =>
   [
     `${scale(d * 1.0)} ${scale(d * 1.3)} ${scale(d * 2.6)} 0 ${v('shade')}`,
-    `calc(-1 * ${scale(d * 0.8)}) calc(-1 * ${scale(d * 0.9)}) ${scale(d * 2.0)} 0 ${v('light')}`,
+    // There used to be a second OUTER shadow here, offset up-left in
+    // `--c-light` (near-opaque white). On the clay page background it read as
+    // soft two-tone depth, but it is painted outside the element, so on any
+    // dark backdrop it became a white halo — the hero's "Get Started" button
+    // and every dialog glowed. The bevel below gives the same lift from
+    // *inside* the shape, where it can't bleed onto the backdrop.
     `inset 0 ${scale(d * 0.7)} ${scale(d * 1.3)} 0 ${v('light')}`,
     `inset 0 calc(-1 * ${scale(d * 0.6)}) ${scale(d * 1.2)} 0 ${v('shadeSoft')}`,
   ].join(', ')

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import type { PrismaPromise } from "@prisma/client";
 import prisma from "../lib/prisma";
+import { sendValidationError } from "../lib/validation";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
 
 const router = Router();
@@ -17,7 +18,7 @@ const createInviteSchema = z.object({
 router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   const parsed = createInviteSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    sendValidationError(res, parsed.error);
     return;
   }
 

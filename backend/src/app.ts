@@ -20,6 +20,26 @@ import { sentryErrorHandler } from "./lib/sentry";
 
 const app = express();
 
+/**
+ * Rate limiting is keyed on `req.ip`. In production the app sits behind a
+ * proxy/load balancer, and without `trust proxy` Express reports the *proxy's*
+ * address for every request — so the entire user base shared a single bucket
+ * and people were being told "Too many requests" on their first ever attempt
+ * to sign up.
+ *
+ * This is deliberately opt-in and numeric rather than `true`. Trusting every
+ * hop lets a client set its own `X-Forwarded-For` and forge a fresh identity
+ * per request, which would defeat the rate limiter just as thoroughly in the
+ * other direction. Set TRUST_PROXY to the number of proxies actually in front
+ * of this app (usually 1) on the platform you deploy to; leave it unset
+ * locally, where connections are direct.
+ */
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  const hops = Number(trustProxy);
+  app.set("trust proxy", Number.isFinite(hops) && hops > 0 ? hops : trustProxy);
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(standardLimiter);

@@ -379,6 +379,7 @@ enabled) and a fallback message is shown.
 | `SENTRY_DSN` | No | unset | If unset, Sentry is not initialised. |
 | `SENTRY_ENVIRONMENT` | No | `NODE_ENV` | Override per deploy target. |
 | `SENTRY_RELEASE` | No | unset | E.g. the build commit SHA. |
+| `TRUST_PROXY` | In production | unset | Number of proxies in front of the app (usually `1`). Rate limits are keyed on `req.ip`; without this, everything behind the proxy resolves to the *proxy's* address and the whole user base shares one bucket — new users get "Too many requests" on their first sign-up attempt. Leave unset locally. Do not set it higher than the number of proxies you actually run: each trusted hop is one a client could forge in `X-Forwarded-For`. |
 
 Errors that escape a route handler are captured by the
 `sentryErrorHandler` Express middleware registered after all routes in

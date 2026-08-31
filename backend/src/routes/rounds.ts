@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import prisma from "../lib/prisma";
+import { sendValidationError } from "../lib/validation";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireFeature } from "../middleware/entitlement";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
@@ -894,7 +895,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 
@@ -1088,7 +1089,7 @@ router.put("/:id/holes/:holeId", async (req: AuthRequest, res: Response) => {
 
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 
@@ -1762,7 +1763,7 @@ router.get(
     });
     const parsed = querySchema.safeParse(req.query);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+      sendValidationError(res, parsed.error);
       return;
     }
     const { metric, window } = parsed.data;
@@ -2081,7 +2082,7 @@ router.put("/:id/partners", async (req: AuthRequest, res: Response) => {
   });
   const result = schema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 

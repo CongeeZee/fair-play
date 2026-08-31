@@ -5,9 +5,15 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 import prisma from "../lib/prisma";
+import { sendValidationError } from "../lib/validation";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
-import { strictLimiter, refreshLimiter } from "../middleware/rateLimiter";
+import {
+  authLimiter,
+  signupLimiter,
+  strictLimiter,
+  refreshLimiter,
+} from "../middleware/rateLimiter";
 
 const googleClient = new OAuth2Client();
 
@@ -99,10 +105,10 @@ async function issueTokens(user: AuthUser, res: Response, status = 200) {
 }
 
 // POST /auth/register
-router.post("/register", strictLimiter, async (req: Request, res: Response) => {
+router.post("/register", signupLimiter, async (req: Request, res: Response) => {
   const result = registerSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 
@@ -141,10 +147,10 @@ router.post("/register", strictLimiter, async (req: Request, res: Response) => {
 });
 
 // POST /auth/login
-router.post("/login", strictLimiter, async (req: Request, res: Response) => {
+router.post("/login", authLimiter, async (req: Request, res: Response) => {
   const result = loginSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 
@@ -173,7 +179,7 @@ router.post("/login", strictLimiter, async (req: Request, res: Response) => {
 });
 
 // POST /auth/google
-router.post("/google", strictLimiter, async (req: Request, res: Response) => {
+router.post("/google", authLimiter, async (req: Request, res: Response) => {
   const { credential } = req.body;
   if (!credential) {
     res.status(400).json({ error: "Missing credential" });
@@ -389,7 +395,7 @@ router.post(
 router.post("/forgot-password", strictLimiter, async (req: Request, res: Response) => {
   const result = forgotPasswordSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 
@@ -430,7 +436,7 @@ router.post("/forgot-password", strictLimiter, async (req: Request, res: Respons
 router.post("/reset-password", strictLimiter, async (req: Request, res: Response) => {
   const result = resetPasswordSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 

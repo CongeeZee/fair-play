@@ -27,6 +27,7 @@ import MarkEmailUnreadIcon from '@mui/icons-material/MarkEmailUnread'
 import { useAuth } from '../contexts/AuthContext'
 import { resendVerification } from '../api/auth'
 import { CLAY } from '../theme'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 /**
  * Shared shell for the three tab lists.
@@ -49,8 +50,7 @@ const listCardSx = {
 } as const
 
 /** Extract a human-readable message from an axios error. */
-const apiError = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { error?: string } } })?.response?.data?.error || fallback
+const apiError = (err: unknown, fallback: string) => getApiErrorMessage(err, fallback)
 
 /** Shared inline error state for the three tab queries. */
 function QueryError({ error, fallback }: { error: unknown; fallback: string }) {

@@ -7,6 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { previewInvite, acceptInvite } from '../api/invites'
 import { useAuth } from '../contexts/AuthContext'
 import type { InvitePreview } from '../types'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 const PENDING_INVITE_KEY = 'pendingInviteCode'
 
@@ -53,8 +54,7 @@ export default function InvitePage() {
       })
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setAcceptError(msg ?? (status === 410
+      setAcceptError(getApiErrorMessage(err, status === 410
         ? 'This invite is no longer valid.'
         : 'Could not accept this invite. Please try again.'))
     } finally {

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
+import { sendValidationError } from "../lib/validation";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { moderateLimiter } from "../middleware/rateLimiter";
 
@@ -173,7 +174,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   const result = courseSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ error: result.error.flatten().fieldErrors });
+    sendValidationError(res, result.error);
     return;
   }
 

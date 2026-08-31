@@ -8,6 +8,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 export default function LoginPage() {
   const { login, googleLogin } = useAuth()
@@ -32,8 +33,7 @@ export default function LoginPage() {
       await login(email, password)
       navigate(from, { replace: true })
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg ?? 'Login failed. Please check your credentials.')
+      setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.'))
     } finally {
       setLoading(false)
     }
@@ -99,7 +99,9 @@ export default function LoginPage() {
                 setLoading(true)
                 googleLogin(response.credential)
                   .then(() => navigate(from, { replace: true }))
-                  .catch(() => setError('Google sign-in failed. Please try again.'))
+                  // Surface what the server actually said (rate limit, mis-set
+                  // GOOGLE_CLIENT_ID, DB error) instead of one opaque string.
+                  .catch((err: unknown) => setError(getApiErrorMessage(err, 'Google sign-in failed. Please try again.')))
                   .finally(() => setLoading(false))
               }
             }}

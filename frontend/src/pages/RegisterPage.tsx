@@ -8,6 +8,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 export default function RegisterPage() {
   const { register, googleLogin } = useAuth()
@@ -42,8 +43,7 @@ export default function RegisterPage() {
       await register(name, email, password)
       navigate(postAuthDest, { replace: true })
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg ?? 'Registration failed. Please try again.')
+      setError(getApiErrorMessage(err, 'Registration failed. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -122,7 +122,9 @@ export default function RegisterPage() {
                 setLoading(true)
                 googleLogin(response.credential)
                   .then(() => navigate(postAuthDest, { replace: true }))
-                  .catch(() => setError('Google sign-up failed. Please try again.'))
+                  // Surface what the server actually said (rate limit, mis-set
+                  // GOOGLE_CLIENT_ID, DB error) instead of one opaque string.
+                  .catch((err: unknown) => setError(getApiErrorMessage(err, 'Google sign-up failed. Please try again.')))
                   .finally(() => setLoading(false))
               }
             }}

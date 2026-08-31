@@ -7,6 +7,7 @@ import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { resetPassword } from '../api/auth'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -37,8 +38,7 @@ export default function ResetPasswordPage() {
       setSuccess(true)
       setTimeout(() => navigate('/login', { replace: true }), 2000)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg ?? 'Could not reset password. The link may be invalid or expired.')
+      setError(getApiErrorMessage(err, 'Could not reset password. The link may be invalid or expired.'))
     } finally {
       setLoading(false)
     }

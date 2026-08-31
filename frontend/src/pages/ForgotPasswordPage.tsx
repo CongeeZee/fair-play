@@ -5,6 +5,7 @@ import {
 } from '@mui/material'
 import { Link } from 'react-router-dom'
 import { forgotPassword } from '../api/auth'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -22,8 +23,7 @@ export default function ForgotPasswordPage() {
       setMessage(data.message)
       setSubmitted(true)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg ?? 'Something went wrong. Please try again.')
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'))
     } finally {
       setLoading(false)
     }

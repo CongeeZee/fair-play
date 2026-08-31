@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, Button, Collapse } from '@mui/material'
 import { resendVerification } from '../api/auth'
 import { useAuth } from '../contexts/AuthContext'
+import { getApiErrorMessage } from '../api/errorMessage'
 
 export default function VerifyEmailBanner() {
   const { user } = useAuth()
@@ -19,8 +20,7 @@ export default function VerifyEmailBanner() {
       await resendVerification()
       setSent(true)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-      setError(msg || 'Failed to send. Try again later.')
+      setError(getApiErrorMessage(err, 'Failed to send. Try again later.'))
     } finally {
       setSending(false)
     }
