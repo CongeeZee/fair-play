@@ -32,6 +32,7 @@ export interface MetricHoleInput {
   teeShotDirection: string | null;
   approachResult: string | null;
   sandShots?: number | null;
+  penalties?: number | null;
 }
 
 // ── Shared summaries (used by /stats, /insights and /trends) ────────────────
@@ -98,6 +99,82 @@ export function summariseApproach(holes: MetricHoleInput[]) {
       ...misses,
       total: misses.left + misses.right + misses.short + misses.long,
     },
+  };
+}
+
+/**
+ * Putts split by whether the green was hit in regulation.
+ *
+ * The single "average putts" figure hides the thing a golfer actually wants to
+ * know. Two putts on a green you hit in regulation is a par; two putts after a
+ * chip-on is a scramble you converted. A player whose overall average is high
+ * because they miss greens has a different problem from one who three-putts the
+ * greens they hit, and the combined number cannot tell them apart.
+ *
+ * A hole counts only when BOTH the putts and the approach result were recorded
+ * — otherwise the two halves would be measured over different sets of holes and
+ * would not be comparable. Zero putts means untracked here, the same convention
+ * `summarisePutting` uses.
+ */
+export function summarisePuttingByGir(holes: MetricHoleInput[]) {
+  const tracked = holes.filter(
+    (h) => h.putts != null && h.putts > 0 && h.approachResult != null,
+  );
+  const gir = tracked.filter((h) => h.approachResult === "gir");
+  const nonGir = tracked.filter((h) => h.approachResult !== "gir");
+
+  const average = (subset: MetricHoleInput[]) =>
+    subset.length > 0
+      ? subset.reduce((s, h) => s + h.putts!, 0) / subset.length
+      : null;
+
+  return {
+    girHoles: gir.length,
+    nonGirHoles: nonGir.length,
+    puttsPerGir: average(gir),
+    puttsPerNonGir: average(nonGir),
+  };
+}
+
+/**
+ * True when a round carries any hole-level detail at all.
+ *
+ * Needed because an optional counter cannot distinguish "zero" from "not
+ * recorded" — the scorecard sends `penalties: score.penalties || undefined`, so
+ * a clean round and an untracked one both arrive as null. Averaging over every
+ * scored round would understate players who do not track detail; averaging only
+ * over rounds that recorded a penalty would never produce a figure below 1.0.
+ *
+ * So the gate is whether the player was tracking detail on that round at all.
+ * Within a round where they were, an absent penalty genuinely means none.
+ */
+function hasHoleDetail(holes: MetricHoleInput[]): boolean {
+  return holes.some(
+    (h) =>
+      (h.putts != null && h.putts > 0) ||
+      h.teeShotDirection != null ||
+      h.approachResult != null ||
+      (h.sandShots != null && h.sandShots > 0) ||
+      (h.penalties != null && h.penalties > 0),
+  );
+}
+
+/**
+ * Penalty strokes per round, over the rounds where detail was being tracked.
+ *
+ * Grouped by round rather than by hole because "penalties per round" is the
+ * number golfers quote, and a per-hole rate of 0.06 means nothing to anyone.
+ */
+export function summarisePenalties(rounds: MetricHoleInput[][]) {
+  const tracked = rounds.filter((holes) => holes.length > 0 && hasHoleDetail(holes));
+  const total = tracked.reduce(
+    (sum, holes) => sum + holes.reduce((s, h) => s + (h.penalties ?? 0), 0),
+    0,
+  );
+  return {
+    roundsTracked: tracked.length,
+    totalPenalties: total,
+    penaltiesPerRound: tracked.length > 0 ? total / tracked.length : null,
   };
 }
 

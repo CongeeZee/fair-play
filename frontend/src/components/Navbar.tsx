@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { useAppearance } from '../contexts/AppearanceContext'
+import { useUnits } from '../contexts/UnitsContext'
 import { getFriendRequests } from '../api/friends'
 
 /**
@@ -40,6 +41,47 @@ function AppearanceToggle() {
           ? <LightModeIcon sx={{ fontSize: 20 }} />
           : <DarkModeIcon sx={{ fontSize: 20 }} />}
       </IconButton>
+    </Tooltip>
+  )
+}
+
+/**
+ * Yards / metres.
+ *
+ * Unlike the light/dark button next to it, this shows the state you are IN, not
+ * the one you would switch to: the whole job of the control is to tell you how
+ * to read the numbers already on screen. Showing the other unit would make
+ * every yardage on the page ambiguous.
+ *
+ * It lives in the bar for the same reason the appearance toggle does — there is
+ * no settings page, and a unit preference is useless if you have to hunt for it
+ * standing on the tee.
+ */
+function UnitsToggle() {
+  const { unit, toggleUnit, unitLabel } = useUnits()
+  const other = unit === 'yards' ? 'metres' : 'yards'
+
+  return (
+    <Tooltip title={`Distances in ${unit} — switch to ${other}`}>
+      <Button
+        onClick={toggleUnit}
+        aria-label={`Distance units: ${unit}. Switch to ${other}.`}
+        size="small"
+        sx={{
+          minWidth: 0,
+          px: 1,
+          py: 0.25,
+          borderRadius: 999,
+          color: 'rgba(255,255,255,0.86)',
+          fontWeight: 700,
+          fontSize: '0.72rem',
+          lineHeight: 1.4,
+          textTransform: 'none',
+          '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+        }}
+      >
+        {unitLabel}
+      </Button>
     </Tooltip>
   )
 }
@@ -177,7 +219,8 @@ export default function Navbar() {
         {/* On mobile with user, push sign-out to right */}
         {user && <Box sx={{ display: { xs: 'block', md: 'none' }, flexGrow: 1 }} />}
 
-        <Box sx={{ mr: { xs: 0.5, md: 1.5 }, display: 'flex' }}>
+        <Box sx={{ mr: { xs: 0.5, md: 1.5 }, display: 'flex', alignItems: 'center', gap: { xs: 0.25, md: 0.5 } }}>
+          <UnitsToggle />
           <AppearanceToggle />
         </Box>
 

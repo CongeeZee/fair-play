@@ -30,6 +30,7 @@ import type { RoundHole, NewlyUnlockedAchievement, StablefordInfo } from '../typ
 import { capture, AnalyticsEvent } from '../analytics'
 import { CLAY, raised, pressed } from '../theme'
 import { scoreBand, ON_GREEN } from '../scoreColors'
+import { useUnits } from '../contexts/UnitsContext'
 
 const TEE_DIRECTIONS = [
   { value: 'fairway', label: 'Fairway' },
@@ -340,6 +341,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
 export default function RoundPage() {
+  const { formatDistance } = useUnits()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -723,7 +725,7 @@ export default function RoundPage() {
               Par {hole.par}
             </Typography>
             <Typography variant="caption" sx={{ color: 'primary.contrastText', opacity: 0.8 }}>
-              {hole.distance} yds
+              {formatDistance(hole.distance)}
             </Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>

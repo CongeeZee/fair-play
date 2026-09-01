@@ -26,6 +26,8 @@ import {
   summarisePutting,
   summariseApproach,
   summariseTeeShots,
+  summarisePuttingByGir,
+  summarisePenalties,
 } from "../lib/roundMetrics";
 import {
   ALL_BAND,
@@ -1574,6 +1576,20 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
     const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
     if (scoredRounds.length === 0) { res.json({ hasData: false }); return; }
 
+    // Penalties are counted per round, so this keeps the round grouping that
+    // the flattened `allHoles` below throws away.
+    const roundsOfHoles = scoredRounds.map((r) =>
+      r.roundHoles.map((rh) => ({
+        par: rh.hole.par,
+        strokes: rh.strokes,
+        putts: rh.putts,
+        teeShotDirection: rh.teeShotDirection,
+        approachResult: rh.approachResult,
+        sandShots: rh.sandShots,
+        penalties: rh.penalties,
+      })),
+    );
+
     const allHoles = scoredRounds.flatMap((r) =>
       r.roundHoles.map((rh) => ({ ...rh, holePar: rh.hole.par }))
     );
@@ -1593,6 +1609,11 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
     const holesWithPutts = { length: putting.tracked }; // keep threshold checks below readable
     const avgPutts = putting.avgPutts;
     const threePuttRate = putting.threePuttRate;
+
+    // Putting split by whether the green was hit in regulation, and penalty
+    // strokes per round.
+    const puttsByGir = summarisePuttingByGir(metricHoles);
+    const penalties = summarisePenalties(roundsOfHoles);
 
     // GIR
     const approach = summariseApproach(metricHoles);
@@ -1677,6 +1698,12 @@ router.get("/insights", async (req: AuthRequest, res: Response) => {
       metrics: {
         avgPutts: avgPutts != null ? parseFloat(avgPutts.toFixed(2)) : null,
         threePuttRate: threePuttRate != null ? parseFloat(threePuttRate.toFixed(2)) : null,
+        puttsPerGir: puttsByGir.puttsPerGir != null ? parseFloat(puttsByGir.puttsPerGir.toFixed(2)) : null,
+        puttsPerNonGir: puttsByGir.puttsPerNonGir != null ? parseFloat(puttsByGir.puttsPerNonGir.toFixed(2)) : null,
+        girHolesWithPutts: puttsByGir.girHoles,
+        nonGirHolesWithPutts: puttsByGir.nonGirHoles,
+        penaltiesPerRound: penalties.penaltiesPerRound != null ? parseFloat(penalties.penaltiesPerRound.toFixed(2)) : null,
+        penaltyRoundsTracked: penalties.roundsTracked,
         girRate: girRate != null ? parseFloat(girRate.toFixed(2)) : null,
         fairwayRate: fairwayRate != null ? parseFloat(fairwayRate.toFixed(2)) : null,
         doublePlusRate: doublePlusRate != null ? parseFloat(doublePlusRate.toFixed(2)) : null,

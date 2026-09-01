@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Box, Toolbar, CircularProgress } from '@mui/material'
 
 import { AppearanceProvider } from './contexts/AppearanceContext'
+import { UnitsProvider } from './contexts/UnitsContext'
 import { initAnalytics } from './analytics'
 
 initAnalytics()
@@ -237,9 +238,11 @@ export default function App() {
             Everything visual therefore mounts below BrowserRouter now. */}
         <BrowserRouter>
           <AppearanceProvider>
-            <AuthProvider>
-              <Layout />
-            </AuthProvider>
+            <UnitsProvider>
+              <AuthProvider>
+                <Layout />
+              </AuthProvider>
+            </UnitsProvider>
           </AppearanceProvider>
         </BrowserRouter>
       </QueryClientProvider>

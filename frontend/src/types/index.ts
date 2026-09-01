@@ -163,6 +163,15 @@ export interface InsightsResult {
   metrics?: {
     avgPutts: number | null
     threePuttRate: number | null
+    /** Average putts on holes where the green was hit in regulation. */
+    puttsPerGir: number | null
+    /** Average putts on holes where it wasn't. */
+    puttsPerNonGir: number | null
+    girHolesWithPutts: number
+    nonGirHolesWithPutts: number
+    /** Penalty strokes per round, over rounds where hole detail was tracked. */
+    penaltiesPerRound: number | null
+    penaltyRoundsTracked: number
     girRate: number | null
     fairwayRate: number | null
     doublePlusRate: number | null

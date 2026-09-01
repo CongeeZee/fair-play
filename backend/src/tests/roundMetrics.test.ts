@@ -11,6 +11,8 @@ import {
   summarisePutting,
   summariseApproach,
   summariseTeeShots,
+  summarisePuttingByGir,
+  summarisePenalties,
   TREND_METRIC_CONFIG,
   MetricHoleInput,
 } from "../lib/roundMetrics";
@@ -199,5 +201,85 @@ describe("roundMetricValue", () => {
     expect(
       roundMetricValue("strokesGained", [hole({ par: 4, strokes: 4 })], "mid"),
     ).toBe(0.7);
+  });
+});
+
+
+describe("summarisePuttingByGir", () => {
+  it("splits putts by whether the green was hit in regulation", () => {
+    const holes = [
+      hole({ putts: 2, approachResult: "gir" }),
+      hole({ putts: 1, approachResult: "gir" }),
+      hole({ putts: 2, approachResult: "short" }),
+      hole({ putts: 3, approachResult: "left" }),
+      hole({ putts: 1, approachResult: "long" }),
+    ];
+    const r = summarisePuttingByGir(holes);
+    expect(r.girHoles).toBe(2);
+    expect(r.nonGirHoles).toBe(3);
+    expect(r.puttsPerGir).toBeCloseTo(1.5); // (2 + 1) / 2
+    expect(r.puttsPerNonGir).toBeCloseTo(2); // (2 + 3 + 1) / 3
+  });
+
+  it("needs both halves recorded — an untracked approach excludes the hole", () => {
+    const holes = [
+      hole({ putts: 2, approachResult: "gir" }),
+      hole({ putts: 2, approachResult: null }), // putts only
+      hole({ putts: null, approachResult: "gir" }), // approach only
+      hole({ putts: 0, approachResult: "gir" }), // zero putts = untracked
+    ];
+    const r = summarisePuttingByGir(holes);
+    expect(r.girHoles).toBe(1);
+    expect(r.nonGirHoles).toBe(0);
+    expect(r.puttsPerGir).toBe(2);
+    expect(r.puttsPerNonGir).toBeNull();
+  });
+
+  it("is null on both sides when nothing is tracked", () => {
+    const r = summarisePuttingByGir([hole(), hole()]);
+    expect(r.puttsPerGir).toBeNull();
+    expect(r.puttsPerNonGir).toBeNull();
+  });
+});
+
+describe("summarisePenalties", () => {
+  it("averages penalty strokes over rounds, not holes", () => {
+    const rounds = [
+      [hole({ putts: 2, penalties: 1 }), hole({ putts: 2, penalties: 1 })], // 2
+      [hole({ putts: 2, penalties: 2 }), hole({ putts: 2 })], // 2
+      [hole({ putts: 2 }), hole({ putts: 2 })], // 0 — tracked, clean round
+    ];
+    const r = summarisePenalties(rounds);
+    expect(r.roundsTracked).toBe(3);
+    expect(r.totalPenalties).toBe(4);
+    expect(r.penaltiesPerRound).toBeCloseTo(4 / 3);
+  });
+
+  /**
+   * The scorecard sends `penalties: value || undefined`, so a clean round and
+   * an untracked one both arrive as null. Counting rounds with no detail at all
+   * would understate anyone who does not track; this is the gate that keeps the
+   * average honest.
+   */
+  it("ignores rounds with no hole detail at all", () => {
+    const rounds = [
+      [hole({ putts: 2, penalties: 1 })], // tracked
+      [hole(), hole()], // strokes only — not tracked
+    ];
+    const r = summarisePenalties(rounds);
+    expect(r.roundsTracked).toBe(1);
+    expect(r.penaltiesPerRound).toBe(1);
+  });
+
+  it("counts a round as tracked on any detail, not just penalties", () => {
+    // Tee shot recorded, no penalties taken -> a genuine zero.
+    const r = summarisePenalties([[hole({ teeShotDirection: "fairway" })]]);
+    expect(r.roundsTracked).toBe(1);
+    expect(r.penaltiesPerRound).toBe(0);
+  });
+
+  it("is null when there is nothing to average", () => {
+    expect(summarisePenalties([]).penaltiesPerRound).toBeNull();
+    expect(summarisePenalties([[]]).penaltiesPerRound).toBeNull();
   });
 });

@@ -61,13 +61,7 @@ router.get("/tees/:externalId", moderateLimiter, async (req: Request, res: Respo
     );
     if (!response.ok) { res.status(502).json({ error: "External API error" }); return; }
 
-    type TeeSet = {
-      tee_name: string;
-      total_yards: number;
-      par_total: number;
-      course_rating?: number;
-      slope_rating?: number;
-    };
+    type TeeSet = { tee_name: string; total_yards: number; par_total: number };
     type CourseResp = {
       course_name: string; club_name?: string;
       tees?: { male?: TeeSet[]; female?: TeeSet[] };
@@ -79,12 +73,13 @@ router.get("/tees/:externalId", moderateLimiter, async (req: Request, res: Respo
       gender,
       totalYards: t.total_yards,
       parTotal: t.par_total,
-      // Surfaced so the picker can show what actually separates two tee sets
-      // of the same colour — and because these are the numbers the handicap
-      // differential is computed from.
-      courseRating: t.course_rating ?? null,
-      slopeRating: t.slope_rating ?? null,
     });
+
+    /* Course rating and slope are deliberately not returned. They were, briefly,
+       as a second way to tell two same-coloured tees apart — but they read as
+       noise on a picker ("· 75.8/137") and `duplicateNames` below already does
+       that job with a word rather than two numbers. The import still reads them
+       straight from the provider when it creates the course. */
 
     const tees = [
       ...(course.tees?.male ?? []).map((t) => map(t, "male")),

@@ -14,6 +14,7 @@ import CourseReviewsSection from '../components/CourseReviewsSection'
 import type { CourseHoleStat } from '../types'
 import { CLAY, tint } from '../theme'
 import { holeBand } from '../scoreColors'
+import { useUnits } from '../contexts/UnitsContext'
 
 function pct(rate: number | null) {
   if (rate == null) return '—'
@@ -43,6 +44,7 @@ function holeRating(hole: CourseHoleStat): 'strength' | 'weakness' | 'neutral' {
 }
 
 export default function CourseStatsPage() {
+  const { unitLabel, toDisplay } = useUnits()
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
 
@@ -180,7 +182,7 @@ export default function CourseStatsPage() {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'primary.main' }}>
-                    {['Hole', 'Par', 'Yds', 'Rounds', 'Avg Score', 'Avg Putts', 'GIR', 'FIR'].map((h) => (
+                    {['Hole', 'Par', unitLabel === 'm' ? 'M' : 'Yds', 'Rounds', 'Avg Score', 'Avg Putts', 'GIR', 'FIR'].map((h) => (
                       <TableCell key={h} align={h === 'Hole' ? 'left' : 'center'}
                         sx={{ color: '#fff', fontWeight: 700, fontSize: '0.72rem', py: 1 }}>
                         {h}
@@ -204,7 +206,7 @@ export default function CourseStatsPage() {
                       >
                         <TableCell sx={{ fontWeight: 700 }}>{hole.number}</TableCell>
                         <TableCell align="center" sx={{ color: 'text.secondary' }}>{hole.par}</TableCell>
-                        <TableCell align="center" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{hole.distance}</TableCell>
+                        <TableCell align="center" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{toDisplay(hole.distance)}</TableCell>
                         <TableCell align="center" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{hole.roundsPlayed}</TableCell>
                         <TableCell align="center">
                           {hole.averageScoreToPar != null ? (

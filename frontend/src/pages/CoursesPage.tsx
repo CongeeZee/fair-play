@@ -19,6 +19,7 @@ import { capture, AnalyticsEvent } from '../analytics'
 import { formatCourseName, teeKey, parseTeeKey, formatTeeName } from '../utils'
 import type { Round } from '../types'
 import FirstTimeTooltip from '../components/FirstTimeTooltip'
+import { useUnits } from '../contexts/UnitsContext'
 
 interface TeeDialog {
   externalCourseId: string
@@ -48,6 +49,7 @@ function useRecentCourses(rounds: Round[] | undefined) {
 }
 
 export default function CoursesPage() {
+  const { formatDistance } = useUnits()
   const navigate = useNavigate()
   const [loadingTees, setLoadingTees] = useState<string | null>(null)
   const [playAgainLoading, setPlayAgainLoading] = useState<string | null>(null)
@@ -270,12 +272,9 @@ export default function CoursesPage() {
                             sx={{ fontWeight: 700 }}
                           />
                         )}
-                        <Chip label={`${tee.totalYards} yds`} size="small" variant="outlined" />
+                        <Chip label={formatDistance(tee.totalYards)} size="small" variant="outlined" />
                         <Typography variant="caption" color="text.secondary">
                           Par {tee.parTotal}
-                          {tee.courseRating != null && tee.slopeRating != null
-                            ? ` · ${tee.courseRating}/${tee.slopeRating}`
-                            : ''}
                         </Typography>
                       </Box>
                     }

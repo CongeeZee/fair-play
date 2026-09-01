@@ -679,7 +679,11 @@ export default function StatsPage() {
       </FeatureGate>
 
       {/* ── Game Insights ─────────────────────────────────────────────── */}
-      {insights?.hasData && insights.suggestions && insights.suggestions.length > 0 && (
+      {/* Was gated on there being at least one suggestion, which meant the
+          measured numbers vanished for anyone playing well enough not to
+          trigger any coaching. The metrics are the point of the card; the
+          suggestions are commentary on them. */}
+      {insights?.hasData && (insights.metrics || (insights.suggestions?.length ?? 0) > 0) && (
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -703,6 +707,29 @@ export default function StatsPage() {
                 )}
                 {insights.metrics.avgPutts != null && (
                   <MetricPill label="Avg Putts" value={insights.metrics.avgPutts.toFixed(1)} />
+                )}
+                {/* The overall putting average hides which half of the game is
+                    costing strokes: two putts after hitting the green is a par,
+                    two after a chip-on is a scramble you converted. The hole
+                    counts are on the labels because these two are averaged over
+                    different, and often very unequal, sets of holes. */}
+                {insights.metrics.puttsPerGir != null && (
+                  <MetricPill
+                    label={`Putts per GIR (${insights.metrics.girHolesWithPutts} holes)`}
+                    value={insights.metrics.puttsPerGir.toFixed(2)}
+                  />
+                )}
+                {insights.metrics.puttsPerNonGir != null && (
+                  <MetricPill
+                    label={`Putts per non-GIR (${insights.metrics.nonGirHolesWithPutts} holes)`}
+                    value={insights.metrics.puttsPerNonGir.toFixed(2)}
+                  />
+                )}
+                {insights.metrics.penaltiesPerRound != null && (
+                  <MetricPill
+                    label={`Penalties / round (${insights.metrics.penaltyRoundsTracked} rounds)`}
+                    value={insights.metrics.penaltiesPerRound.toFixed(1)}
+                  />
                 )}
                 {insights.metrics.doublePlusRate != null && (
                   <MetricPill label="Double+ Rate" value={`${(insights.metrics.doublePlusRate * 100).toFixed(0)}%`} />
@@ -737,7 +764,7 @@ export default function StatsPage() {
             )}
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {insights.suggestions.map((s, i) => {
+              {(insights.suggestions ?? []).map((s, i) => {
                 const { bg, text } = severityBg(s.severity)
                 return (
                   <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, boxShadow: raised(2.4), borderRadius: 2 }}>

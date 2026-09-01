@@ -19,8 +19,6 @@ export interface TeeOption {
   gender: 'male' | 'female'
   totalYards: number
   parTotal: number
-  courseRating: number | null
-  slopeRating: number | null
 }
 
 export interface CourseTees {

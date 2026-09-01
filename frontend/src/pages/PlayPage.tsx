@@ -18,6 +18,7 @@ import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import { getLiveRounds } from '../api/live'
 import { CLAY, raised, tint } from '../theme'
 import { teeKey, parseTeeKey, formatTeeName } from '../utils'
+import { useUnits } from '../contexts/UnitsContext'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -32,6 +33,7 @@ function relativeDate(dt: string): string {
 }
 
 export default function PlayPage() {
+  const { formatDistance } = useUnits()
   const navigate = useNavigate()
   const [selectedCourse, setSelectedCourse] = useState<CourseSearchResult | null>(null)
   const [selectedTee, setSelectedTee] = useState<string>('')
@@ -256,12 +258,9 @@ export default function PlayPage() {
                                   sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
                                 />
                               )}
-                              <Chip label={`${tee.totalYards} yds`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                              <Chip label={formatDistance(tee.totalYards)} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                               <Typography variant="caption" color="text.secondary">
                                 Par {tee.parTotal}
-                                {tee.courseRating != null && tee.slopeRating != null
-                                  ? ` · ${tee.courseRating}/${tee.slopeRating}`
-                                  : ''}
                               </Typography>
                             </Box>
                           }
