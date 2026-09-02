@@ -34,4 +34,16 @@ export default defineConfig({
       },
     },
   },
+  // `vite preview` serves the production build, which is the only way to see
+  // the real chunk graph — the dev server ships unbundled modules and its own
+  // HMR client. It needs the same API proxy to be worth anything.
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })

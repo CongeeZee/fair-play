@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, Card, CardContent, Chip, Button,
-  CircularProgress, IconButton, Snackbar, Dialog, DialogTitle,
-  DialogContent, Switch, FormControlLabel, CardActions, TextField,
+  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Dialog, DialogTitle, DialogContent, Switch, FormControlLabel, CardActions, TextField, useMediaQuery, useTheme,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import ShareIcon from '@mui/icons-material/Share'
@@ -602,12 +600,33 @@ export default function FeedPage() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
+  // `lg` matches the breakpoint the sidebar is laid out at, so the query it
+  // owns and the column it lives in appear and disappear together.
+  const theme = useTheme()
+  const showSidebar = useMediaQuery(theme.breakpoints.up('lg'))
+
   const latestOwnRound = data?.pages[0]?.latestOwnRound ?? null
   const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
 
+  /* The spinner used to return before the sidebar existed in the tree, so the
+     sidebar's two queries could not even start until the feed had finished
+     loading — a serial waterfall worth a whole extra round-trip to the database
+     on a page that could have made all three requests at once. Rendering the
+     shell during loading lets them go out together. */
   if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
+    return (
+      <Box sx={{ maxWidth: { xs: 600, lg: 960 }, mx: 'auto', px: 2, py: 3, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+        <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto', display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+        {showSidebar && (
+          <Box sx={{ width: 300, flexShrink: 0, position: 'sticky', top: 88 }}>
+            <FeedSidebar />
+          </Box>
+        )}
+      </Box>
+    )
   }
 
   return (
@@ -726,18 +745,23 @@ export default function FeedPage() {
       />
     </Box>
 
-    {/* Desktop sidebar — upcoming tee times and competitions at a glance */}
-    <Box
-      sx={{
-        width: 300,
-        flexShrink: 0,
-        display: { xs: 'none', lg: 'block' },
-        position: 'sticky',
-        top: 88,
-      }}
-    >
-      <FeedSidebar />
-    </Box>
+    {/* Desktop sidebar — upcoming tee times and competitions at a glance.
+        Mounted only at `lg`, not merely hidden with `display: none`. It owns two
+        queries of its own, and a hidden-but-mounted sidebar still ran both of
+        them on every phone that opened the feed — two requests for a panel that
+        viewport can never show. */}
+    {showSidebar && (
+      <Box
+        sx={{
+          width: 300,
+          flexShrink: 0,
+          position: 'sticky',
+          top: 88,
+        }}
+      >
+        <FeedSidebar />
+      </Box>
+    )}
     </Box>
   )
 }
