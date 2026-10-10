@@ -215,8 +215,9 @@ export default function HistoryPage() {
                           }
                         >
                           <ListItemButton
-                            onClick={() => navigate(`/rounds/${round.id}`)}
-                            onMouseEnter={() => prefetchRound(round.id)}
+                            // Opens the round summary; editing lives in the row menu
+                            onClick={() => navigate(round.shareId ? `/scorecard/${round.shareId}` : `/rounds/${round.id}`)}
+                            onMouseEnter={() => { if (!round.shareId) prefetchRound(round.id) }}
                           >
                             <ListItemText
                               primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}

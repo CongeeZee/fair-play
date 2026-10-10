@@ -523,11 +523,17 @@ export default function RoundPage() {
   const scoredCount = holes.filter((h) => (holeScores[h.id]?.strokes ?? 0) > 0).length
   const alreadyCompleted = round.completedAt != null
 
+  // Where the player lands once they're done: the round's own summary page,
+  // which is also what their friends see in the feed.
+  const summaryPath = (round as { shareId?: string }).shareId
+    ? `/scorecard/${(round as { shareId?: string }).shareId}?finished=1`
+    : '/history'
+
   const proceedAfterFinish = () => {
     if (!reviewSkipped && !reviewExisting) {
       setReviewPromptOpen(true)
     } else {
-      navigate('/history')
+      navigate(summaryPath)
     }
   }
 
@@ -561,7 +567,7 @@ export default function RoundPage() {
 
   const handleFinish = () => {
     if (alreadyCompleted) {
-      navigate('/history')
+      navigate(summaryPath.replace('?finished=1', ''))
       return
     }
     if (allHolesScored) {
@@ -573,7 +579,7 @@ export default function RoundPage() {
 
   const handleReviewClose = () => {
     setReviewPromptOpen(false)
-    navigate('/history')
+    navigate(summaryPath)
   }
 
   const handleShare = async () => {
@@ -945,7 +951,7 @@ export default function RoundPage() {
             disabled={finishing}
             sx={{ flex: 1, fontWeight: 700, py: { xs: 1.5, sm: 1 } }}
           >
-            {finishing ? 'Finishing…' : 'Finish Round'}
+            {finishing ? 'Finishing…' : alreadyCompleted ? 'Done' : 'Finish Round'}
           </Button>
         ) : (
           <Button

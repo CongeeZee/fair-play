@@ -38,6 +38,8 @@ export type RefreshResult =
   | { status: 'ok'; token: string; user: User }
   // The server explicitly rejected the refresh token — session is over.
   | { status: 'invalid' }
+  // There was never a session to refresh (a signed-out visitor).
+  | { status: 'none' }
   // Rate limit / network / server hiccup — the session may still be fine,
   // so we must NOT log the user out.
   | { status: 'transient' }
@@ -48,7 +50,7 @@ let refreshPromise: Promise<RefreshResult> | null = null
 
 async function doRefresh(): Promise<RefreshResult> {
   const refreshToken = localStorage.getItem('refreshToken')
-  if (!refreshToken) return { status: 'invalid' }
+  if (!refreshToken) return { status: 'none' }
 
   try {
     const resp = await axios.post<{ token: string; refreshToken: string; user: User }>(
@@ -132,9 +134,11 @@ client.interceptors.response.use(
         return client(originalRequest)
       }
 
-      // Only force a login when the session is definitively dead.
-      // Transient refresh failures just reject the request — react-query
-      // retries will pick it up once the API recovers.
+      // Only force a login when a session existed and is definitively dead.
+      // A signed-out visitor on a public page (a shared scorecard, an invite)
+      // has no session to lose — redirecting them bounced every shared link
+      // to the login screen. Transient refresh failures just reject the
+      // request; react-query retries will pick it up once the API recovers.
       if (result.status === 'invalid') {
         window.location.href = '/login'
       }

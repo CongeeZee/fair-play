@@ -83,7 +83,19 @@ export interface SharedScorecard {
     strokes: number | null
     putts: number | null
     scoreToPar: number | null
+    fairway: boolean | null
+    gir: boolean | null
   }>
+  /** Totals are null unless every scored hole tracked them. */
+  stats: {
+    putts: number | null
+    greens: number | null
+    fairways: number | null
+    fairwayHoles: number
+    penalties: number
+    breakdown: { eaglesOrBetter: number; birdies: number; pars: number; bogeys: number; doublesOrWorse: number }
+  }
+  completedAt: string | null
   frontNine: { strokes: number; par: number }
   backNine: { strokes: number; par: number } | null
   total: { strokes: number; par: number; scoreToPar: number }

@@ -83,10 +83,13 @@ router.get("/shared/:shareId", async (req, res: Response) => {
 
     const totalHoles = round.course.holes.length;
     const holesScored = round.roundHoles.length;
-    const inProgress = holesScored < totalHoles;
+    // A finished 9-hole round on an 18-hole course is not "in progress" —
+    // completion is recorded, not inferred from the hole count.
+    const inProgress = round.completedAt == null;
 
+    const byNumber = new Map(round.roundHoles.map((rh) => [rh.hole.number, rh]));
     const holes = round.course.holes.map((hole) => {
-      const rh = round.roundHoles.find((rh) => rh.hole.number === hole.number);
+      const rh = byNumber.get(hole.number);
       return {
         number: hole.number,
         par: hole.par,
@@ -94,6 +97,8 @@ router.get("/shared/:shareId", async (req, res: Response) => {
         strokes: rh?.strokes ?? null,
         putts: rh?.putts ?? null,
         scoreToPar: rh ? rh.strokes - hole.par : null,
+        fairway: hole.par > 3 && rh?.teeShotDirection ? rh.teeShotDirection === "fairway" : null,
+        gir: rh?.approachResult ? rh.approachResult === "gir" : null,
       };
     });
 
@@ -108,16 +113,40 @@ router.get("/shared/:shareId", async (req, res: Response) => {
     const totalStrokes = scoredSum(holes, "strokes");
     const totalPar = scoredSum(holes, "par");
 
+    // Summary stats. Each is null unless every scored hole tracked it, so a
+    // half-tracked round doesn't report "12 putts".
+    const scored = round.roundHoles;
+    const tracked = <T,>(pick: (rh: (typeof scored)[number]) => T | null | undefined) =>
+      scored.length > 0 && scored.every((rh) => pick(rh) != null);
+    const drives = scored.filter((rh) => rh.hole.par > 3 && rh.teeShotDirection != null);
+    const diffs = scored.map((rh) => rh.strokes - rh.hole.par);
+    const stats = {
+      putts: tracked((rh) => rh.putts) ? scored.reduce((s, rh) => s + (rh.putts ?? 0), 0) : null,
+      greens: tracked((rh) => rh.approachResult) ? scored.filter((rh) => rh.approachResult === "gir").length : null,
+      fairways: drives.length > 0 ? drives.filter((rh) => rh.teeShotDirection === "fairway").length : null,
+      fairwayHoles: drives.length,
+      penalties: scored.reduce((s, rh) => s + (rh.penalties ?? 0), 0),
+      breakdown: {
+        eaglesOrBetter: diffs.filter((d) => d <= -2).length,
+        birdies: diffs.filter((d) => d === -1).length,
+        pars: diffs.filter((d) => d === 0).length,
+        bogeys: diffs.filter((d) => d === 1).length,
+        doublesOrWorse: diffs.filter((d) => d >= 2).length,
+      },
+    };
+
     res.json({
       roundId: round.id,
       ownerId: round.userId,
       playerName: round.user.name,
       courseName: round.course.name,
       playedAt: round.playedAt,
+      completedAt: round.completedAt,
       inProgress,
       holesScored,
       totalHoles,
       holes,
+      stats,
       frontNine: {
         strokes: scoredSum(frontNine, "strokes"),
         par: sum(frontNine, "par"),

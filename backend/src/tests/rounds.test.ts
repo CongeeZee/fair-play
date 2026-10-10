@@ -394,3 +394,59 @@ describe("GET /rounds/insights", () => {
     expect(Array.isArray(res.body.suggestions)).toBe(true);
   });
 });
+
+describe("GET /rounds/shared/:shareId", () => {
+  it("treats a finished partial round as complete and summarises its stats", async () => {
+    const user = await createVerifiedTestUser();
+    const course = await createTestCourse("Shared Course", 18);
+    // Nine holes played and finished early on an 18-hole course
+    const nine = course.holes.slice(0, 9);
+    const round = await prisma.round.create({
+      data: {
+        userId: user.id,
+        courseId: course.id,
+        shareId: "shared-partial",
+        completedAt: new Date(),
+        roundHoles: {
+          create: nine.map((h, i) => ({
+            holeId: h.id,
+            strokes: h.par + (i === 0 ? -1 : i === 1 ? 2 : 0),
+            putts: 2,
+            approachResult: i < 4 ? "gir" : "short",
+            teeShotDirection: h.par > 3 ? "fairway" : null,
+            penalties: i === 1 ? 1 : 0,
+          })),
+        },
+      },
+    });
+
+    const res = await request(app).get(`/rounds/shared/${round.shareId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.inProgress).toBe(false);
+    expect(res.body.holesScored).toBe(9);
+    expect(res.body.stats).toMatchObject({
+      putts: 18,
+      greens: 4,
+      penalties: 1,
+      breakdown: { birdies: 1, pars: 7, doublesOrWorse: 1 },
+    });
+    const drives = nine.filter((h) => h.par > 3).length;
+    expect(res.body.stats.fairways).toBe(drives);
+    expect(res.body.stats.fairwayHoles).toBe(drives);
+  });
+
+  it("reports an unfinished round as in progress", async () => {
+    const user = await createVerifiedTestUser();
+    const course = await createTestCourse("Shared Course", 9);
+    await prisma.round.create({
+      data: {
+        userId: user.id, courseId: course.id, shareId: "shared-live",
+        roundHoles: { create: [{ holeId: course.holes[0].id, strokes: 4 }] },
+      },
+    });
+    const res = await request(app).get("/rounds/shared/shared-live");
+    expect(res.body.inProgress).toBe(true);
+    // Putts weren't tracked on the scored hole, so no putting total is claimed
+    expect(res.body.stats.putts).toBeNull();
+  });
+});

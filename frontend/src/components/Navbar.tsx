@@ -176,7 +176,9 @@ export default function Navbar() {
 
         {!user && <Box sx={{ flexGrow: 1 }} />}
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.25, md: 0.5 } }}>
+        {/* Signed-out on a phone there is no room for these next to the two
+            auth buttons, and nothing on those pages needs them. */}
+        <Box sx={{ display: user ? 'flex' : { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: { xs: 0.25, md: 0.5 } }}>
           <UnitsToggle overHero={overHero} />
           <AppearanceToggle overHero={overHero} />
         </Box>
@@ -229,7 +231,7 @@ export default function Navbar() {
               component={Link}
               to="/register"
               size="small"
-              sx={{ fontSize: { xs: '0.78rem', md: '0.85rem' }, px: { xs: 1.5, md: 2 }, minHeight: { xs: 32, md: 36 } }}
+              sx={{ fontSize: { xs: '0.78rem', md: '0.85rem' }, px: { xs: 1.5, md: 2 }, minHeight: { xs: 32, md: 36 }, whiteSpace: 'nowrap' }}
             >
               Get started
             </Button>
