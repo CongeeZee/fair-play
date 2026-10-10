@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Box, Typography, Card, CardContent, CardActionArea, Button, Chip,
   CircularProgress, Alert, RadioGroup, FormControlLabel, Radio,
@@ -77,7 +77,7 @@ export default function PlayPage() {
   const { formatDistance } = useUnits()
   const navigate = useNavigate()
   const [selectedCourse, setSelectedCourse] = useState<CourseSearchResult | null>(null)
-  const [selectedTee, setSelectedTee] = useState<string>('')
+  const [pickedTee, setSelectedTee] = useState<string>('')
   const [when, setWhen] = useState<When>('today')
   const [otherDay, setOtherDay] = useState(() => isoDay(new Date(Date.now() - 2 * 864e5)))
 
@@ -95,6 +95,10 @@ export default function PlayPage() {
     queryFn: () => getExternalCourseTees(selectedCourse!.id),
     enabled: !!selectedCourse && selectedCourse.source === 'external',
   })
+  // Defaults to the first tee once loaded. Holds the composite "gender:name"
+  // key, not the bare name — see teeKey().
+  const firstTee = teesQuery.data?.tees[0]
+  const selectedTee = pickedTee || (firstTee ? teeKey(firstTee) : '')
 
   const playedAt = (): string | undefined => {
     if (when === 'today') return undefined
@@ -134,13 +138,6 @@ export default function PlayPage() {
     startRoundMut.reset()
   }
 
-  // Default the tee selection to the first one once loaded. `selectedTee` holds
-  // the composite "gender:name" key, not the bare name — see teeKey().
-  useEffect(() => {
-    if (teesQuery.data && teesQuery.data.tees.length > 0 && !selectedTee) {
-      setSelectedTee(teeKey(teesQuery.data.tees[0]))
-    }
-  }, [teesQuery.data, selectedTee])
 
   const myUpcoming = data?.myUpcoming?.slice(0, 3) ?? []
   const invitations = data?.invitations?.slice(0, 3) ?? []
