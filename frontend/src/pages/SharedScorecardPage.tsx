@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box, Container, Typography, CircularProgress, Paper,
   Table, TableBody, TableCell, TableHead, TableRow,
-  Button, Chip, Alert, TextField, IconButton, Avatar,
+  Button, Chip, Alert, TextField, IconButton,
 } from '@mui/material'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import SendIcon from '@mui/icons-material/Send'
@@ -14,6 +14,7 @@ import { getReactions, getComments, addComment, deleteComment } from '../api/rea
 import { formatCourseName, timeAgo } from '../utils'
 import type { SharedScorecard } from '../types'
 import ProfileLink from '../components/ProfileLink'
+import UserAvatar from '../components/UserAvatar'
 import ReactionBar from '../components/ReactionBar'
 import { useAuth } from '../contexts/AuthContext'
 import { CLAY } from '../theme'
@@ -181,9 +182,7 @@ function CommentsSection({ roundId, ownerId }: { roundId: number; ownerId: numbe
         <Box sx={{ mt: 2 }}>
           {comments.map((c) => (
             <Box key={c.id} sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'flex-start' }}>
-              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
-                {c.userName.charAt(0).toUpperCase()}
-              </Avatar>
+              <UserAvatar userId={c.userId} name={c.userName} size={32} link={!!user} />
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                   <ProfileLink userId={c.userId} name={c.userName} variant="caption" />

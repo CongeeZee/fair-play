@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Box, Chip, Popover, Typography } from '@mui/material'
+import { Box, Button, ButtonBase, Popover, Typography, Tooltip } from '@mui/material'
+import AddReactionOutlinedIcon from '@mui/icons-material/AddReactionOutlined'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ALLOWED_EMOJI, toggleReaction, getReactions } from '../api/reactions'
 import ProfileLink from './ProfileLink'
-import { CLAY } from '../theme'
+import { CLAY, tint } from '../theme'
 
 interface Props {
   roundId: number
@@ -12,17 +13,34 @@ interface Props {
   readOnly?: boolean
 }
 
+const EMOJI_LABELS: Record<string, string> = {
+  '\u{1F525}': 'Fire',
+  '\u{1F44F}': 'Applause',
+  '\u{1F602}': 'Laughing',
+  '\u{1F480}': 'Skull',
+  '⛳': 'Flag in hole',
+}
+
+/**
+ * One "React" button that opens an emoji picker, plus a tappable summary of
+ * who reacted.
+ *
+ * It used to render all five emoji as chips on every card, all the time — a
+ * row of buttons that made each card look like a poll and pushed the actual
+ * round further apart. Reacting is one tap more now; reading the feed is a lot
+ * calmer.
+ */
 export default function ReactionBar({ roundId, reactionSummary, userReaction, readOnly }: Props) {
   const queryClient = useQueryClient()
   const [optimisticSummary, setOptimisticSummary] = useState<Record<string, number> | null>(null)
   const [optimisticUserReaction, setOptimisticUserReaction] = useState<string | null | undefined>(undefined)
-  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
-  const [popoverEmoji, setPopoverEmoji] = useState<string | null>(null)
+  const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null)
+  const [whoAnchor, setWhoAnchor] = useState<HTMLElement | null>(null)
 
   const { data: reactionDetail } = useQuery({
     queryKey: ['reaction-detail', roundId],
     queryFn: () => getReactions(roundId),
-    enabled: !!popoverAnchor,
+    enabled: !!whoAnchor,
   })
 
   const summary = optimisticSummary ?? reactionSummary
@@ -32,20 +50,20 @@ export default function ReactionBar({ roundId, reactionSummary, userReaction, re
     mutationFn: (emoji: string) => toggleReaction(roundId, emoji),
     onMutate: (emoji) => {
       const prev = { ...summary }
-      const newSummary = { ...prev }
+      const next = { ...prev }
+      const dec = (e: string) => {
+        next[e] = Math.max((next[e] || 1) - 1, 0)
+        if (next[e] === 0) delete next[e]
+      }
       if (currentUserReaction === emoji) {
-        newSummary[emoji] = Math.max((newSummary[emoji] || 1) - 1, 0)
-        if (newSummary[emoji] === 0) delete newSummary[emoji]
+        dec(emoji)
         setOptimisticUserReaction(null)
       } else {
-        if (currentUserReaction && newSummary[currentUserReaction]) {
-          newSummary[currentUserReaction] = Math.max(newSummary[currentUserReaction] - 1, 0)
-          if (newSummary[currentUserReaction] === 0) delete newSummary[currentUserReaction]
-        }
-        newSummary[emoji] = (newSummary[emoji] || 0) + 1
+        if (currentUserReaction && next[currentUserReaction]) dec(currentUserReaction)
+        next[emoji] = (next[emoji] || 0) + 1
         setOptimisticUserReaction(emoji)
       }
-      setOptimisticSummary(newSummary)
+      setOptimisticSummary(next)
       return prev
     },
     onSuccess: (data) => {
@@ -60,75 +78,120 @@ export default function ReactionBar({ roundId, reactionSummary, userReaction, re
     },
   })
 
-  const handleTapCount = (e: React.MouseEvent<HTMLElement>, emoji: string) => {
-    e.stopPropagation()
-    setPopoverEmoji(emoji)
-    setPopoverAnchor(e.currentTarget)
+  const pick = (emoji: string) => {
+    setPickerAnchor(null)
+    mutation.mutate(emoji)
   }
 
-  const activeCounts = ALLOWED_EMOJI.filter((e) => (summary[e] || 0) > 0)
+  const active = ALLOWED_EMOJI.filter((e) => (summary[e] || 0) > 0)
+    .sort((a, b) => (summary[b] || 0) - (summary[a] || 0))
+  const total = active.reduce((n, e) => n + (summary[e] || 0), 0)
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-        {ALLOWED_EMOJI.map((emoji) => {
-          const isSelected = currentUserReaction === emoji
-          return (
-            <Chip
-              key={emoji}
-              label={emoji}
-              size="small"
-              onClick={readOnly ? undefined : () => mutation.mutate(emoji)}
-              sx={{
-                fontSize: '1rem',
-                height: 28,
-                cursor: readOnly ? 'default' : 'pointer',
-                bgcolor: isSelected ? 'rgba(224,185,92,0.2)' : 'rgba(0,0,0,0.04)',
-                // The ring is the only thing marking a reaction as yours, so 1.4.11
-                // applies at 3:1. Plain gold managed 1.7:1 against the chip.
-                border: isSelected ? `1.5px solid ${CLAY.goldGraphic}` : '1.5px solid transparent',
-                '&:hover': readOnly ? {} : { bgcolor: isSelected ? 'rgba(224,185,92,0.3)' : 'rgba(0,0,0,0.08)' },
-              }}
-            />
-          )
-        })}
-      </Box>
-
-      {activeCounts.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
-          {activeCounts.map((emoji) => (
-            <Typography
-              key={emoji}
-              variant="caption"
-              onClick={(e) => handleTapCount(e, emoji)}
-              sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
-            >
-              {emoji} {summary[emoji]}
-            </Typography>
-          ))}
-        </Box>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+      {!readOnly && (
+        <Button
+          size="small"
+          onClick={(e) => setPickerAnchor(e.currentTarget)}
+          aria-label={currentUserReaction ? `Your reaction: ${EMOJI_LABELS[currentUserReaction] ?? currentUserReaction}. Change reaction` : 'React to this round'}
+          aria-haspopup="true"
+          startIcon={currentUserReaction
+            ? <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1 }}>{currentUserReaction}</Box>
+            : <AddReactionOutlinedIcon />}
+          sx={{
+            color: currentUserReaction ? CLAY.goldText : 'text.secondary',
+            bgcolor: currentUserReaction ? tint(CLAY.gold, 0.18) : 'transparent',
+            fontWeight: 600,
+            px: 1.25,
+            '&:hover': { bgcolor: currentUserReaction ? tint(CLAY.gold, 0.26) : 'action.hover' },
+          }}
+        >
+          {currentUserReaction ? 'Reacted' : 'React'}
+        </Button>
       )}
 
+      {total > 0 && (
+        <Tooltip title="See who reacted">
+          <ButtonBase
+            onClick={(e) => setWhoAnchor(e.currentTarget)}
+            sx={{ borderRadius: 999, px: 0.75, py: 0.25, gap: 0.5, display: 'flex', alignItems: 'center' }}
+            aria-label={`${total} reaction${total === 1 ? '' : 's'}. See who reacted`}
+          >
+            <Box sx={{ display: 'flex' }}>
+              {active.slice(0, 3).map((e, i) => (
+                <Box
+                  key={e}
+                  component="span"
+                  sx={{
+                    fontSize: '0.9rem', lineHeight: 1, width: 22, height: 22, display: 'grid', placeItems: 'center',
+                    borderRadius: '50%', bgcolor: CLAY.sunken, border: '2px solid', borderColor: 'background.paper',
+                    ml: i === 0 ? 0 : -0.75,
+                  }}
+                >
+                  {e}
+                </Box>
+              ))}
+            </Box>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{total}</Typography>
+          </ButtonBase>
+        </Tooltip>
+      )}
+
+      {/* Emoji picker */}
       <Popover
-        open={!!popoverAnchor}
-        anchorEl={popoverAnchor}
-        onClose={() => { setPopoverAnchor(null); setPopoverEmoji(null) }}
+        open={!!pickerAnchor}
+        anchorEl={pickerAnchor}
+        onClose={() => setPickerAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { borderRadius: 999, p: 0.5, mt: -1 } } }}
+      >
+        <Box role="menu" sx={{ display: 'flex', gap: 0.25 }}>
+          {ALLOWED_EMOJI.map((emoji) => {
+            const selected = currentUserReaction === emoji
+            return (
+              <ButtonBase
+                key={emoji}
+                role="menuitemradio"
+                aria-checked={selected}
+                aria-label={EMOJI_LABELS[emoji] ?? emoji}
+                onClick={() => pick(emoji)}
+                sx={{
+                  width: 44, height: 44, borderRadius: '50%', fontSize: '1.45rem',
+                  bgcolor: selected ? tint(CLAY.gold, 0.25) : 'transparent',
+                  transition: 'transform .12s ease',
+                  '&:hover': { transform: 'scale(1.2)' },
+                }}
+              >
+                {emoji}
+              </ButtonBase>
+            )
+          })}
+        </Box>
+      </Popover>
+
+      {/* Who reacted */}
+      <Popover
+        open={!!whoAnchor}
+        anchorEl={whoAnchor}
+        onClose={() => setWhoAnchor(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Box sx={{ px: 2, py: 1, maxWidth: 220 }}>
-          <Typography variant="body2" component="div">
-            {popoverEmoji}{' '}
-            {popoverEmoji && reactionDetail?.names?.[popoverEmoji]
-              ? reactionDetail.names[popoverEmoji].map((p, i) => (
-                  <span key={p.userId}>
-                    {i > 0 && ', '}
-                    <ProfileLink userId={p.userId} name={p.name} variant="body2" sx={{ display: 'inline' }} />
-                  </span>
-                ))
-              : `${summary[popoverEmoji || ''] || 0} reaction${(summary[popoverEmoji || ''] || 0) !== 1 ? 's' : ''}`
-            }
-          </Typography>
+        <Box sx={{ px: 2, py: 1.5, maxWidth: 260, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+          {active.map((emoji) => (
+            <Typography key={emoji} variant="body2" component="div">
+              <Box component="span" sx={{ mr: 0.75 }}>{emoji}</Box>
+              {reactionDetail?.names?.[emoji]
+                ? reactionDetail.names[emoji].map((p, i) => (
+                    <span key={p.userId}>
+                      {i > 0 && ', '}
+                      <ProfileLink userId={p.userId} name={p.name} variant="body2" />
+                    </span>
+                  ))
+                : `${summary[emoji]} reaction${summary[emoji] !== 1 ? 's' : ''}`}
+            </Typography>
+          ))}
         </Box>
       </Popover>
     </Box>

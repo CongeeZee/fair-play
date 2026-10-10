@@ -28,14 +28,8 @@ import { formatCourseName, timeAgo, formatHandicap } from '../utils'
 import PageHeader from '../components/PageHeader'
 import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
 import { CLAY } from '../theme'
+import { avatarColor } from '../lib/avatar'
 import { scoreBand } from '../scoreColors'
-
-function avatarColor(userId: number): string {
-  // White initials sit on these, so each must clear 4.5:1 against white.
-  // #e0b95c (1.86:1) and #4a8a68 (4.10:1) did not and have been deepened.
-  const colors = ['#2f6b4c', '#3e7357', '#8a6a1e', '#4e7291', '#8B4513', '#4a148c', '#00695c', '#9a4a41']
-  return colors[userId % colors.length]
-}
 
 function scoreLabel(val: number | null) {
   if (val == null) return '-'
