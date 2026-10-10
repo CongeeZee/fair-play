@@ -152,3 +152,53 @@ describe("Stableford competitions", () => {
     expect(submit.body.stablefordPoints).toBe(36);
   });
 });
+
+describe("competition entries", () => {
+  async function activeComp(creatorToken: string) {
+    const res = await request(app)
+      .post("/competitions")
+      .set("Authorization", `Bearer ${creatorToken}`)
+      .send({
+        name: "Monthly Medal",
+        startDate: new Date().toISOString().slice(0, 10),
+        endDate: new Date(Date.now() + 7 * 864e5).toISOString(),
+        scoringType: "GROSS",
+      });
+    expect(res.status).toBe(201);
+    return res.body.id as string;
+  }
+
+  it("lets a player swap their entry for a later round, keeping one entry", async () => {
+    const me = await createVerifiedTestUser();
+    const course = await createTestCourse("Medal Course", 9);
+    const compId = await activeComp(me.accessToken);
+    const first = await completedRound(me.id, course.id, 2);
+    const better = await completedRound(me.id, course.id, 1);
+
+    const a = await request(app).post(`/competitions/${compId}/submit-round`).set("Authorization", `Bearer ${me.accessToken}`).send({ roundId: first.id });
+    expect(a.status).toBe(201);
+    const b = await request(app).post(`/competitions/${compId}/submit-round`).set("Authorization", `Bearer ${me.accessToken}`).send({ roundId: better.id });
+    expect(b.status).toBe(201);
+
+    const entries = await prisma.competitionRound.findMany({ where: { competitionId: compId } });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].roundId).toBe(better.id);
+  });
+
+  it("refuses a round that didn't cover every hole", async () => {
+    const me = await createVerifiedTestUser();
+    const course = await createTestCourse("Medal Course", 18);
+    const compId = await activeComp(me.accessToken);
+    const nine = await prisma.round.create({
+      data: {
+        userId: me.id, courseId: course.id, completedAt: new Date(),
+        roundHoles: { create: course.holes.slice(0, 9).map((h) => ({ holeId: h.id, strokes: h.par })) },
+      },
+    });
+
+    const eligible = await request(app).get(`/competitions/${compId}/eligible-rounds`).set("Authorization", `Bearer ${me.accessToken}`);
+    expect(eligible.body).toEqual([]);
+    const res = await request(app).post(`/competitions/${compId}/submit-round`).set("Authorization", `Bearer ${me.accessToken}`).send({ roundId: nine.id });
+    expect(res.status).toBe(400);
+  });
+});

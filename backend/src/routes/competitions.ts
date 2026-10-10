@@ -258,14 +258,11 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  // Check if user already submitted
+  // One entry per player, but it can be swapped while the competition is
+  // running — a friendly comp spans weeks and you play more than once.
   const existing = await prisma.competitionRound.findFirst({
     where: { competitionId: compId, userId: req.userId! },
   });
-  if (existing) {
-    res.status(400).json({ error: "You already submitted a round to this competition" });
-    return;
-  }
 
   const round = await prisma.round.findUnique({
     where: { id: parsed.data.roundId },
@@ -283,6 +280,11 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
   if (!round) { res.status(404).json({ error: "Round not found" }); return; }
   if (round.userId !== req.userId!) { res.status(403).json({ error: "Round does not belong to you" }); return; }
   if (!round.completedAt) { res.status(400).json({ error: "Round is not completed" }); return; }
+  // A finished 9 on an 18-hole course would otherwise win any gross comp
+  if (round.roundHoles.length < round.course.holes.length) {
+    res.status(400).json({ error: "Only full rounds can be entered" });
+    return;
+  }
 
   // Check date window
   const playedAt = new Date(round.playedAt);
@@ -346,18 +348,22 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
     stablefordPoints = result.totalPoints;
   }
 
-  const compRound = await prisma.competitionRound.create({
-    data: {
-      competitionId: compId,
-      roundId: round.id,
-      userId: req.userId!,
-      grossScore,
-      netScore,
-      scoreToPar,
-      netScoreToPar,
-      stablefordPoints,
-    },
-  });
+  const entry = {
+    competitionId: compId,
+    roundId: round.id,
+    userId: req.userId!,
+    grossScore,
+    netScore,
+    scoreToPar,
+    netScoreToPar,
+    stablefordPoints,
+  };
+  const compRound = existing
+    ? (await prisma.$transaction([
+        prisma.competitionRound.delete({ where: { id: existing.id } }),
+        prisma.competitionRound.create({ data: entry }),
+      ]))[1]
+    : await prisma.competitionRound.create({ data: entry });
 
   // Notify other participants
   const otherParticipants = await prisma.competitionParticipant.findMany({
@@ -370,7 +376,7 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
       ? `${stablefordPoints ?? 0} pts`
       : scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
   for (const p of otherParticipants) {
-    notifyUser(p.userId, { type: "competition_round", title: comp.name, body: `${user?.name} posted ${comp.scoringType === "STABLEFORD" ? scoreStr : `a ${scoreStr}`}`, url: `/competitions/${compId}`, actorId: req.userId! }).catch(() => {});
+    notifyUser(p.userId, { type: "competition_round", title: comp.name, body: `${user?.name} ${existing ? "changed their entry to" : "posted"} ${comp.scoringType === "STABLEFORD" ? scoreStr : `a ${scoreStr}`}`, url: `/competitions/${compId}`, actorId: req.userId! }).catch(() => {});
   }
 
   res.status(201).json(compRound);
@@ -569,8 +575,9 @@ router.get("/:id/eligible-rounds", async (req: AuthRequest, res: Response) => {
     orderBy: { playedAt: "desc" },
   });
 
+  // Already-entered rounds and partial rounds can't be entered
   const eligible = rounds
-    .filter((r) => !submittedIds.has(r.id))
+    .filter((r) => !submittedIds.has(r.id) && r.roundHoles.length >= r.course.holes.length)
     .map((r) => {
       const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
       const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);

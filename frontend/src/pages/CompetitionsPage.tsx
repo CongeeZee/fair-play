@@ -400,7 +400,7 @@ function SubmitRoundDialog({ open, onClose, compId }: { open: boolean; onClose: 
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
         ) : !rounds?.length ? (
           <Typography color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-            No eligible rounds found. Play a round within the competition window and complete it first.
+            No eligible rounds yet. Finish a full round at the course between the start and end dates and it'll show up here.
           </Typography>
         ) : (
           <List>
@@ -539,9 +539,14 @@ function CompetitionDetailView({ id }: { id: string }) {
 
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
-        {comp.status === 'ACTIVE' && comp.myStatus === 'ACCEPTED' && !comp.hasSubmitted && (
-          <Button variant="contained" startIcon={<GolfCourseIcon />} onClick={() => setSubmitOpen(true)} sx={{ textTransform: 'none' }}>
-            Submit Round
+        {comp.status === 'ACTIVE' && comp.myStatus === 'ACCEPTED' && (
+          // Your entry can be swapped for a better round until the end date
+          <Button
+            variant={comp.hasSubmitted ? 'outlined' : 'contained'}
+            startIcon={<GolfCourseIcon />}
+            onClick={() => setSubmitOpen(true)}
+          >
+            {comp.hasSubmitted ? 'Change entry' : 'Submit round'}
           </Button>
         )}
         {isCreator && (
