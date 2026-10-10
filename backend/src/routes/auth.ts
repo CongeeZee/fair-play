@@ -8,6 +8,7 @@ import prisma from "../lib/prisma";
 import { sendValidationError } from "../lib/validation";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/email";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
+import { forgetVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import {
   authLimiter,
   signupLimiter,
@@ -513,6 +514,119 @@ router.patch("/profile", requireAuth, async (req: AuthRequest, res: Response) =>
     res.json(user);
   } catch (err) {
     console.error("PATCH /auth/profile error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /auth/account — what the settings page needs to know about sign-in methods
+router.get("/account", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { email: true, passwordHash: true, googleId: true, createdAt: true },
+    });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({
+      email: user.email,
+      hasPassword: user.passwordHash != null,
+      googleLinked: user.googleId != null,
+      createdAt: user.createdAt,
+    });
+  } catch (err) {
+    console.error("GET /auth/account error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+const changePasswordSchema = z.object({
+  // Optional only for accounts created with Google, which have no password yet
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
+
+// POST /auth/change-password — change (or, for Google-only accounts, set) a password.
+// Signs out every other session: if the old password leaked, the sessions it
+// opened should not outlive it.
+router.post("/change-password", requireAuth, strictLimiter, async (req: AuthRequest, res: Response) => {
+  const result = changePasswordSchema.safeParse(req.body);
+  if (!result.success) {
+    sendValidationError(res, result.error);
+    return;
+  }
+  const { currentPassword, newPassword } = result.data;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (user.passwordHash) {
+      const ok = currentPassword ? await bcrypt.compare(currentPassword, user.passwordHash) : false;
+      if (!ok) {
+        res.status(401).json({ error: "Current password is incorrect" });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const keep = typeof req.body.refreshToken === "string" ? hashToken(req.body.refreshToken) : null;
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { passwordHash, passwordResetToken: null, passwordResetExpires: null } }),
+      prisma.refreshToken.deleteMany({ where: { userId: user.id, ...(keep ? { token: { not: keep } } : {}) } }),
+    ]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("POST /auth/change-password error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+const deleteAccountSchema = z.object({
+  confirm: z.literal("DELETE"),
+  password: z.string().optional(),
+});
+
+// DELETE /auth/account — permanently delete the account and everything it owns.
+// Password accounts must re-enter the password; Google-only accounts confirm
+// by typing DELETE (they have no password to check).
+router.delete("/account", requireAuth, strictLimiter, async (req: AuthRequest, res: Response) => {
+  const result = deleteAccountSchema.safeParse(req.body);
+  if (!result.success) {
+    res.status(400).json({ error: 'Type DELETE to confirm' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (user.passwordHash) {
+      const ok = result.data.password ? await bcrypt.compare(result.data.password, user.passwordHash) : false;
+      if (!ok) {
+        res.status(401).json({ error: "Password is incorrect" });
+        return;
+      }
+    }
+
+    // Rounds are the one relation without ON DELETE CASCADE (their holes,
+    // reactions, comments and competition entries do cascade from the round),
+    // so they go first; everything else hangs off the user and cascades.
+    await prisma.$transaction([
+      prisma.round.deleteMany({ where: { userId: user.id } }),
+      prisma.user.delete({ where: { id: user.id } }),
+    ]);
+    // The verified-email cache only ever holds positives; drop this one so a
+    // still-unexpired access token can't pass the gate for a deleted user.
+    forgetVerifiedEmail(user.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /auth/account error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

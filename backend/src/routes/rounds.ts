@@ -2190,6 +2190,59 @@ router.put("/:id/partners", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /rounds/export.csv — every round the user has logged, one row each.
+// Your data should be yours to take elsewhere (a spreadsheet, another app).
+router.get("/export.csv", async (req: AuthRequest, res: Response) => {
+  try {
+    const rounds = await prisma.round.findMany({
+      where: { userId: req.userId! },
+      include: {
+        course: { select: { name: true, courseRating: true, slopeRating: true, _count: { select: { holes: true } } } },
+        roundHoles: { select: { strokes: true, putts: true, approachResult: true, teeShotDirection: true, penalties: true, hole: { select: { par: true } } } },
+      },
+      orderBy: { playedAt: "desc" },
+    });
+
+    const esc = (v: unknown) => {
+      const str = v == null ? "" : String(v);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const header = ["Date", "Course", "Holes played", "Course holes", "Strokes", "Par", "To par", "Putts", "Greens in regulation", "Fairways hit", "Fairway holes", "Penalties", "Course rating", "Slope", "Completed"];
+    const lines = [header.join(",")];
+    for (const r of rounds) {
+      const hs = r.roundHoles;
+      if (hs.length === 0) continue;
+      const strokes = hs.reduce((s, h) => s + h.strokes, 0);
+      const par = hs.reduce((s, h) => s + h.hole.par, 0);
+      const drives = hs.filter((h) => h.hole.par > 3 && h.teeShotDirection != null);
+      lines.push([
+        r.playedAt.toISOString().slice(0, 10),
+        r.course.name,
+        hs.length,
+        r.course._count.holes,
+        strokes,
+        par,
+        strokes - par,
+        hs.every((h) => h.putts != null) ? hs.reduce((s, h) => s + (h.putts ?? 0), 0) : "",
+        hs.every((h) => h.approachResult != null) ? hs.filter((h) => h.approachResult === "gir").length : "",
+        drives.length ? drives.filter((h) => h.teeShotDirection === "fairway").length : "",
+        drives.length || "",
+        hs.reduce((s, h) => s + (h.penalties ?? 0), 0),
+        r.course.courseRating ?? "",
+        r.course.slopeRating ?? "",
+        r.completedAt ? "yes" : "no",
+      ].map(esc).join(","));
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="fairplay-rounds-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.send(lines.join("\n") + "\n");
+  } catch (err) {
+    console.error("GET /rounds/export.csv error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/:id", async (req: AuthRequest, res: Response) => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
