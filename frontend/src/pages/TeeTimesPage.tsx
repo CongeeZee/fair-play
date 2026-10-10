@@ -11,6 +11,8 @@ import AddIcon from '@mui/icons-material/Add'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import PersonIcon from '@mui/icons-material/Person'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import EventIcon from '@mui/icons-material/Event'
+import { downloadIcs } from '../lib/calendar'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import CancelIcon from '@mui/icons-material/Cancel'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
@@ -391,6 +393,29 @@ function TeeTimeDetailView({ id }: { id: string }) {
             )}
             <Chip label={tt.visibility === 'FRIENDS' ? 'Open' : 'Invite Only'} size="small" sx={{ bgcolor: ON_GREEN.soft, color: CLAY.greenDark, fontSize: '0.7rem' }} />
           </Box>
+          {tt.status !== 'CANCELLED' && new Date(tt.dateTime) > new Date() && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              startIcon={<EventIcon />}
+              onClick={() => downloadIcs({
+                uid: `teetime-${tt.id}`,
+                title: `Golf at ${courseName}`,
+                start: new Date(tt.dateTime),
+                location: courseName,
+                description: [
+                  `Organised by ${tt.creator.name} on Fairplay`,
+                  confirmed.length ? `Playing: ${confirmed.map((p) => p.name).join(', ')}` : null,
+                  tt.notes,
+                  `${window.location.origin}/teetimes/${tt.id}`,
+                ].filter(Boolean).join('\n'),
+              }, `golf-${new Date(tt.dateTime).toISOString().slice(0, 10)}.ics`)}
+              sx={{ mt: 2, color: '#fff', borderColor: 'rgba(255,255,255,0.6)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
+            >
+              Add to calendar
+            </Button>
+          )}
         </CardContent>
       </Card>
 
