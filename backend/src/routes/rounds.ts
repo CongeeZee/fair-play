@@ -44,6 +44,7 @@ import {
   userMetricValues,
 } from "../lib/benchmarks";
 import { sendPushToUser } from "../lib/pushNotification";
+import { getActiveFriendIds } from "../lib/friends";
 import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
 const router = Router();
@@ -145,47 +146,33 @@ router.get("/live", async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
 
-    // Get friend IDs (excluding blocked)
-    const friendships = await prisma.friendship.findMany({
-      where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
+    const activeFriendIds = await getActiveFriendIds(userId);
 
-    const blocks = await prisma.friendship.findMany({
-      where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const blockedIds = new Set(blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId)));
-    const activeFriendIds = friendIds.filter((id) => !blockedIds.has(id));
+    const liveInclude = {
+      user: { select: { name: true } },
+      course: { select: { name: true, holes: { select: { number: true, par: true } } } },
+      roundHoles: { select: { strokes: true, hole: { select: { number: true, par: true } } } },
+    } as const;
 
-    // Fetch live rounds from friends
-    const liveRounds = activeFriendIds.length > 0
-      ? await prisma.round.findMany({
-          where: {
-            userId: { in: activeFriendIds },
-            completedAt: null,
-            lastScoredAt: { gte: fourHoursAgo },
-          },
-          include: {
-            user: { select: { name: true } },
-            course: { select: { name: true, holes: { select: { number: true, par: true } } } },
-            roundHoles: { select: { strokes: true, hole: { select: { number: true, par: true } } } },
-          },
-          orderBy: { lastScoredAt: "desc" },
-        })
-      : [];
-
-    // Also get user's own in-progress round
-    const ownRound = await prisma.round.findFirst({
-      where: { userId, completedAt: null, lastScoredAt: { gte: fourHoursAgo } },
-      include: {
-        user: { select: { name: true } },
-        course: { select: { name: true, holes: { select: { number: true, par: true } } } },
-        roundHoles: { select: { strokes: true, hole: { select: { number: true, par: true } } } },
-      },
-      orderBy: { lastScoredAt: "desc" },
-    });
+    // Friends' live rounds and your own are independent — fetch together.
+    const [liveRounds, ownRound] = await Promise.all([
+      activeFriendIds.length > 0
+        ? prisma.round.findMany({
+            where: {
+              userId: { in: activeFriendIds },
+              completedAt: null,
+              lastScoredAt: { gte: fourHoursAgo },
+            },
+            include: liveInclude,
+            orderBy: { lastScoredAt: "desc" },
+          })
+        : Promise.resolve([]),
+      prisma.round.findFirst({
+        where: { userId, completedAt: null, lastScoredAt: { gte: fourHoursAgo } },
+        include: liveInclude,
+        orderBy: { lastScoredAt: "desc" },
+      }),
+    ]);
 
     const formatLiveRound = (r: typeof liveRounds[0]) => {
       const holesCompleted = r.roundHoles.length;
@@ -285,109 +272,105 @@ router.get("/:id/live-scorecard", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// GET /rounds/feed — friends' recent completed rounds
+// GET /rounds/feed — completed rounds from you, your friends, and rounds you were tagged in
 router.get("/feed", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
     const limit = Math.min(parseInt(String(req.query.limit || "20"), 10) || 20, 50);
-    const cursor = req.query.cursor ? parseInt(String(req.query.cursor), 10) : undefined;
+    const cursorRaw = req.query.cursor ? parseInt(String(req.query.cursor), 10) : NaN;
+    const cursor = Number.isFinite(cursorRaw) ? cursorRaw : undefined;
 
-    // Get accepted friend IDs in one query, excluding blocked relationships
-    const friendships = await prisma.friendship.findMany({
+    const activeFriendIds = await getActiveFriendIds(userId);
+
+    /* The feed is your own rounds, your friends' rounds, and any round you
+       were tagged in — finished ones only. In-progress rounds already have the
+       Live Now strip; listing them here too showed a half-played card as if it
+       were a final score.
+
+       Ordered by when the round was played, not by row id, so a round logged
+       after the fact lands where it belongs instead of at the top. The cursor
+       is still the round id: Prisma resumes from that row under this ordering. */
+    const roundsQuery = prisma.round.findMany({
       where: {
-        status: "ACCEPTED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
+        completedAt: { not: null },
+        roundHoles: { some: {} },
+        OR: [
+          { userId: { in: [userId, ...activeFriendIds] } },
+          { partners: { some: { userId } } },
+        ],
       },
-      select: { requesterId: true, addresseeId: true },
-    });
-
-    const friendIds = friendships.map((f) =>
-      f.requesterId === userId ? f.addresseeId : f.requesterId
-    );
-
-    // Get blocked user IDs (in either direction)
-    const blocks = await prisma.friendship.findMany({
-      where: {
-        status: "BLOCKED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const blockedIds = new Set(
-      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
-    );
-    const activeFriendIds = friendIds.filter((id) => !blockedIds.has(id));
-
-    // Fetch friends' completed rounds, plus rounds where the current user is
-    // tagged as a playing partner (even if owner is not a friend).
-    const feedRoundFilter = {
-      OR: [
-        ...(activeFriendIds.length > 0 ? [{ userId: { in: activeFriendIds } }] : []),
-        { partners: { some: { userId } } },
-      ],
-      ...(cursor ? { id: { lt: cursor } } : {}),
-    };
-
-    const feedRounds = (activeFriendIds.length > 0 || true)
-      ? await prisma.round.findMany({
-          where: feedRoundFilter,
-          include: {
-            user: { select: { name: true } },
-            course: {
-              select: {
-                name: true,
-                courseRating: true,
-                slopeRating: true,
-                holes: { select: { par: true } },
-                _count: { select: { holes: true } },
-              },
-            },
-            roundHoles: {
-              select: { strokes: true, hole: { select: { par: true } } },
-            },
-            partners: {
-              include: { user: { select: { id: true, name: true } } },
-              orderBy: { createdAt: "asc" },
-            },
+      include: {
+        user: { select: { name: true } },
+        course: { select: { name: true, _count: { select: { holes: true } } } },
+        roundHoles: {
+          select: {
+            strokes: true,
+            putts: true,
+            approachResult: true,
+            teeShotDirection: true,
+            hole: { select: { par: true } },
           },
-          orderBy: { id: "desc" },
-          take: limit + 1,
-        })
-      : [];
+        },
+        partners: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+      orderBy: [{ playedAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+
+    // Open tee times from friends you are not already part of. Only on the
+    // first page — the client reads them from page one.
+    const teeTimesQuery =
+      !cursor && activeFriendIds.length > 0
+        ? prisma.teeTime.findMany({
+            where: {
+              creatorId: { in: activeFriendIds },
+              visibility: "FRIENDS",
+              status: "OPEN",
+              dateTime: { gt: new Date() },
+              participants: { none: { userId } },
+            },
+            include: {
+              course: { select: { name: true } },
+              creator: { select: { name: true } },
+              participants: { where: { status: "CONFIRMED" }, select: { userId: true } },
+            },
+            orderBy: { dateTime: "asc" },
+            take: 5,
+          })
+        : Promise.resolve([]);
+
+    const [feedRounds, openTeeTimes] = await Promise.all([roundsQuery, teeTimesQuery]);
 
     const hasMore = feedRounds.length > limit;
     const page = hasMore ? feedRounds.slice(0, limit) : feedRounds;
     const nextCursor = hasMore ? page[page.length - 1].id : null;
+    const roundIds = page.map((r) => r.id);
 
-    const scoredRounds = page.filter((r) => r.roundHoles.length > 0);
-    const roundIds = scoredRounds.map((r) => r.id);
-
-    // Batch-fetch reactions, comments, and reviews for all feed rounds
-    const [allReactions, allComments, allReviews] = await Promise.all([
-      roundIds.length > 0
-        ? prisma.roundReaction.findMany({
+    const [allReactions, allComments, allReviews] = roundIds.length > 0
+      ? await Promise.all([
+          prisma.roundReaction.findMany({
             where: { roundId: { in: roundIds } },
             select: { roundId: true, userId: true, emoji: true },
-          })
-        : [],
-      roundIds.length > 0
-        ? prisma.roundComment.findMany({
+          }),
+          prisma.roundComment.findMany({
             where: { roundId: { in: roundIds } },
             include: { user: { select: { id: true, name: true } } },
             orderBy: { createdAt: "desc" },
-          })
-        : [],
-      roundIds.length > 0
-        ? prisma.courseReview.findMany({
+          }),
+          prisma.courseReview.findMany({
             where: { roundId: { in: roundIds } },
             select: { roundId: true, rating: true, text: true },
-          })
-        : [],
-    ]);
+          }),
+        ])
+      : [[], [], []];
+
     const reviewsByRound = new Map<number, { rating: number; text: string | null }>();
     for (const rv of allReviews) reviewsByRound.set(rv.roundId, { rating: rv.rating, text: rv.text });
 
-    // Build per-round reaction summaries
     const reactionsByRound = new Map<number, { summary: Record<string, number>; userReaction: string | null }>();
     for (const r of allReactions) {
       if (!reactionsByRound.has(r.roundId)) reactionsByRound.set(r.roundId, { summary: {}, userReaction: null });
@@ -396,7 +379,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
       if (r.userId === userId) entry.userReaction = r.emoji;
     }
 
-    // Build per-round comment data (count + 2 most recent)
+    // Count + the two most recent, shown oldest-first under the card
     const commentsByRound = new Map<number, { commentCount: number; recentComments: { userId: number; name: string; text: string }[] }>();
     for (const c of allComments) {
       if (!commentsByRound.has(c.roundId)) commentsByRound.set(c.roundId, { commentCount: 0, recentComments: [] });
@@ -404,137 +387,48 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
       entry.commentCount++;
       if (entry.recentComments.length < 2) entry.recentComments.push({ userId: c.user.id, name: c.user.name, text: c.text });
     }
-    // Reverse recentComments so oldest-first (they were fetched desc)
     for (const entry of commentsByRound.values()) entry.recentComments.reverse();
 
-    const feed = scoredRounds.map((r) => {
-        const totalStrokes = r.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
-        const totalPar = r.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
-        const reactions = reactionsByRound.get(r.id) || { summary: {}, userReaction: null };
-        const comments = commentsByRound.get(r.id) || { commentCount: 0, recentComments: [] };
-        return {
-          id: r.id,
-          shareId: r.shareId,
-          playerId: r.userId,
-          playerName: r.user.name,
-          playedAt: r.playedAt,
-          courseName: r.course.name,
-          totalStrokes,
-          scoreToPar: totalStrokes - totalPar,
-          totalHoles: r.roundHoles.length,
-          courseHoles: r.course._count.holes,
-          reactionSummary: reactions.summary,
-          userReaction: reactions.userReaction,
-          commentCount: comments.commentCount,
-          recentComments: comments.recentComments,
-          review: reviewsByRound.get(r.id) ?? null,
-          partners: r.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
-          viewerTagged: r.partners.some((p) => p.userId === userId),
-        };
-      });
-
-    // Latest own round (within 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const latestOwn = await prisma.round.findFirst({
-      where: {
-        userId,
-        playedAt: { gte: sevenDaysAgo },
-        roundHoles: { some: {} },
-      },
-      include: {
-        course: {
-          select: {
-            name: true,
-            holes: { select: { par: true } },
-            _count: { select: { holes: true } },
-          },
-        },
-        roundHoles: {
-          select: { strokes: true, hole: { select: { par: true } } },
-        },
-        partners: {
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: "asc" },
-        },
-      },
-      orderBy: { playedAt: "desc" },
-    });
-
-    let latestOwnRound = null;
-    if (latestOwn && latestOwn.roundHoles.length > 0) {
-      const totalStrokes = latestOwn.roundHoles.reduce((s, rh) => s + rh.strokes, 0);
-      const totalPar = latestOwn.roundHoles.reduce((s, rh) => s + rh.hole.par, 0);
-
-      // Fetch reactions + comments for own round
-      const [ownReactions, ownComments] = await Promise.all([
-        prisma.roundReaction.findMany({
-          where: { roundId: latestOwn.id },
-          select: { emoji: true, userId: true },
-        }),
-        prisma.roundComment.findMany({
-          where: { roundId: latestOwn.id },
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 2,
-        }),
-      ]);
-      const ownSummary: Record<string, number> = {};
-      let ownUserReaction: string | null = null;
-      for (const r of ownReactions) {
-        ownSummary[r.emoji] = (ownSummary[r.emoji] || 0) + 1;
-        if (r.userId === userId) ownUserReaction = r.emoji;
-      }
-
-      const ownReview = await prisma.courseReview.findUnique({
-        where: { roundId: latestOwn.id },
-        select: { rating: true, text: true },
-      });
-      latestOwnRound = {
-        id: latestOwn.id,
-        shareId: latestOwn.shareId,
-        playedAt: latestOwn.playedAt,
-        courseName: latestOwn.course.name,
+    const feed = page.map((r) => {
+      const holes = r.roundHoles;
+      const totalStrokes = holes.reduce((s, rh) => s + rh.strokes, 0);
+      const totalPar = holes.reduce((s, rh) => s + rh.hole.par, 0);
+      const reactions = reactionsByRound.get(r.id) || { summary: {}, userReaction: null };
+      const comments = commentsByRound.get(r.id) || { commentCount: 0, recentComments: [] };
+      // Highlights for the card. Putts and GIR only when every hole tracked
+      // them, so a half-tracked round doesn't advertise "14 putts".
+      const allPutts = holes.every((h) => h.putts != null);
+      const allApproach = holes.every((h) => h.approachResult != null);
+      const drivingHoles = holes.filter((h) => h.hole.par > 3 && h.teeShotDirection != null);
+      return {
+        id: r.id,
+        shareId: r.shareId,
+        playerId: r.userId,
+        playerName: r.user.name,
+        isOwn: r.userId === userId,
+        playedAt: r.playedAt,
+        courseName: r.course.name,
         totalStrokes,
         scoreToPar: totalStrokes - totalPar,
-        totalHoles: latestOwn.roundHoles.length,
-        courseHoles: latestOwn.course._count.holes,
-        reactionSummary: ownSummary,
-        userReaction: ownUserReaction,
-        commentCount: await prisma.roundComment.count({ where: { roundId: latestOwn.id } }),
-        recentComments: ownComments.reverse().map((c) => ({ userId: c.user.id, name: c.user.name, text: c.text })),
-        review: ownReview,
-        partners: latestOwn.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
+        totalHoles: holes.length,
+        courseHoles: r.course._count.holes,
+        highlights: {
+          birdiesOrBetter: holes.filter((h) => h.strokes < h.hole.par).length,
+          pars: holes.filter((h) => h.strokes === h.hole.par).length,
+          putts: allPutts ? holes.reduce((s, h) => s + (h.putts ?? 0), 0) : null,
+          girs: allApproach ? holes.filter((h) => h.approachResult === "gir").length : null,
+          fairways: drivingHoles.length > 0 ? drivingHoles.filter((h) => h.teeShotDirection === "fairway").length : null,
+          fairwayHoles: drivingHoles.length,
+        },
+        reactionSummary: reactions.summary,
+        userReaction: reactions.userReaction,
+        commentCount: comments.commentCount,
+        recentComments: comments.recentComments,
+        review: reviewsByRound.get(r.id) ?? null,
+        partners: r.partners.map((p) => ({ id: p.user.id, name: p.user.name })),
+        viewerTagged: r.partners.some((p) => p.userId === userId),
       };
-    }
-
-    // Open tee times from friends (FRIENDS visibility, future, OPEN)
-    const now = new Date();
-    const myTeeTimeIds = await prisma.teeTimeParticipant.findMany({
-      where: { userId },
-      select: { teeTimeId: true },
     });
-    const myTtIds = new Set(myTeeTimeIds.map((p) => p.teeTimeId));
-
-    const openTeeTimes = activeFriendIds.length > 0
-      ? await prisma.teeTime.findMany({
-          where: {
-            creatorId: { in: activeFriendIds },
-            visibility: "FRIENDS",
-            status: "OPEN",
-            dateTime: { gt: now },
-            id: { notIn: [...myTtIds] },
-          },
-          include: {
-            course: { select: { name: true } },
-            creator: { select: { name: true } },
-            participants: { where: { status: "CONFIRMED" }, select: { userId: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        })
-      : [];
 
     const feedTeeTimes = openTeeTimes.map((tt) => ({
       id: tt.id,
@@ -549,7 +443,7 @@ router.get("/feed", async (req: AuthRequest, res: Response) => {
       createdAt: tt.createdAt,
     }));
 
-    res.json({ feed, feedTeeTimes, nextCursor, latestOwnRound });
+    res.json({ feed, feedTeeTimes, nextCursor });
   } catch (err) {
     console.error("GET /rounds/feed error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -572,52 +466,38 @@ router.get("/leaderboard", async (req: AuthRequest, res: Response) => {
       dateFilter.setDate(dateFilter.getDate() - 30);
     }
 
-    // Get friend IDs (excluding blocked)
-    const friendships = await prisma.friendship.findMany({
-      where: {
-        status: "ACCEPTED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const friendIds = friendships.map((f) =>
-      f.requesterId === userId ? f.addresseeId : f.requesterId
-    );
-
-    const blocks = await prisma.friendship.findMany({
-      where: {
-        status: "BLOCKED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const blockedIds = new Set(
-      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
-    );
+    const activeFriendIds = await getActiveFriendIds(userId);
 
     // All participants = current user + non-blocked friends
-    const participantIds = [userId, ...friendIds.filter((id) => !blockedIds.has(id))];
+    const participantIds = [userId, ...activeFriendIds];
 
-    // Get user names
-    const users = await prisma.user.findMany({
-      where: { id: { in: participantIds } },
-      select: { id: true, name: true },
-    });
-    const nameMap = new Map(users.map((u) => [u.id, u.name]));
-
-    // Fetch all rounds for participants in the timeframe, with hole counts
-    const rounds = await prisma.round.findMany({
-      where: {
-        userId: { in: participantIds },
-        ...(dateFilter ? { playedAt: { gte: dateFilter } } : {}),
-      },
-      include: {
-        course: { select: { _count: { select: { holes: true } } } },
-        roundHoles: {
-          select: { strokes: true, hole: { select: { par: true } } },
+    // Names, rounds in the timeframe and linked handicaps are independent —
+    // one round-trip instead of three.
+    const [users, rounds, handicaps] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: participantIds } },
+        select: { id: true, name: true },
+      }),
+      prisma.round.findMany({
+        where: {
+          userId: { in: participantIds },
+          // In-progress rounds don't belong on a leaderboard
+          completedAt: { not: null },
+          ...(dateFilter ? { playedAt: { gte: dateFilter } } : {}),
         },
-      },
-    });
+        include: {
+          course: { select: { _count: { select: { holes: true } } } },
+          roundHoles: {
+            select: { strokes: true, hole: { select: { par: true } } },
+          },
+        },
+      }),
+      prisma.linkedHandicap.findMany({
+        where: { userId: { in: participantIds } },
+        select: { userId: true, handicapIndex: true },
+      }),
+    ]);
+    const nameMap = new Map(users.map((u) => [u.id, u.name]));
 
     // Aggregate per user
     const statsMap = new Map<number, { roundsPlayed: number; best: number | null; totalScoreToPar: number; count18: number }>();
@@ -644,11 +524,6 @@ router.get("/leaderboard", async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Get handicap indexes
-    const handicaps = await prisma.linkedHandicap.findMany({
-      where: { userId: { in: participantIds } },
-      select: { userId: true, handicapIndex: true },
-    });
     const handicapMap = new Map(handicaps.map((h) => [h.userId, h.handicapIndex]));
 
     // Calculate handicaps for those without linked ones (parallel)
@@ -707,42 +582,21 @@ router.get("/leaderboard/handicap", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
 
-    // Get friend IDs (excluding blocked)
-    const friendships = await prisma.friendship.findMany({
-      where: {
-        status: "ACCEPTED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const friendIds = friendships.map((f) =>
-      f.requesterId === userId ? f.addresseeId : f.requesterId
-    );
+    const activeFriendIds = await getActiveFriendIds(userId);
 
-    const blocks = await prisma.friendship.findMany({
-      where: {
-        status: "BLOCKED",
-        OR: [{ requesterId: userId }, { addresseeId: userId }],
-      },
-      select: { requesterId: true, addresseeId: true },
-    });
-    const blockedIds = new Set(
-      blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId))
-    );
+    const participantIds = [userId, ...activeFriendIds];
 
-    const participantIds = [userId, ...friendIds.filter((id) => !blockedIds.has(id))];
-
-    const users = await prisma.user.findMany({
-      where: { id: { in: participantIds } },
-      select: { id: true, name: true },
-    });
+    const [users, linkedHandicaps] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: participantIds } },
+        select: { id: true, name: true },
+      }),
+      prisma.linkedHandicap.findMany({
+        where: { userId: { in: participantIds } },
+        select: { userId: true, handicapIndex: true },
+      }),
+    ]);
     const nameMap = new Map(users.map((u) => [u.id, u.name]));
-
-    // Batch-fetch linked handicaps for all participants
-    const linkedHandicaps = await prisma.linkedHandicap.findMany({
-      where: { userId: { in: participantIds } },
-      select: { userId: true, handicapIndex: true },
-    });
     const linkedMap = new Map(linkedHandicaps.map((l) => [l.userId, l.handicapIndex]));
 
     // Calculate current handicap and trend for each participant (parallel)

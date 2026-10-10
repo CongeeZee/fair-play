@@ -242,23 +242,19 @@ export interface FeedRound {
   review: FeedRoundReview | null
   partners: RoundPartner[]
   viewerTagged: boolean
+  /** True for the viewer's own rounds, which now sit in the feed with everyone else's. */
+  isOwn: boolean
+  highlights: FeedRoundHighlights
 }
 
-export interface OwnLatestRound {
-  id: number
-  shareId: string | null
-  playedAt: string
-  courseName: string
-  totalStrokes: number
-  scoreToPar: number
-  totalHoles: number
-  courseHoles: number
-  reactionSummary: Record<string, number>
-  userReaction: string | null
-  commentCount: number
-  recentComments: RecentComment[]
-  review: FeedRoundReview | null
-  partners: RoundPartner[]
+/** Per-round numbers for the feed card. Putts/GIR are null unless every hole tracked them. */
+export interface FeedRoundHighlights {
+  birdiesOrBetter: number
+  pars: number
+  putts: number | null
+  girs: number | null
+  fairways: number | null
+  fairwayHoles: number
 }
 
 export interface RoundCommentData {
@@ -292,7 +288,6 @@ export interface FeedResponse {
   feed: FeedRound[]
   feedTeeTimes: FeedTeeTime[]
   nextCursor: number | null
-  latestOwnRound: OwnLatestRound | null
 }
 
 export interface LeaderboardEntry {

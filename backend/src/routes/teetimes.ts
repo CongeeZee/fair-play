@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma";
+import { getActiveFriendIds as getFriendIds } from "../lib/friends";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { sendPushToUser } from "../lib/pushNotification";
@@ -11,22 +12,6 @@ router.use(requireAuth);
 
 router.use(requireVerifiedEmail("Verify your email to use tee times"));
 
-// Helper: get accepted friend IDs (excluding blocked)
-async function getFriendIds(userId: number): Promise<number[]> {
-  const [friendships, blocks] = await Promise.all([
-    prisma.friendship.findMany({
-      where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-      select: { requesterId: true, addresseeId: true },
-    }),
-    prisma.friendship.findMany({
-      where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-      select: { requesterId: true, addresseeId: true },
-    }),
-  ]);
-  const ids = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
-  const blockedIds = new Set(blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId)));
-  return ids.filter((id) => !blockedIds.has(id));
-}
 
 // Helper: format course display name
 function teeTimeCourseName(tt: { courseId: number | null; courseName: string | null; course?: { name: string } | null }): string | null {

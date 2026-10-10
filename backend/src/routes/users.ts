@@ -1,26 +1,12 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
+import { getActiveFriendIds as getAcceptedFriendIds } from "../lib/friends";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
 
 const router = Router();
 router.use(requireAuth);
 
-// Helper: get accepted friend IDs for a user (excluding blocked)
-async function getAcceptedFriendIds(userId: number): Promise<number[]> {
-  const friendships = await prisma.friendship.findMany({
-    where: { status: "ACCEPTED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-    select: { requesterId: true, addresseeId: true },
-  });
-  const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
-
-  const blocks = await prisma.friendship.findMany({
-    where: { status: "BLOCKED", OR: [{ requesterId: userId }, { addresseeId: userId }] },
-    select: { requesterId: true, addresseeId: true },
-  });
-  const blockedIds = new Set(blocks.map((b) => (b.requesterId === userId ? b.addresseeId : b.requesterId)));
-  return friendIds.filter((id) => !blockedIds.has(id));
-}
 
 // Helper: calculate handicap for a given user
 async function getUserHandicap(userId: number): Promise<number | null> {

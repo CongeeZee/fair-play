@@ -3,7 +3,6 @@ import {
   Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Dialog, DialogTitle, DialogContent, Switch, FormControlLabel, CardActions, TextField, useMediaQuery, useTheme,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import ShareIcon from '@mui/icons-material/Share'
 import SendIcon from '@mui/icons-material/Send'
 import PeopleIcon from '@mui/icons-material/People'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -20,7 +19,7 @@ import { CLAY, raised, tint } from '../theme'
 import { scoreBand } from '../scoreColors'
 import { getRecentAchievements } from '../api/achievements'
 import { formatCourseName, timeAgo } from '../utils'
-import type { FeedRound, FeedTeeTime, OwnLatestRound, RecentComment, LiveRound, RecentAchievement, RoundPartner } from '../types'
+import type { FeedRound, FeedTeeTime, RecentComment, LiveRound, RecentAchievement, RoundPartner } from '../types'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import ReactionBar from '../components/ReactionBar'
@@ -223,79 +222,6 @@ function PartnersLine({ partners }: { partners: RoundPartner[] }) {
         ))}
       </Typography>
     </Box>
-  )
-}
-
-function OwnRoundCard({ round }: { round: OwnLatestRound }) {
-  const [snackbar, setSnackbar] = useState(false)
-
-  const handleShare = async () => {
-    if (!round.shareId) return
-    const url = `${window.location.origin}/scorecard/${round.shareId}`
-    const courseName = formatCourseName(round.courseName)
-    const scoreStr = round.scoreToPar === 0 ? 'even par' : round.scoreToPar > 0 ? `+${round.scoreToPar}` : `${round.scoreToPar}`
-    if (navigator.share) {
-      try { await navigator.share({ title: `My round at ${courseName}`, text: `Shot ${round.totalStrokes} (${scoreStr})`, url }) } catch { /* cancelled */ }
-    } else {
-      await navigator.clipboard.writeText(url)
-      setSnackbar(true)
-    }
-  }
-
-  return (
-    <>
-      <Card elevation={2} sx={{ mb: 3, border: '2px solid', borderColor: CLAY.goldGraphic, borderRadius: 2 }}>
-        <CardContent sx={{ pb: '12px !important' }}>
-          <Typography variant="overline" sx={{ color: CLAY.goldText, fontWeight: 700, letterSpacing: 1 }}>
-            Your latest round
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 0.5 }}>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                {formatCourseName(round.courseName)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {timeAgo(round.playedAt)}
-                {round.totalHoles < round.courseHoles && ` · ${round.totalHoles} holes`}
-              </Typography>
-              <PartnersLine partners={round.partners} />
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1 }}>
-                  {round.totalStrokes}
-                </Typography>
-                <Chip
-                  label={scoreLabel(round.scoreToPar)}
-                  size="small"
-                  sx={{ ...scoreChip(round.scoreToPar), fontWeight: 700, mt: 0.5, height: 22 }}
-                />
-              </Box>
-              {round.shareId && (
-                <IconButton aria-label="Share round" size="small" onClick={handleShare}>
-                  <ShareIcon fontSize="small" />
-                </IconButton>
-              )}
-            </Box>
-          </Box>
-          <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-            <ReactionBar
-              roundId={round.id}
-              reactionSummary={round.reactionSummary}
-              userReaction={round.userReaction}
-            />
-            <InlineComments
-              roundId={round.id}
-              shareId={round.shareId}
-              commentCount={round.commentCount}
-              recentComments={round.recentComments}
-            />
-            {round.review && <ReviewLine review={round.review} courseName={round.courseName} />}
-          </Box>
-        </CardContent>
-      </Card>
-      <Snackbar open={snackbar} autoHideDuration={2000} onClose={() => setSnackbar(false)} message="Link copied!" anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: '68px', md: 0 } }} />
-    </>
   )
 }
 
@@ -605,7 +531,6 @@ export default function FeedPage() {
   const theme = useTheme()
   const showSidebar = useMediaQuery(theme.breakpoints.up('lg'))
 
-  const latestOwnRound = data?.pages[0]?.latestOwnRound ?? null
   const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
 
@@ -666,18 +591,11 @@ export default function FeedPage() {
 
       <LiveNowSection rounds={liveData?.liveRounds ?? []} />
 
-      {/* Skip the latest-round card when it IS the in-progress round — the
-          resume banner above already covers it and the partial score reads
-          oddly as a "result". */}
-      {latestOwnRound && latestOwnRound.id !== liveData?.ownLiveRound?.roundId && (
-        <OwnRoundCard round={latestOwnRound} />
-      )}
-
       {feedTeeTimes.map((tt) => (
         <TeeTimeCard key={tt.id} teeTime={tt} />
       ))}
 
-      {allFeedRounds.length === 0 && !latestOwnRound && feedTeeTimes.length === 0 && (
+      {allFeedRounds.length === 0 && feedTeeTimes.length === 0 && (
         <EmptyState
           icon={<PeopleIcon sx={{ fontSize: 36 }} />}
           title="Your feed is quiet — for now"
@@ -687,11 +605,12 @@ export default function FeedPage() {
         />
       )}
 
-      {allFeedRounds.length === 0 && latestOwnRound && (
+      {/* Only your own rounds so far — nudge towards bringing friends in */}
+      {allFeedRounds.length > 0 && allFeedRounds.every((r) => r.isOwn) && (
         <EmptyState
           icon={<PeopleIcon sx={{ fontSize: 36 }} />}
-          title="No rounds from your mates yet"
-          description="Share an invite link so the rest of the group can post their scores too."
+          title="Golf's better with mates"
+          description="Share an invite link so your group can post their scores, react, and compete."
           primary={{ label: 'Invite mates', to: '/friends' }}
         />
       )}
