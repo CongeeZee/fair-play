@@ -28,7 +28,7 @@ import { formatCourseName, timeAgo, formatHandicap } from '../utils'
 import PageHeader from '../components/PageHeader'
 import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
 import { CLAY } from '../theme'
-import { avatarColor } from '../lib/avatar'
+import UserAvatar from '../components/UserAvatar'
 import { scoreBand } from '../scoreColors'
 
 function scoreLabel(val: number | null) {
@@ -47,14 +47,7 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
   const navigate = useNavigate()
   return (
     <Box sx={{ textAlign: 'center', mb: 3 }}>
-      <Box sx={{
-        width: 64, height: 64, borderRadius: '50%', mx: 'auto', mb: 1.5,
-        bgcolor: avatarColor(profile.id), display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Typography variant="h4" sx={{ color: '#fff', fontWeight: 700 }}>
-          {profile.name.charAt(0).toUpperCase()}
-        </Typography>
-      </Box>
+      <UserAvatar userId={profile.id} name={profile.name} size={80} link={false} sx={{ mx: 'auto', mb: 1.5, fontSize: '1.9rem' }} />
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>{profile.name}</Typography>
         {isOwn && (
@@ -282,8 +275,8 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
 
         {/* Shared courses table */}
         {h2h.sharedCourses.length > 0 && (
-          <TableContainer sx={{ mt: 2 }}>
-            <Table size="small">
+          <TableContainer sx={{ mt: 2, overflowX: 'auto' }}>
+            <Table size="small" sx={{ tableLayout: 'fixed', minWidth: 360 }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem' }}>Course</TableCell>
@@ -296,7 +289,10 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
               <TableBody>
                 {h2h.sharedCourses.map((sc) => (
                   <TableRow key={sc.courseId}>
-                    <TableCell sx={{ fontSize: '0.75rem', maxWidth: 120, whiteSpace: 'nowrap' }}>{formatCourseName(sc.courseName)}</TableCell>
+                    {/* Without overflow:hidden a long course name ran on under the score columns */}
+                    <TableCell sx={{ fontSize: '0.75rem', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={formatCourseName(sc.courseName)}>
+                      {formatCourseName(sc.courseName)}
+                    </TableCell>
                     <TableCell align="center" sx={{
                       fontSize: '0.75rem', fontWeight: 600,
                       color: sc.viewerBest <= sc.targetBest ? CLAY.greenText : 'text.primary',
