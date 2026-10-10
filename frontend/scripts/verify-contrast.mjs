@@ -69,7 +69,12 @@ const cases = (p) => [
   // Dividers and borders are non-text structure: 1.4.11 wants 3:1.
   ['divider on surface (1.4.11)', p.divider, p.surface, 3],
   ['divider on base (1.4.11)', p.divider, p.base, 3],
-  ['borderC on surface (1.4.11)', p.borderC, p.surface, 3],
+  // Card edges (`borderC`) are decorative hairlines and owe nothing; the
+  // edges that identify a control are the input outline and the hard border
+  // course mode switches to on the scoring screens.
+  ['inputBorder on surface (1.4.11)', p.inputBorder, p.surface, 3],
+  ['inputBorder on base (1.4.11)', p.inputBorder, p.base, 3],
+  ['courseBorderC on surface (1.4.11)', p.courseBorderC, p.surface, 3],
   /* The four score bands (scoreColors.ts). Under par is red and a blow-up
      round is slate, following the scorecard rather than the traffic light, so
      the red and slate steps now carry score meaning and have to hold up

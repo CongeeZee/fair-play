@@ -69,7 +69,7 @@ export default function LeaderboardSection() {
       {/* Score Leaderboard */}
       <Card elevation={1} sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" color="primary.main" gutterBottom>
+          <Typography variant="h6" color="text.primary" gutterBottom>
             Score Leaderboard
           </Typography>
 
@@ -139,7 +139,7 @@ export default function LeaderboardSection() {
       {/* Handicap Leaderboard */}
       <Card elevation={1}>
         <CardContent>
-          <Typography variant="h6" color="primary.main" gutterBottom>
+          <Typography variant="h6" color="text.primary" gutterBottom>
             Handicap Leaderboard
           </Typography>
 

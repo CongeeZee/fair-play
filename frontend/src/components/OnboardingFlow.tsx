@@ -65,7 +65,7 @@ export default function OnboardingFlow() {
           {step === 0 && (
             <>
               <GolfCourseIcon sx={{ fontSize: 64, color: CLAY.goldGraphic, mb: 3 }} />
-              <Typography variant="h4" sx={{ fontFamily: '"Playfair Display", serif', fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
                 Welcome to Fairplay{user.name ? `, ${user.name.split(' ')[0]}` : ''}!
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7 }}>
@@ -82,7 +82,7 @@ export default function OnboardingFlow() {
               }}>
                 <SearchIcon sx={{ fontSize: 40, color: CLAY.goldGraphic }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
                 Find a course
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 3 }}>
@@ -106,7 +106,7 @@ export default function OnboardingFlow() {
               }}>
                 <SportsGolfIcon sx={{ fontSize: 40, color: CLAY.goldGraphic }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
                 Score your round
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 2 }}>
@@ -150,7 +150,7 @@ export default function OnboardingFlow() {
               }}>
                 <PeopleIcon sx={{ fontSize: 40, color: CLAY.goldGraphic }} />
               </Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#2f6b4c', mb: 1.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 1.5 }}>
                 Bring your mates
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7, mb: 3 }}>

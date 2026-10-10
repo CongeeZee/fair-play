@@ -85,11 +85,9 @@ function ImprovementCard({ rounds }: { rounds: Round[] }) {
 
   const TrendIcon = improved ? TrendingDownIcon : declined ? TrendingUpIcon : TrendingFlatIcon
   const trendColor = improved ? SENTIMENT.good.text : declined ? SENTIMENT.bad.text : CLAY.inkSoft
-  // Solid, not translucent. A semi-transparent tint composites against the clay
-  // page base (#e9e1d3) and lands *darker* than the page, so a raised card reads
-  // as a sunken smudge. These are those same tints pre-composited over the clay
-  // surface (#faf6ee), which keeps the card above the page.
-  const trendBg = improved ? '#e8ebe1' : declined ? '#f4e9e1' : '#eeece4'
+  const trendFill = improved ? SENTIMENT.good.fill : declined ? SENTIMENT.bad.fill : CLAY.inkSoft
+  // Flattened onto the card surface with color-mix, so it follows the theme
+  const trendBg = tint(trendFill, 0.1)
   const label = improved
     ? `${Math.abs(delta).toFixed(1)} strokes better`
     : declined
@@ -101,7 +99,7 @@ function ImprovementCard({ rounds }: { rounds: Round[] }) {
     <Card elevation={2} sx={{ mb: 4, bgcolor: trendBg }}>
       <CardContent sx={{ py: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ bgcolor: trendColor, borderRadius: '50%', p: 1.25, display: 'flex', flexShrink: 0 }}>
+          <Box sx={{ bgcolor: trendFill, borderRadius: '50%', p: 1.25, display: 'flex', flexShrink: 0 }}>
             <TrendIcon sx={{ color: '#fff', fontSize: 22 }} />
           </Box>
           <Box sx={{ flex: 1 }}>
@@ -148,7 +146,7 @@ function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
   return (
     <Card elevation={1} sx={{ mb: 4 }}>
       <CardContent>
-        <Typography variant="h6" color="primary.main" gutterBottom>
+        <Typography variant="h6" color="text.primary" gutterBottom>
           Score Trend
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -239,7 +237,7 @@ function MetricPill({ label, value }: { label: string; value: string }) {
     // `background.default` is darker than the card surface, so without the
     // inset it just looks like a smudge.
     <Box sx={{ textAlign: 'center', px: 1.5, py: 1, bgcolor: CLAY.sunken, boxShadow: pressed(1.6), borderRadius: 2, flex: 1, minWidth: 80 }}>
-      <Typography variant="h6" fontWeight={700} color="primary.main">{value}</Typography>
+      <Typography variant="h6" fontWeight={700} color="text.primary">{value}</Typography>
       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>{label}</Typography>
     </Box>
   )
@@ -501,7 +499,7 @@ export default function StatsPage() {
       {handicap && handicap.differentials.length > 0 && (
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" color="primary.main" gutterBottom>
+            <Typography variant="h6" color="text.primary" gutterBottom>
               Score Differentials
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -628,7 +626,7 @@ export default function StatsPage() {
       {breakdown && totalHoles > 0 && (
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
-            <Typography variant="h6" color="primary.main" gutterBottom>
+            <Typography variant="h6" color="text.primary" gutterBottom>
               Hole Breakdown
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -652,7 +650,7 @@ export default function StatsPage() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      bgcolor: 'grey.200',
+                      bgcolor: 'var(--c-sunken)',
                       '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 4 },
                     }}
                   />
@@ -688,7 +686,7 @@ export default function StatsPage() {
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
               <LightbulbIcon sx={{ color: CLAY.goldText }} />
-              <Typography variant="h6" color="primary.main" fontWeight={700}>
+              <Typography variant="h6" color="text.primary" fontWeight={700}>
                 Game Insights
               </Typography>
             </Box>
@@ -790,8 +788,8 @@ export default function StatsPage() {
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent sx={{ pb: 0 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <GolfCourseIcon sx={{ color: 'primary.main' }} />
-              <Typography variant="h6" color="primary.main" fontWeight={700}>
+              <GolfCourseIcon sx={{ color: 'var(--c-greenText)' }} />
+              <Typography variant="h6" color="text.primary" fontWeight={700}>
                 Courses Played
               </Typography>
             </Box>

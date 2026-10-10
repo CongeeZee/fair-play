@@ -40,9 +40,9 @@ export default function LoginPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={2} sx={{ p: 4 }}>
-        <Typography variant="h4" align="center" color="primary.main" gutterBottom>
+    <Container maxWidth="sm" sx={{ mt: { xs: 3, sm: 8 }, mb: 4 }}>
+      <Paper elevation={2} sx={{ p: { xs: 3, sm: 4 } }}>
+        <Typography variant="h4" align="center" color="text.primary" gutterBottom>
           Sign In
         </Typography>
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
@@ -107,7 +107,7 @@ export default function LoginPage() {
             }}
             onError={() => setError('Google sign-in failed. Please try again.')}
             size="large"
-            width={320}
+            width={280}
             text="signin_with"
             // Google renders this button itself, so `shape` is the only lever
             // available to stop it reading as a hard-cornered rectangle next to

@@ -61,7 +61,7 @@ export default function ReviewPromptDialog({
 
   return (
     <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') onClose() }} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontFamily: '"Playfair Display", serif' }}>
+      <DialogTitle>
         How was {courseName}?
       </DialogTitle>
       <DialogContent>

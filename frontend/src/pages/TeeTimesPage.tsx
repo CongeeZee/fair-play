@@ -460,7 +460,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
             <Divider />
             <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <ProfileLink userId={p.userId} name={p.name} variant="body2" />
-              <Chip label="Pending" size="small" sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
+              <Chip label="Pending" size="small" sx={{ bgcolor: 'var(--c-alertWarning)', color: 'var(--c-warningText)', fontWeight: 600, fontSize: '0.65rem', height: 20 }} />
             </Box>
           </Box>
         ))}

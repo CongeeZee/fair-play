@@ -75,8 +75,7 @@ function LiveNowSection({ rounds }: { rounds: LiveRound[] }) {
           borderRadius: 2.2,
           // A sunken well rather than a flat tint, so the raised cards have
           // something to sit in.
-          bgcolor: 'rgba(163,148,122,0.12)',
-          boxShadow: 'inset 2px 2px 5px 0 rgba(158,141,111,0.3), inset -1px -1px 3px 0 rgba(255,255,255,0.7)',
+          bgcolor: 'var(--c-sunken)',
           // Hide scrollbars but keep scrolling
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
@@ -382,7 +381,7 @@ function TeeTimeCard({ teeTime }: { teeTime: FeedTeeTime }) {
               {dateLabel} · {timeLabel} · {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} left
             </Typography>
           </Box>
-          <Chip label="Tee Time" size="small" sx={{ bgcolor: '#2f6b4c', color: '#fff', fontWeight: 600, fontSize: '0.65rem', height: 22 }} />
+          <Chip label="Tee Time" size="small" sx={{ bgcolor: 'primary.main', color: '#fff', fontWeight: 600, fontSize: '0.65rem', height: 22 }} />
         </Box>
       </CardContent>
       <CardActions sx={{ pt: 0, px: 2, pb: 1.5 }}>

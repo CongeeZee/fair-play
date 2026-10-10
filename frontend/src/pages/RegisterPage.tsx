@@ -50,9 +50,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={2} sx={{ p: 4 }}>
-        <Typography variant="h4" align="center" color="primary.main" gutterBottom>
+    <Container maxWidth="sm" sx={{ mt: { xs: 3, sm: 8 }, mb: 4 }}>
+      <Paper elevation={2} sx={{ p: { xs: 3, sm: 4 } }}>
+        <Typography variant="h4" align="center" color="text.primary" gutterBottom>
           Create Account
         </Typography>
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
@@ -130,7 +130,7 @@ export default function RegisterPage() {
             }}
             onError={() => setError('Google sign-up failed. Please try again.')}
             size="large"
-            width={320}
+            width={280}
             text="signup_with"
             // Matches LoginPage — Google owns this button's chrome, and `shape`
             // is the only way to stop it being the one square corner on the page.

@@ -88,7 +88,7 @@ export default function InvitePage() {
         <Typography variant="overline" color="text.secondary">
           You've been invited to Fairplay
         </Typography>
-        <Typography variant="h4" color="primary.main" sx={{ mt: 1, mb: 2 }}>
+        <Typography variant="h4" color="text.primary" sx={{ mt: 1, mb: 2 }}>
           {preview.inviter.name} wants to play
         </Typography>
         {preview.label && (

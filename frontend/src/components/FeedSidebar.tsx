@@ -127,7 +127,7 @@ export default function FeedSidebar() {
       {upcomingTeeTimes.length > 0 && (
         <SidebarSection
           title="Upcoming rounds"
-          icon={<GolfCourseIcon sx={{ fontSize: 18, color: '#2f6b4c' }} />}
+          icon={<GolfCourseIcon sx={{ fontSize: 18, color: 'var(--c-greenText)' }} />}
           seeAllTo="/teetimes"
         >
           <List disablePadding sx={{ pb: 0.5 }}>

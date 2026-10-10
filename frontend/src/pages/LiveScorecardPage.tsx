@@ -76,8 +76,8 @@ export default function LiveScorecardPage() {
       {/* Header */}
       <Box sx={{ textAlign: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-          <GolfCourseIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main' }}>
+          <GolfCourseIcon sx={{ color: 'var(--c-greenText)' }} />
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
             Fairplay
           </Typography>
         </Box>
@@ -90,7 +90,7 @@ export default function LiveScorecardPage() {
         {/* Live / Final badge */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1 }}>
           {isComplete ? (
-            <Chip label="Final" sx={{ bgcolor: '#2f6b4c', color: '#fff', fontWeight: 700 }} />
+            <Chip label="Final" sx={{ bgcolor: 'primary.main', color: '#fff', fontWeight: 700 }} />
           ) : (
             <Chip
               label={

@@ -14,8 +14,8 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@fontsource/playfair-display": "^5.2.8",
-    "@fontsource/source-sans-3": "^5.2.9",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.9",
     "@react-oauth/google": "^0.13.5",

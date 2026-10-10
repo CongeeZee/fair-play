@@ -262,7 +262,7 @@ export default function SharedScorecardPage() {
   if (error || !scorecard) {
     return (
       <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 2, color: 'primary.main' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 2, color: 'text.primary' }}>
           Scorecard not found
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
@@ -285,8 +285,8 @@ export default function SharedScorecardPage() {
       {/* Header */}
       <Box sx={{ textAlign: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-          <GolfCourseIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main' }}>
+          <GolfCourseIcon sx={{ color: 'var(--c-greenText)' }} />
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
             Fairplay
           </Typography>
         </Box>
@@ -316,7 +316,7 @@ export default function SharedScorecardPage() {
       <Paper elevation={0} sx={{ borderRadius: 2, p: 2, mb: 3, textAlign: 'center' }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 2 }}>
           <Box>
-            <Typography variant="h3" sx={{ fontWeight: 800, color: 'primary.main' }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary' }}>
               {total.strokes || '-'}
             </Typography>
             <Typography variant="caption" color="text.secondary">Total</Typography>

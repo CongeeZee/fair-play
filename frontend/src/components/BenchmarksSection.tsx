@@ -52,7 +52,7 @@ function PercentileBar({ metric }: { metric: BenchmarkMetricResult }) {
             flex: 1,
             height: 10,
             borderRadius: 5,
-            bgcolor: 'grey.200',
+            bgcolor: 'var(--c-sunken)',
             '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 5 },
           }}
         />
@@ -88,8 +88,8 @@ export default function BenchmarksSection() {
     <Card elevation={1} sx={{ mb: 4 }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <GroupsIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" color="primary.main" fontWeight={700}>
+          <GroupsIcon sx={{ color: 'var(--c-greenText)' }} />
+          <Typography variant="h6" color="text.primary" fontWeight={700}>
             How You Compare
           </Typography>
           <Chip label="Anonymous" size="small" sx={{ height: 20, fontSize: 11 }} />

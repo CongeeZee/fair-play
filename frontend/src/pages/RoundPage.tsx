@@ -29,7 +29,7 @@ import { formatCourseName } from '../utils'
 import type { RoundHole, NewlyUnlockedAchievement, StablefordInfo } from '../types'
 import { capture, AnalyticsEvent } from '../analytics'
 import { CLAY, raised, pressed } from '../theme'
-import { scoreBand, ON_GREEN } from '../scoreColors'
+import { scoreBand, holeBand, ON_GREEN } from '../scoreColors'
 import { useUnits } from '../contexts/UnitsContext'
 
 const TEE_DIRECTIONS = [
@@ -629,7 +629,7 @@ export default function RoundPage() {
       {/* Header */}
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-          <Typography variant="h6" color="primary.main" fontWeight={700} sx={{ flex: 1 }}>
+          <Typography variant="h6" color="text.primary" fontWeight={700} sx={{ flex: 1, minWidth: 0, lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {round.course?.name ? formatCourseName(round.course.name) : ''}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
@@ -782,12 +782,11 @@ export default function RoundPage() {
                 // Each band names its own foreground. Three of the five carried
                 // white below 4.5:1 before, the eagle chip worst at 2.73:1, and
                 // this is the most-tapped control on the course screen.
-                const chip = !isSelected ? null
-                  : nDiff <= -2 ? { bg: CLAY.gold, fg: CLAY.onGold }
-                  : nDiff === -1 ? { bg: CLAY.greenLight, fg: '#fff' }
-                  : nDiff === 0 ? { bg: CLAY.green, fg: '#fff' }
-                  : nDiff === 1 ? { bg: CLAY.warningText, fg: '#fff' }
-                  : { bg: CLAY.redDeep, fg: '#fff' }
+                // Same scale as every scorecard in the app, and each band
+                // names its own foreground — `warningText` was used as a fill
+                // here and turned into a pale amber under white text in dark mode.
+                const band = holeBand(nDiff)
+                const chip = !isSelected ? null : { bg: band.fill, fg: band.on }
                 return (
                   <Box
                     key={n}

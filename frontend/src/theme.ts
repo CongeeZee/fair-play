@@ -55,21 +55,26 @@ export type Density = 'comfortable' | 'course'
  */
 const PALETTES: Record<Appearance, Record<string, string>> = {
   light: {
-    base: '#f2f1ec',
+    base: '#f4f4ef',
     surface: '#ffffff',
-    sunken: '#e6e4db',
+    sunken: '#ebeae3',
     surfaceHi: '#ffffff',
-    focus: '#dfddd2',
+    focus: '#ffffff',
 
-    // Shadows are nearly switched off. A soft shadow conveys nothing once
-    // reflected glare lifts the black level, so structure moves to borders.
-    // `depth` scales every shadow offset in the app from one place.
-    shade: 'rgba(0, 0, 0, 0.22)',
-    shadeSoft: 'rgba(0, 0, 0, 0.12)',
+    // Soft, low elevation plus a hairline border: the card edge is carried by
+    // the line, the shadow only lifts it. `depth` scales every shadow offset.
+    shade: 'rgba(20, 32, 24, 0.08)',
+    shadeSoft: 'rgba(20, 32, 24, 0.05)',
     light: 'rgba(255, 255, 255, 0)',
-    depth: '0.28',
-    borderW: '2px',
-    borderC: '#2a3129',
+    depth: '1',
+    borderW: '1px',
+    borderC: '#e3e1d9',
+    // The hard edge course mode switches to on the scoring screens, where the
+    // phone is read in direct sun and a hairline disappears.
+    courseBorderC: '#2a3129',
+    // Input outlines identify a control, so unlike card edges they owe 3:1
+    // (WCAG 1.4.11) against the surface.
+    inputBorder: '#8f897c',
 
     ink: '#10160f',
     inkSoft: '#48534c',
@@ -146,16 +151,16 @@ const PALETTES: Record<Appearance, Record<string, string>> = {
     surfaceHi: '#242c31',
     focus: '#2a3339',
 
-    shade: 'rgba(0, 0, 0, 0.62)',
-    shadeSoft: 'rgba(0, 0, 0, 0.4)',
+    shade: 'rgba(0, 0, 0, 0.45)',
+    shadeSoft: 'rgba(0, 0, 0, 0.3)',
     // A near-black ground has no white bevel to give; the inset highlight is
     // a whisper of white instead, or every raised surface gets a milky rim.
-    light: 'rgba(255, 255, 255, 0.05)',
-    depth: '0.8',
-    // 1px rather than light mode's 2px: the line is doing the same structural
-    // job, but nothing here has to survive glare, so it can be a hairline.
+    light: 'rgba(255, 255, 255, 0.04)',
+    depth: '1',
     borderW: '1px',
-    borderC: '#6e7c81',
+    borderC: '#2b353a',
+    courseBorderC: '#6e7c81',
+    inputBorder: '#657377',
 
     ink: '#e9efeb',
     inkSoft: '#a3aeaa',
@@ -232,10 +237,17 @@ const DENSITY: Record<Density, Record<string, string>> = {
     numScale: '1.25',
     tapBorderW: '2px',
     rowGap: '8px',
+    borderW: '2px',
+    borderC: 'var(--c-courseBorderC)',
   },
 }
 
 const v = (name: string) => `var(--c-${name})`
+
+/** Display face for headings, numerals in heroes and the wordmark. */
+export const HEADING_FONT = '"Plus Jakarta Sans Variable", "Plus Jakarta Sans", system-ui, sans-serif'
+/** Body face. Inter's tabular figures keep scorecard columns aligned. */
+export const BODY_FONT = '"Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif'
 
 /**
  * Token accessors. These return `var(--c-*)` strings, so anything that consumes
@@ -277,34 +289,24 @@ const CLAY = {
 }
 
 /**
- * The signature raised-surface shadow.
- *
- * Every offset is multiplied by `--c-depth`, which is 0.28 in light and 0.8
- * in dark. That single var is what lets the same component overrides serve
- * both appearances: in light the shadows shrink to almost nothing and the
- * border vars take over as the structural cue.
+ * Soft elevation for raised surfaces: a tight contact shadow plus a wide, faint
+ * ambient one. Offsets scale with `--c-depth`, so one var tunes every shadow in
+ * the app. The card *edge* comes from the hairline border vars, not from this.
  */
 const scale = (n: number) => `calc(${n}px * ${v('depth')})`
 
 const raised = (d: number) =>
   [
-    `${scale(d * 1.0)} ${scale(d * 1.3)} ${scale(d * 2.6)} 0 ${v('shade')}`,
-    // There used to be a second OUTER shadow here, offset up-left in
-    // `--c-light` (near-opaque white). On the light page background it read as
-    // soft two-tone depth, but it is painted outside the element, so on any
-    // dark backdrop it became a white halo — the hero's "Get Started" button
-    // and every dialog glowed. The bevel below gives the same lift from
-    // *inside* the shape, where it can't bleed onto the backdrop.
-    `inset 0 ${scale(d * 0.7)} ${scale(d * 1.3)} 0 ${v('light')}`,
-    `inset 0 calc(-1 * ${scale(d * 0.6)}) ${scale(d * 1.2)} 0 ${v('shadeSoft')}`,
+    `0 ${scale(d * 0.15)} ${scale(d * 0.4)} 0 ${v('shadeSoft')}`,
+    `0 ${scale(d * 0.7)} ${scale(d * 2.4)} 0 ${v('shade')}`,
+    // Inner highlight on dark surfaces only (`--c-light` is transparent in
+    // light mode), so raised cards keep a faint top edge on a dark page.
+    `inset 0 1px 0 0 ${v('light')}`,
   ].join(', ')
 
-/** Inverse of `raised` — for inputs and anything that should read as carved in. */
+/** Inverse of `raised` — a faint inset for tracks and wells. */
 const pressed = (d: number) =>
-  [
-    `inset ${scale(d * 0.7)} ${scale(d * 0.8)} ${scale(d * 1.6)} 0 ${v('shade')}`,
-    `inset calc(-1 * ${scale(d * 0.5)}) calc(-1 * ${scale(d * 0.6)}) ${scale(d * 1.4)} 0 ${v('light')}`,
-  ].join(', ')
+  `inset 0 ${scale(d * 0.35)} ${scale(d * 0.8)} 0 ${v('shadeSoft')}`
 
 /**
  * Flatten an accent tint onto the raised surface and return a solid colour.
@@ -443,14 +445,17 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
       },
     },
     typography: {
-      fontFamily: '"Source Sans 3", "Source Sans Pro", sans-serif',
-      h1: { fontFamily: '"Playfair Display", serif' },
-      h2: { fontFamily: '"Playfair Display", serif' },
-      h3: { fontFamily: '"Playfair Display", serif' },
-      h4: { fontFamily: '"Playfair Display", serif' },
-      h5: { fontFamily: '"Playfair Display", serif' },
-      h6: { fontFamily: '"Playfair Display", serif' },
-      button: { fontWeight: 700, letterSpacing: '0.01em' },
+      fontFamily: BODY_FONT,
+      h1: { fontFamily: HEADING_FONT, fontWeight: 800, letterSpacing: '-0.03em' },
+      h2: { fontFamily: HEADING_FONT, fontWeight: 800, letterSpacing: '-0.025em' },
+      h3: { fontFamily: HEADING_FONT, fontWeight: 800, letterSpacing: '-0.02em' },
+      h4: { fontFamily: HEADING_FONT, fontWeight: 800, letterSpacing: '-0.02em' },
+      h5: { fontFamily: HEADING_FONT, fontWeight: 700, letterSpacing: '-0.015em' },
+      h6: { fontFamily: HEADING_FONT, fontWeight: 700, letterSpacing: '-0.01em' },
+      subtitle1: { fontWeight: 600 },
+      subtitle2: { fontWeight: 600 },
+      button: { fontWeight: 600, letterSpacing: 0 },
+      overline: { fontWeight: 700, letterSpacing: '0.08em' },
       /* Course mode lifts body text a step. Small secondary labels are the
          first thing to become unreadable at arm's length in sun.
 
@@ -484,7 +489,14 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           ':root': { ...varsFor(PALETTES.light), ...varsFor(DENSITY.comfortable) },
           '[data-appearance="dark"]': varsFor(PALETTES.dark),
           '[data-density="course"]': varsFor(DENSITY.course),
-          body: { backgroundColor: v('base') },
+          body: {
+            backgroundColor: v('base'),
+            fontFeatureSettings: '"cv11", "ss01"',
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale',
+          },
+          /* Scores, totals and stats line up column to column. */
+          'table, .tabular': { fontVariantNumeric: 'tabular-nums' },
           '*::-webkit-scrollbar': { width: 10, height: 10 },
           '*::-webkit-scrollbar-track': { background: 'transparent' },
           '*::-webkit-scrollbar-thumb': {
@@ -519,17 +531,17 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
             '&:active': { transform: 'translateY(1px) scale(0.985)' },
           },
           contained: {
-            boxShadow: raised(3),
-            // This is what actually defines the button's edge in light mode
-            // and on course screens, where the shadow is turned down to nil.
-            border: `${v('borderW')} solid ${v('borderC')}`,
-            '&:hover': { boxShadow: raised(4) },
-            '&:active': { boxShadow: pressed(2.5) },
+            boxShadow: 'none',
+            // Off by default; course mode turns it on so a filled button keeps
+            // a hard edge in direct sun.
+            border: `${v('tapBorderW')} solid ${v('borderC')}`,
+            '&:hover': { boxShadow: raised(3) },
+            '&:active': { boxShadow: 'none' },
             '&.Mui-disabled': { boxShadow: 'none' },
           },
           outlined: {
-            borderWidth: 2,
-            '&:hover': { borderWidth: 2 },
+            borderWidth: 1.5,
+            '&:hover': { borderWidth: 1.5 },
             // The surface fill is what makes an outlined button read as a
             // raised clay tile rather than a hairline rectangle. But it must
             // not apply to `color="inherit"` buttons: those exist precisely
@@ -550,6 +562,16 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
               { backgroundColor: v('surface') },
           },
           text: { '&:active': { transform: 'none' } },
+          /* `primary.main` is a *fill* (white text sits on it). Used as text it
+             is a dark green that vanished on a dark card, so text and outlined
+             primary buttons read the text step instead, which is solved for
+             both appearances. */
+          textPrimary: { color: v('greenText') },
+          outlinedPrimary: {
+            color: v('greenText'),
+            borderColor: `color-mix(in srgb, ${v('greenText')} 45%, transparent)`,
+            '&:hover': { borderColor: v('greenText') },
+          },
           sizeSmall: { paddingInline: 14, minHeight: 'auto' },
           /* Large buttons are mostly full-width form submits, where the inline
              padding does nothing, and hero CTAs, where on a phone it was the
@@ -563,8 +585,16 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
         },
       },
 
+      MuiLink: {
+        styleOverrides: { root: { color: v('greenText'), textDecorationColor: `color-mix(in srgb, ${v('greenText')} 40%, transparent)` } },
+      },
+
+      MuiRadio: { styleOverrides: { root: { '&.Mui-checked': { color: v('greenText') } } } },
+      MuiCheckbox: { styleOverrides: { root: { '&.Mui-checked': { color: v('greenText') } } } },
+
       MuiIconButton: {
         styleOverrides: {
+          colorPrimary: { color: v('greenText') },
           root: {
             borderRadius: 14,
             transition: 'transform .15s ease, background-color .2s ease',
@@ -578,18 +608,18 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
         styleOverrides: {
           root: {
             backgroundImage: 'none',
-            borderRadius: isCourse ? 14 : 22,
+            borderRadius: isCourse ? 14 : 20,
             border: `${v('borderW')} solid ${v('borderC')}`,
           },
-          elevation0: { boxShadow: raised(3.2) },
-          outlined: { borderColor: v('divider'), boxShadow: raised(3.2) },
+          elevation0: { boxShadow: raised(2) },
+          outlined: { boxShadow: 'none' },
         },
       },
 
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: isCourse ? 14 : 24,
+            borderRadius: isCourse ? 14 : 20,
             backgroundImage: 'none',
             overflow: 'hidden',
           },
@@ -617,20 +647,22 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            borderRadius: 16,
-            backgroundColor: v('sunken'),
-            boxShadow: pressed(2),
+            borderRadius: 14,
+            backgroundColor: v('surface'),
             transition: 'box-shadow .2s ease, background-color .2s ease',
             '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: v('borderC'),
-              borderWidth: v('borderW'),
+              borderColor: v('inputBorder'),
+              borderWidth: isCourse ? 2 : 1,
             },
             '&:hover .MuiOutlinedInput-notchedOutline': {
               borderColor: v('greenText'),
             },
-            '&.Mui-focused': { backgroundColor: v('focus') },
+            '&.Mui-focused': {
+              backgroundColor: v('focus'),
+              boxShadow: `0 0 0 4px color-mix(in srgb, ${v('green')} 16%, transparent)`,
+            },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderWidth: 2,
+              borderWidth: 1.5,
               borderColor: v('green'),
             },
             '&.Mui-error .MuiOutlinedInput-notchedOutline': {
@@ -640,9 +672,9 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           },
           input: {
             '&:-webkit-autofill': {
-              WebkitBoxShadow: `0 0 0 100px ${v('sunken')} inset`,
+              WebkitBoxShadow: `0 0 0 100px ${v('surface')} inset`,
               WebkitTextFillColor: v('ink'),
-              borderRadius: 16,
+              borderRadius: 14,
             },
           },
         },
@@ -667,16 +699,15 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           root: {
             borderRadius: 999,
             fontWeight: 600,
-            boxShadow: raised(1.6),
-            border: `${v('borderW')} solid ${v('borderC')}`,
+            border: `${v('tapBorderW')} solid ${v('borderC')}`,
           },
-          outlined: { boxShadow: 'none', borderWidth: 1.5 },
+          outlined: { borderWidth: 1, borderColor: v('inputBorder') },
         },
       },
 
       MuiDialog: {
         styleOverrides: {
-          paper: { borderRadius: 28, boxShadow: raised(12) },
+          paper: { borderRadius: 24, boxShadow: raised(14) },
         },
       },
 
@@ -697,8 +728,7 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
       MuiAlert: {
         styleOverrides: {
           root: {
-            borderRadius: 18,
-            boxShadow: raised(2.5),
+            borderRadius: 14,
             border: `${v('borderW')} solid ${v('borderC')}`,
           },
           standardSuccess: { backgroundColor: v('alertSuccess'), color: v('successText') },
@@ -722,7 +752,7 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
       },
 
       MuiAvatar: {
-        styleOverrides: { root: { boxShadow: raised(2), fontWeight: 700 } },
+        styleOverrides: { root: { fontWeight: 700, fontFamily: HEADING_FONT } },
       },
 
       MuiLinearProgress: {
@@ -730,7 +760,6 @@ export function buildTheme(appearance: Appearance, density: Density): Theme {
           root: {
             borderRadius: 999,
             backgroundColor: v('sunken'),
-            boxShadow: pressed(1.2),
           },
           bar: { borderRadius: 999 },
         },

@@ -52,8 +52,8 @@ export default function StrokesGainedSection() {
     <Card elevation={1} sx={{ mb: 4 }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <InsightsIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" color="primary.main" fontWeight={700}>
+          <InsightsIcon sx={{ color: 'var(--c-greenText)' }} />
+          <Typography variant="h6" color="text.primary" fontWeight={700}>
             Strokes Gained
           </Typography>
           <Chip label="Estimated" size="small" sx={{ height: 20, fontSize: 11 }} />

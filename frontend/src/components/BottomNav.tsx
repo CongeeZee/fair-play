@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getFriendRequests } from '../api/friends'
 import { useAuth } from '../contexts/AuthContext'
+import { CLAY, tint } from '../theme'
 
 function FriendsIcon() {
   const { user } = useAuth()
@@ -40,6 +41,8 @@ export default function BottomNav() {
 
   return (
     <Paper
+      component="nav"
+      aria-label="Main"
       elevation={0}
       sx={{
         position: 'fixed',
@@ -48,53 +51,43 @@ export default function BottomNav() {
         right: 0,
         zIndex: 1200,
         display: { xs: 'block', md: 'none' },
-        // Rounded top corners + an upward shadow make the bar read as a clay
-        // tray lifted off the page rather than a flat strip glued to the edge.
-        borderTopLeftRadius: 26,
-        borderTopRightRadius: 26,
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 0,
-        overflow: 'hidden',
-        // Follows --c-shade so the bar casts a warm shadow on the light page
-        // and a real black one in dark mode, where a warm grey glowed.
-        boxShadow: '0 -8px 24px 0 var(--c-shade)',
+        borderRadius: 0,
+        border: 0,
+        borderTop: '1px solid var(--c-borderC)',
+        // Frosted, matching the top bar, so content scrolling underneath stays
+        // faintly visible instead of being cut off by a solid slab.
+        bgcolor: `color-mix(in srgb, ${CLAY.surface} 82%, transparent)`,
+        backdropFilter: 'saturate(180%) blur(16px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(16px)',
       }}
     >
       <BottomNavigation
+        showLabels
         value={currentValue === -1 ? false : currentValue}
         sx={{
-          // Was `#37795a → #2f6b4c` in literal hex, which had two problems: the
-          // bar did not follow the appearance, and its light stop carried the
-          // 55% white labels at 2.74:1. Same invariant as the top bar now —
-          // green down to greenDark, so the worst case is `green` itself.
-          background: 'linear-gradient(180deg, var(--c-green) 0%, var(--c-greenDark) 100%)',
-          boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.18)',
-          height: `calc(60px + env(safe-area-inset-bottom, 0px))`,
+          bgcolor: 'transparent',
+          height: `calc(64px + env(safe-area-inset-bottom, 0px))`,
           pb: 'env(safe-area-inset-bottom, 0px)',
-          px: 0.75,
           '& .MuiBottomNavigationAction-root': {
-            // 55% white was 2.85:1 even on the darkened bar. These are the
-            // primary navigation labels on mobile — the one thing on screen
-            // that has to be readable in sunlight on a course.
-            color: 'rgba(255,255,255,0.88)',
+            color: CLAY.inkSoft,
             minWidth: 0,
-            borderRadius: 18,
-            mx: 0.25,
-            my: 0.75,
-            transition: 'background-color .2s ease, box-shadow .2s ease, color .2s ease',
+            pt: 1,
+            gap: 0.25,
+            // Material-3 style: the active tab gets a tonal pill behind its
+            // icon rather than a filled tile, so the label stays on the page.
+            '& .MuiSvgIcon-root': {
+              width: 56, height: 30, px: 2, py: 0.5, borderRadius: 999,
+              transition: 'background-color .2s ease',
+            },
             '&.Mui-selected': {
-              // goldLight is 4.39:1 on the bar; goldOnGreen exists for this.
-              color: 'var(--c-goldOnGreen)',
-              bgcolor: 'rgba(19,48,33,0.3)',
-              boxShadow: 'inset 2px 2px 6px 0 rgba(19,48,33,0.55), inset -2px -2px 6px 0 rgba(255,255,255,0.12)',
+              color: CLAY.greenText,
+              '& .MuiSvgIcon-root': { bgcolor: tint(CLAY.green, 0.14) },
             },
           },
           '& .MuiBottomNavigationAction-label': {
             fontSize: '0.7rem',
             fontWeight: 600,
-            '&.Mui-selected': {
-              fontSize: '0.72rem',
-            },
+            '&.Mui-selected': { fontSize: '0.7rem', fontWeight: 700 },
           },
         }}
       >

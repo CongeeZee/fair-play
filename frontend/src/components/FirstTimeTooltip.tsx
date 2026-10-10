@@ -52,7 +52,7 @@ export default function FirstTimeTooltip({
         transformOrigin={transformOrigin}
         disableAutoFocus
         disableEnforceFocus
-        slotProps={{ paper: { sx: { p: 1.5, pr: 4, maxWidth: 260, bgcolor: '#2f6b4c', color: '#fff', borderRadius: 2 } } }}
+        slotProps={{ paper: { sx: { p: 1.5, pr: 4, maxWidth: 260, bgcolor: 'primary.main', color: '#fff', borderRadius: 2 } } }}
       >
         <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
           {message}

@@ -109,7 +109,7 @@ export default function CourseStatsPage() {
           <ArrowBackIcon />
         </IconButton>
         <Box>
-          <Typography variant="h5" color="primary.main" fontWeight={700}>
+          <Typography variant="h5" color="text.primary" fontWeight={700}>
             {formatCourseName(data.courseName)}
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -171,7 +171,7 @@ export default function CourseStatsPage() {
           {/* Full hole-by-hole table */}
           <Paper elevation={1}>
             <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-              <Typography variant="h6" color="primary.main" fontWeight={700}>
+              <Typography variant="h6" color="text.primary" fontWeight={700}>
                 Hole-by-Hole Breakdown
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -261,7 +261,7 @@ export default function CourseStatsPage() {
       )}
 
       <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" color="primary.main" fontWeight={700} sx={{ mb: 2 }}>
+        <Typography variant="h6" color="text.primary" fontWeight={700} sx={{ mb: 2 }}>
           Reviews
         </Typography>
         <CourseReviewsSection courseId={courseId!} promptableRound={promptableRound} />

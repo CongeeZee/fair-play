@@ -58,7 +58,7 @@ export function FeatureGate({
                 height: 32,
                 borderRadius: '50%',
                 bgcolor: 'secondary.main',
-                color: 'primary.main',
+                color: 'var(--c-greenDark)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -73,7 +73,7 @@ export function FeatureGate({
               {UPSELL.eyebrow}
             </Typography>
           </Stack>
-          <Typography variant="h6" sx={{ color: 'primary.main' }}>
+          <Typography variant="h6" sx={{ color: 'text.primary' }}>
             {UPSELL.title}
           </Typography>
           <Typography variant="body2" color="text.secondary">

@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
     return (
       <Container maxWidth="sm" sx={{ mt: 8 }}>
         <Paper elevation={2} sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" color="primary.main" gutterBottom>
+          <Typography variant="h4" align="center" color="text.primary" gutterBottom>
             Reset Password
           </Typography>
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -67,7 +67,7 @@ export default function ResetPasswordPage() {
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper elevation={2} sx={{ p: 4 }}>
-        <Typography variant="h4" align="center" color="primary.main" gutterBottom>
+        <Typography variant="h4" align="center" color="text.primary" gutterBottom>
           Reset Password
         </Typography>
         <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>

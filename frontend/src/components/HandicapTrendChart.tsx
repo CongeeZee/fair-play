@@ -41,7 +41,7 @@ export default function HandicapTrendChart() {
   return (
     <Card elevation={1} sx={{ mb: 4 }}>
       <CardContent>
-        <Typography variant="h6" color="primary.main" gutterBottom>
+        <Typography variant="h6" color="text.primary" gutterBottom>
           Handicap Trend
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -89,7 +89,7 @@ export default function HandicapTrendChart() {
                       <Typography variant="caption" color="text.secondary" display="block">
                         {d.date} · Round {d.roundNumber}
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 800, color: '#2f6b4c', my: 0.25 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, color: 'var(--c-greenText)', my: 0.25 }}>
                         {formatHandicap(d.handicapIndex)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{
@@ -104,13 +104,13 @@ export default function HandicapTrendChart() {
               <Line
                 type="monotone"
                 dataKey="handicapIndex"
-                stroke="#2f6b4c"
+                stroke="var(--c-greenText)"
                 strokeWidth={2.5}
                 dot={(props) => {
                   const { cx, cy } = props
-                  return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="#e0b95c" stroke="#2f6b4c" strokeWidth={1.5} />
+                  return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="#e0b95c" stroke="var(--c-greenText)" strokeWidth={1.5} />
                 }}
-                activeDot={{ r: 7, fill: '#e0b95c', stroke: '#2f6b4c', strokeWidth: 2 }}
+                activeDot={{ r: 7, fill: '#e0b95c', stroke: 'var(--c-greenText)', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>

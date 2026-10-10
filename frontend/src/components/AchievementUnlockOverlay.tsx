@@ -64,7 +64,7 @@ export default function AchievementUnlockOverlay({ queue, onClear }: Props) {
             minWidth: 280,
             maxWidth: 380,
             borderRadius: 2,
-            bgcolor: '#2f6b4c',
+            bgcolor: 'primary.main',
             color: '#fff',
             cursor: 'pointer',
             borderLeft: `4px solid ${ON_GREEN.gold}`,

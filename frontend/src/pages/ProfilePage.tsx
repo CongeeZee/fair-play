@@ -69,7 +69,7 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
       </Box>
       {profile.handicapIndex != null && (
         <>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'primary.main', mt: 0.5, lineHeight: 1.1 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mt: 0.5, lineHeight: 1.1 }}>
             {formatHandicap(profile.handicapIndex)}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', letterSpacing: 1.5, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
@@ -118,7 +118,7 @@ function StatsRow({ profile }: { profile: UserProfile }) {
       {stats.map((s) => (
         <Card key={s.label} elevation={1} sx={{ flex: 1, borderRadius: 2 }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, '&:last-child': { pb: 1.5 } }}>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main' }}>{s.value}</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>{s.value}</Typography>
             <Typography variant="caption" color="text.secondary">{s.label}</Typography>
           </CardContent>
         </Card>
@@ -270,7 +270,7 @@ function HeadToHeadSection({ h2h, targetName, targetId }: {
             <Box sx={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
               <Box sx={{ width: `${viewerPct}%`, bgcolor: CLAY.green, transition: 'width 0.5s' }} />
               {h2h.draws > 0 && (
-                <Box sx={{ width: `${(h2h.draws / total) * 100}%`, bgcolor: '#ded6c8' }} />
+                <Box sx={{ width: `${(h2h.draws / total) * 100}%`, bgcolor: 'var(--c-sunken)' }} />
               )}
               <Box sx={{ width: `${targetPct}%`, bgcolor: CLAY.gold, transition: 'width 0.5s' }} />
             </Box>
@@ -364,7 +364,7 @@ function HandicapChart({ viewerId, targetId, viewerName, targetName }: {
         </Typography>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--c-borderC)" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
             <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
             <Tooltip />
@@ -743,7 +743,7 @@ function OwnHandicapChart({ userId }: { userId: number }) {
         </Typography>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={history}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--c-borderC)" />
             <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.slice(5, 10)} />
             <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
             <Tooltip />

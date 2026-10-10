@@ -7,7 +7,7 @@
 
    Keep in sync with PALETTES in src/theme.ts. */
 :root {
-  --boot-base: #f2f1ec;
+  --boot-base: #f4f4ef;
   --boot-green: #2c6347;
   --boot-wash-light: rgba(255, 255, 255, 0.55);
   --boot-wash-green: rgba(44, 99, 71, 0.06);
@@ -32,7 +32,7 @@
 
 body {
   margin: 0;
-  font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+  font-family: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   /* Two very low-contrast radial washes stop the flat base colour from
      looking like dead space behind the raised cards. */
   background-color: var(--boot-base);

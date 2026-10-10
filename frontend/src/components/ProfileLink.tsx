@@ -17,7 +17,7 @@ export default function ProfileLink({ userId, name, sx, variant = 'body2', onCli
       to={`/profile/${userId}`}
       sx={{
         textDecoration: 'none',
-        color: 'primary.main',
+        color: 'var(--c-greenText)',
         fontWeight: 700,
         fontSize: fontSizeMap[variant],
         cursor: 'pointer',

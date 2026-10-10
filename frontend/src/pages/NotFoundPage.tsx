@@ -10,7 +10,7 @@ export default function NotFoundPage() {
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h4" color="primary.main" gutterBottom>
+        <Typography variant="h4" color="text.primary" gutterBottom>
           Out of bounds
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>

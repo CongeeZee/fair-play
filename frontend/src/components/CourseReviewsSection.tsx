@@ -81,7 +81,7 @@ export default function CourseReviewsSection({ courseId, promptableRound }: Cour
         ) : (
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 3, alignItems: { sm: 'center' } }}>
             <Box sx={{ textAlign: 'center', minWidth: 120 }}>
-              <Typography variant="h3" fontWeight={700} color="primary.main">
+              <Typography variant="h3" fontWeight={700} color="text.primary">
                 {data.averageRating?.toFixed(1)}
               </Typography>
               <StarRating value={data.averageRating} readOnly size="small" />
