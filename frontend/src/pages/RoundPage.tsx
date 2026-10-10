@@ -19,7 +19,6 @@ import Snackbar from '@mui/material/Snackbar'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRound, scoreHole, completeRound } from '../api/rounds'
-import { getLiveRounds } from '../api/live'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import OfflineBanner from '../components/OfflineBanner'
 import ReviewPromptDialog from '../components/ReviewPromptDialog'
@@ -369,13 +368,6 @@ export default function RoundPage() {
     queryFn: () => getRound(id!),
   })
 
-  // Check if user has friends (to show "Live to friends" indicator)
-  const { data: liveData } = useQuery({
-    queryKey: ['live-rounds'],
-    queryFn: getLiveRounds,
-    staleTime: 5 * 60_000,
-  })
-  const hasFriends = (liveData?.liveRounds?.length ?? 0) > 0 || liveData?.ownLiveRound != null
 
   useEffect(() => {
     if (round?.roundHoles) {
@@ -618,8 +610,8 @@ export default function RoundPage() {
     <OfflineBanner syncState={syncState} pendingCount={pendingCount} />
 
     <Container maxWidth="sm" sx={{ py: 3 }}>
-      {/* Live to friends indicator */}
-      {hasFriends && (
+      {/* Friends can follow a round while it's being played today */}
+      {!round.completedAt && new Date(round.playedAt).toDateString() === new Date().toDateString() && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, px: 0.5 }}>
           <Box sx={{
             width: 7, height: 7, borderRadius: '50%', bgcolor: '#63b47f',
@@ -761,7 +753,9 @@ export default function RoundPage() {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <IconButton aria-label="Remove a stroke"
-                  onClick={() => updateStrokes(holeId, Math.max(1, score.strokes - 1))}
+                  // From blank, the steppers start at par: most holes end
+                  // within a stroke of it, so this is one tap instead of four.
+                  onClick={() => updateStrokes(holeId, score.strokes ? Math.max(1, score.strokes - 1) : Math.max(1, hole.par - 1))}
                   sx={{ borderRadius: 2.2, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
                 >
                   <RemoveIcon />
@@ -770,7 +764,7 @@ export default function RoundPage() {
                   {score.strokes || '–'}
                 </Typography>
                 <IconButton aria-label="Add a stroke"
-                  onClick={() => updateStrokes(holeId, score.strokes + 1)}
+                  onClick={() => updateStrokes(holeId, score.strokes ? score.strokes + 1 : hole.par)}
                   sx={{ borderRadius: 2.2, bgcolor: CLAY.surface, boxShadow: raised(2.2), '&:hover': { boxShadow: raised(3) }, '&:active': { boxShadow: pressed(1.6) } }}
                 >
                   <AddIcon />
@@ -809,6 +803,7 @@ export default function RoundPage() {
                       color: chip ? chip.fg : 'text.primary',
                       fontWeight: isSelected ? 800 : 600,
                       fontSize: '0.875rem',
+                      position: 'relative',
                       transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                       '&:hover': {
                         bgcolor: chip ? chip.bg : CLAY.surface,
@@ -817,8 +812,14 @@ export default function RoundPage() {
                       },
                       userSelect: 'none',
                     }}
+                    aria-label={`${n} strokes${nDiff === 0 ? ' (par)' : ''}`}
+                    role="button"
                   >
                     {n}
+                    {/* Marks par so the grid reads at a glance */}
+                    {nDiff === 0 && !isSelected && (
+                      <Box component="span" sx={{ position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: '50%', bgcolor: CLAY.greenText }} />
+                    )}
                   </Box>
                 )
               })}
