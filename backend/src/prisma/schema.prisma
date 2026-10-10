@@ -39,6 +39,29 @@ model User {
   createdInviteLinks     InviteLink[]             @relation("inviteLinkCreator")
   inviteAcceptances      InviteAcceptance[]       @relation("inviteAcceptances")
   subscription           Subscription?
+  notifications          Notification[]           @relation("notificationRecipient")
+  notificationsSent      Notification[]           @relation("notificationActor")
+}
+
+// ── In-app notifications ─────────────────────────────────────────────────────
+// The inbox behind the bell. Written alongside every push that is *about* the
+// recipient (a reaction, a comment, an invite), so people who never enabled
+// browser push still hear about it. Friend broadcasts ("X started a round")
+// stay push-only — they would bury the inbox.
+model Notification {
+  id        String    @id @default(uuid())
+  userId    Int
+  actorId   Int?
+  type      String // e.g. "reaction", "comment", "friend_request", "teetime_invite"
+  title     String
+  body      String
+  url       String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation("notificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("notificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }
 
 // ── Billing / Entitlements ───────────────────────────────────────────────────
@@ -80,10 +103,10 @@ model Subscription {
 // Refreshed lazily on read when older than the TTL (no cron in this repo).
 model BenchmarkSnapshot {
   id         Int      @id @default(autoincrement())
-  band       String   // "0-5" | "5-10" | ... | "30+" | "plus" | "all"
-  metric     String   // BenchmarkMetric key, e.g. "scoreToPar"
-  summary    Json     // { percentiles: { "5": n, "10": n, ..., "95": n } }
-  sampleSize Int      // number of USERS (not rounds) in the distribution
+  band       String // "0-5" | "5-10" | ... | "30+" | "plus" | "all"
+  metric     String // BenchmarkMetric key, e.g. "scoreToPar"
+  summary    Json // { percentiles: { "5": n, "10": n, ..., "95": n } }
+  sampleSize Int // number of USERS (not rounds) in the distribution
   computedAt DateTime @default(now())
 
   @@unique([band, metric])
@@ -113,16 +136,16 @@ model Friendship {
 }
 
 model LinkedHandicap {
-  id             Int      @id @default(autoincrement())
-  userId         Int      @unique
-  source         String   // "golf_australia", "ghin", "manual"
-  externalId     String?  // GolfLink number, GHIN number, etc.
-  handicapIndex  Float
-  playerName     String?  // Name returned from lookup
-  clubName       String?  // Club returned from lookup
-  lastSynced     DateTime @default(now())
-  createdAt      DateTime @default(now())
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  source        String // "golf_australia", "ghin", "manual"
+  externalId    String? // GolfLink number, GHIN number, etc.
+  handicapIndex Float
+  playerName    String? // Name returned from lookup
+  clubName      String? // Club returned from lookup
+  lastSynced    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
@@ -135,10 +158,10 @@ model RefreshToken {
 }
 
 model Course {
-  id           Int           @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   name         String
-  externalId   String? @unique
-  courseRating  Float?
+  externalId   String?        @unique
+  courseRating Float?
   slopeRating  Int?
   holes        Hole[]
   rounds       Round[]
@@ -148,18 +171,18 @@ model Course {
 }
 
 model Hole {
-  id        Int         @id @default(autoincrement())
-  number    Int
-  par       Int
-  distance  Int
+  id          Int         @id @default(autoincrement())
+  number      Int
+  par         Int
+  distance    Int
   // Official stroke index (1 = hardest hole) used to allocate handicap
   // strokes for Stableford / net-per-hole scoring. Optional because most
   // imported courses don't carry it — lib/stableford.ts falls back to a
   // deterministic distance-based allocation when absent.
   strokeIndex Int?
-  courseId  Int
-  course    Course      @relation(fields: [courseId], references: [id])
-  scores    RoundHole[]
+  courseId    Int
+  course      Course      @relation(fields: [courseId], references: [id])
+  scores      RoundHole[]
 
   @@unique([courseId, number])
 }
@@ -172,7 +195,7 @@ model Round {
   lastScoredAt          DateTime?
   startNotificationSent Boolean            @default(false)
   userId                Int
-  courseId               Int
+  courseId              Int
   user                  User               @relation(fields: [userId], references: [id])
   course                Course             @relation(fields: [courseId], references: [id])
   roundHoles            RoundHole[]
@@ -291,7 +314,7 @@ model Competition {
   id               String                   @id @default(uuid())
   name             String
   creatorId        Int
-  courseId          Int?
+  courseId         Int?
   startDate        DateTime
   endDate          DateTime
   scoringType      ScoringType              @default(NET)
@@ -317,19 +340,19 @@ model CompetitionParticipant {
 }
 
 model CompetitionRound {
-  id            String      @id @default(uuid())
-  competitionId String
-  roundId       Int
-  userId        Int
-  grossScore    Int
-  netScore      Float?
-  scoreToPar    Int
-  netScoreToPar Float?
+  id               String      @id @default(uuid())
+  competitionId    String
+  roundId          Int
+  userId           Int
+  grossScore       Int
+  netScore         Float?
+  scoreToPar       Int
+  netScoreToPar    Float?
   // Total Stableford points — only populated for STABLEFORD competitions.
   stablefordPoints Int?
-  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  round         Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competition      Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  round            Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([competitionId, roundId])
 }
@@ -357,31 +380,31 @@ enum TeeTimeParticipantStatus {
 }
 
 model TeeTime {
-  id           String             @id @default(uuid())
+  id           String               @id @default(uuid())
   creatorId    Int
-  courseId      Int?
+  courseId     Int?
   courseName   String?
   dateTime     DateTime
   spotsTotal   Int
   notes        String?
-  visibility   TeeTimeVisibility  @default(FRIENDS)
-  status       TeeTimeStatus      @default(OPEN)
-  reminderSent Boolean            @default(false)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  creator      User               @relation("teeTimeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  course       Course?            @relation(fields: [courseId], references: [id])
+  visibility   TeeTimeVisibility    @default(FRIENDS)
+  status       TeeTimeStatus        @default(OPEN)
+  reminderSent Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  creator      User                 @relation("teeTimeCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  course       Course?              @relation(fields: [courseId], references: [id])
   participants TeeTimeParticipant[]
 }
 
 model TeeTimeParticipant {
-  id        String                    @id @default(uuid())
+  id        String                   @id @default(uuid())
   teeTimeId String
   userId    Int
-  status    TeeTimeParticipantStatus  @default(INVITED)
-  createdAt DateTime                  @default(now())
-  teeTime   TeeTime                   @relation(fields: [teeTimeId], references: [id], onDelete: Cascade)
-  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    TeeTimeParticipantStatus @default(INVITED)
+  createdAt DateTime                 @default(now())
+  teeTime   TeeTime                  @relation(fields: [teeTimeId], references: [id], onDelete: Cascade)
+  user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teeTimeId, userId])
   // "my tee times" lookups filter by userId alone, which the teeTimeId-prefixed

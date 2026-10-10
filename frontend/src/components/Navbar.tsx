@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAppearance } from '../contexts/AppearanceContext'
 import { useUnits } from '../contexts/UnitsContext'
 import { getFriendRequests } from '../api/friends'
+import NotificationBell from './NotificationBell'
 import { HEADING_FONT, tint, CLAY } from '../theme'
 
 /**
@@ -182,6 +183,7 @@ export default function Navbar() {
 
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: { xs: 0.5, md: 1 } }}>
+            {user.emailVerified && <NotificationBell color={ink.fg} />}
             <Tooltip title="Your profile">
               <Avatar
                 component={Link}

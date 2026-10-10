@@ -16,7 +16,7 @@ import {
   sendFriendRequest, acceptFriendRequest, declineFriendRequest, removeFriend,
 } from '../api/friends'
 import { getLiveRounds } from '../api/live'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import ProfileLink from '../components/ProfileLink'
 import InviteFriendsDialog from '../components/InviteFriendsDialog'
@@ -336,8 +336,12 @@ function FindFriendsTab() {
   )
 }
 
+const TAB_PARAM = ['friends', 'requests', 'find']
+
 export default function FriendsPage() {
-  const [tab, setTab] = useState(0)
+  // ?tab=requests deep-links from a friend-request notification
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState(() => Math.max(0, TAB_PARAM.indexOf(params.get('tab') ?? '')))
   const [inviteOpen, setInviteOpen] = useState(false)
   const { user } = useAuth()
   // Every /friends endpoint returns 403 until the email is verified, so don't

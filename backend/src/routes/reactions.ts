@@ -4,9 +4,19 @@ import prisma from "../lib/prisma";
 import { isFriendOrSelf } from "../lib/friends";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
-import { sendPushToUser } from "../lib/pushNotification";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
+
+/** The round's own page if it has one, else the feed. */
+function roundUrl(shareId: string | null): string {
+  return shareId ? `/scorecard/${shareId}` : "/feed";
+}
+
+/** Club name without the imported tee suffix ("Club — Blue Tees" → "Club"). */
+function courseLabel(name: string): string {
+  return name.replace(/\s*—.*$/, "");
+}
 
 const ALLOWED_EMOJI = ["\u{1F525}", "\u{1F44F}", "\u{1F602}", "\u{1F480}", "\u26F3"] as const;
 type AllowedEmoji = (typeof ALLOWED_EMOJI)[number];
@@ -56,7 +66,7 @@ router.post("/rounds/:roundId/react", async (req: AuthRequest, res: Response) =>
 
     const round = await prisma.round.findUnique({
       where: { id: roundId },
-      select: { userId: true, course: { select: { name: true } } },
+      select: { userId: true, shareId: true, course: { select: { name: true } } },
     });
     if (!round) { res.status(404).json({ error: "Round not found" }); return; }
 
@@ -86,16 +96,17 @@ router.post("/rounds/:roundId/react", async (req: AuthRequest, res: Response) =>
         data: { roundId, userId, emoji },
       });
 
-      // Push notification to round owner (not self)
+      // Tell the round owner (not self)
       if (userId !== round.userId) {
         const reactor = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
         if (reactor) {
-          sendPushToUser(
-            round.userId,
-            "Fairplay",
-            `${reactor.name} reacted ${emoji} to your round at ${round.course.name}`,
-            `/feed`
-          );
+          notifyUser(round.userId, {
+            type: "reaction",
+            title: "New reaction",
+            body: `${reactor.name} reacted ${emoji} to your round at ${courseLabel(round.course.name)}`,
+            url: roundUrl(round.shareId),
+            actorId: userId,
+          }).catch(() => {});
         }
       }
     }
@@ -139,7 +150,7 @@ router.post("/rounds/:roundId/comments", async (req: AuthRequest, res: Response)
 
     const round = await prisma.round.findUnique({
       where: { id: roundId },
-      select: { userId: true, course: { select: { name: true } } },
+      select: { userId: true, shareId: true, course: { select: { name: true } } },
     });
     if (!round) { res.status(404).json({ error: "Round not found" }); return; }
 
@@ -153,16 +164,35 @@ router.post("/rounds/:roundId/comments", async (req: AuthRequest, res: Response)
       include: { user: { select: { name: true } } },
     });
 
-    // Push notification to round owner (not self)
-    if (userId !== round.userId) {
-      const truncated = text.length > 60 ? text.slice(0, 57) + "..." : text;
-      sendPushToUser(
-        round.userId,
-        "Fairplay",
-        `${comment.user.name} commented on your round: '${truncated}'`,
-        `/feed`
-      );
-    }
+    // Tell the round owner, and everyone else already in the thread, so a
+    // reply doesn't go unseen. Fire-and-forget.
+    (async () => {
+      const truncated = text.length > 60 ? text.slice(0, 57) + "…" : text;
+      const url = roundUrl(round.shareId);
+      if (userId !== round.userId) {
+        notifyUser(round.userId, {
+          type: "comment",
+          title: "New comment",
+          body: `${comment.user.name} commented on your round: “${truncated}”`,
+          url,
+          actorId: userId,
+        }).catch(() => {});
+      }
+      const earlier = await prisma.roundComment.findMany({
+        where: { roundId, userId: { notIn: [userId, round.userId] } },
+        select: { userId: true },
+        distinct: ["userId"],
+      });
+      for (const c of earlier) {
+        notifyUser(c.userId, {
+          type: "comment_reply",
+          title: "New reply",
+          body: `${comment.user.name} also commented: “${truncated}”`,
+          url,
+          actorId: userId,
+        }).catch(() => {});
+      }
+    })().catch((e) => console.error("comment notification error:", e));
 
     res.status(201).json({
       id: comment.id,

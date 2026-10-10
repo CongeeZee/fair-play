@@ -44,6 +44,7 @@ import {
   userMetricValues,
 } from "../lib/benchmarks";
 import { sendPushToUser } from "../lib/pushNotification";
+import { notifyUser } from "../lib/notify";
 import { getActiveFriendIds } from "../lib/friends";
 import { evaluateAchievements, getAchievementDef } from "../lib/achievements";
 
@@ -892,7 +893,7 @@ async function finalizeRound(roundId: number, userId: number) {
       friendId,
       "New round posted",
       `${completedRound.user.name} shot ${scoreStr}${throughStr} at ${courseName}`,
-      "/feed"
+      completedRound.shareId ? `/scorecard/${completedRound.shareId}` : "/feed"
     ).catch(() => {});
   }
 
@@ -906,7 +907,7 @@ async function finalizeRound(roundId: number, userId: number) {
         friendId,
         "New personal best!",
         `${completedRound.user.name} just set a new PB — ${pbScore} at ${courseName}!`,
-        "/feed"
+        completedRound.shareId ? `/scorecard/${completedRound.shareId}` : "/feed"
       ).catch(() => {});
     }
   }
@@ -2123,16 +2124,17 @@ router.put("/:id/partners", async (req: AuthRequest, res: Response) => {
         const owner = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
         const courseRow = await prisma.round.findUnique({
           where: { id },
-          select: { course: { select: { name: true } } },
+          select: { shareId: true, course: { select: { name: true } } },
         });
         const courseName = courseRow?.course?.name?.replace(/\s*—.*$/, "") ?? "a round";
         for (const partnerId of newlyAdded) {
-          sendPushToUser(
-            partnerId,
-            "You were tagged in a round",
-            `${owner?.name ?? "Someone"} tagged you in their round at ${courseName}`,
-            "/feed",
-          ).catch(() => {});
+          notifyUser(partnerId, {
+            type: "tagged",
+            title: "You were tagged in a round",
+            body: `${owner?.name ?? "Someone"} tagged you in their round at ${courseName}`,
+            url: courseRow?.shareId ? `/scorecard/${courseRow.shareId}` : "/feed",
+            actorId: userId,
+          }).catch(() => {});
         }
       })().catch((e) => console.error("partner-tag notification error:", e));
     }

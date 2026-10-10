@@ -4,7 +4,7 @@ import prisma from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { calculateDifferentials, calculateHandicapIndex } from "../lib/handicap";
-import { sendPushToUser } from "../lib/pushNotification";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
 
@@ -240,12 +240,13 @@ router.post("/request", async (req: AuthRequest, res: Response) => {
       select: { name: true },
     });
     if (sender) {
-      sendPushToUser(
-        addresseeId,
-        "New friend request",
-        `${sender.name} wants to be your friend`,
-        "/friends"
-      ).catch(() => {});
+      notifyUser(addresseeId, {
+        type: "friend_request",
+        title: "New friend request",
+        body: `${sender.name} wants to be your friend`,
+        url: "/friends?tab=requests",
+        actorId: req.userId!,
+      }).catch(() => {});
     }
 
     res.status(201).json({ friendshipId: friendship.id });
@@ -276,6 +277,20 @@ router.post("/accept/:friendshipId", async (req: AuthRequest, res: Response) => 
       where: { id: friendship.id },
       data: { status: "ACCEPTED" },
     });
+
+    prisma.user
+      .findUnique({ where: { id: req.userId! }, select: { name: true } })
+      .then((me) => {
+        if (!me) return;
+        return notifyUser(friendship.requesterId, {
+          type: "friend_accepted",
+          title: "Friend request accepted",
+          body: `${me.name} accepted your friend request`,
+          url: `/profile/${req.userId!}`,
+          actorId: req.userId!,
+        });
+      })
+      .catch(() => {});
 
     res.json({ success: true });
   } catch (err) {

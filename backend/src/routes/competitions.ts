@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
 import { getUserHandicapIndex } from "../lib/userHandicap";
 import { calculateStableford, courseHandicapFrom } from "../lib/stableford";
-import { sendPushToUser } from "../lib/pushNotification";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
 
@@ -126,7 +126,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     });
 
     for (const userId of validIds) {
-      sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${name}`, `/competitions/${comp.id}`).catch(() => {});
+      notifyUser(userId, { type: "competition_invite", title: "Competition Invite", body: `${creator?.name} invited you to ${name}`, url: `/competitions/${comp.id}`, actorId: req.userId! }).catch(() => {});
     }
 
     res.status(201).json({ ...comp, status: compStatus(comp.startDate, comp.endDate) });
@@ -189,7 +189,7 @@ router.post("/:id/invite", async (req: AuthRequest, res: Response) => {
 
   const creator = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
   for (const userId of validIds) {
-    sendPushToUser(userId, "Competition Invite", `${creator?.name} invited you to ${comp.name}`, `/competitions/${compId}`).catch(() => {});
+    notifyUser(userId, { type: "competition_invite", title: "Competition Invite", body: `${creator?.name} invited you to ${comp.name}`, url: `/competitions/${compId}`, actorId: req.userId! }).catch(() => {});
   }
 
   res.json({ invited: validIds.length });
@@ -370,7 +370,7 @@ router.post("/:id/submit-round", async (req: AuthRequest, res: Response) => {
       ? `${stablefordPoints ?? 0} pts`
       : scoreToPar === 0 ? "even par" : scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
   for (const p of otherParticipants) {
-    sendPushToUser(p.userId, comp.name, `${user?.name} posted ${comp.scoringType === "STABLEFORD" ? scoreStr : `a ${scoreStr}`}`, `/competitions/${compId}`).catch(() => {});
+    notifyUser(p.userId, { type: "competition_round", title: comp.name, body: `${user?.name} posted ${comp.scoringType === "STABLEFORD" ? scoreStr : `a ${scoreStr}`}`, url: `/competitions/${compId}`, actorId: req.userId! }).catch(() => {});
   }
 
   res.status(201).json(compRound);
@@ -408,7 +408,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         }).then(() => {
           const accepted = comp.participants.filter((p) => p.status === "ACCEPTED");
           for (const p of accepted) {
-            sendPushToUser(p.userId, "Competition Ended", `${comp.name} is over! Check the final results`, `/competitions/${comp.id}`).catch(() => {});
+            notifyUser(p.userId, { type: "competition_ended", title: "Competition Ended", body: `${comp.name} is over! Check the final results`, url: `/competitions/${comp.id}` }).catch(() => {});
           }
         }).catch(() => {});
       }

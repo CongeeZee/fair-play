@@ -78,4 +78,74 @@ router.delete("/subscribe", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── In-app inbox ─────────────────────────────────────────────────────────────
+
+// GET /notifications — newest 50, plus the unread count for the bell badge
+router.get("/", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const [items, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId },
+        include: { actor: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      prisma.notification.count({ where: { userId, readAt: null } }),
+    ]);
+    res.json({
+      unreadCount,
+      items: items.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        url: n.url,
+        read: n.readAt != null,
+        createdAt: n.createdAt,
+        actor: n.actor,
+      })),
+    });
+  } catch (err) {
+    console.error("GET /notifications error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /notifications/unread-count — cheap poll for the badge
+router.get("/unread-count", async (req: AuthRequest, res: Response) => {
+  try {
+    const unreadCount = await prisma.notification.count({ where: { userId: req.userId!, readAt: null } });
+    res.json({ unreadCount });
+  } catch (err) {
+    console.error("GET /notifications/unread-count error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+const readSchema = z.object({ ids: z.array(z.string()).max(100).optional() });
+
+// POST /notifications/read — mark some (ids) or all of the user's notifications read
+router.post("/read", async (req: AuthRequest, res: Response) => {
+  const parsed = readSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  try {
+    const { count } = await prisma.notification.updateMany({
+      where: {
+        userId: req.userId!,
+        readAt: null,
+        ...(parsed.data.ids ? { id: { in: parsed.data.ids } } : {}),
+      },
+      data: { readAt: new Date() },
+    });
+    res.json({ updated: count });
+  } catch (err) {
+    console.error("POST /notifications/read error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

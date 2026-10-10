@@ -4,7 +4,7 @@ import prisma from "../lib/prisma";
 import { getActiveFriendIds as getFriendIds } from "../lib/friends";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 import { requireVerifiedEmail } from "../middleware/requireVerifiedEmail";
-import { sendPushToUser } from "../lib/pushNotification";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
 
@@ -65,7 +65,7 @@ async function sendReminders(): Promise<void> {
     const body = `Reminder: ${courseName} tomorrow at ${timeStr} with ${names}`;
 
     for (const p of tt.participants) {
-      sendPushToUser(p.userId, "Tee Time Tomorrow", body, `/teetimes/${tt.id}`).catch(() => {});
+      notifyUser(p.userId, { type: "teetime_reminder", title: "Tee Time Tomorrow", body: body, url: `/teetimes/${tt.id}` }).catch(() => {});
     }
 
     prisma.teeTime.update({ where: { id: tt.id }, data: { reminderSent: true } }).catch(() => {});
@@ -144,7 +144,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 
         const cName = teeTimeCourseName(tt) || "golf";
         for (const userId of validIds) {
-          sendPushToUser(userId, "Tee Time Invite", `${tt.creator.name} invited you to play ${cName} on ${fmtDate(dateTime)}`, `/teetimes/${tt.id}`).catch(() => {});
+          notifyUser(userId, { type: "teetime_invite", title: "Tee Time Invite", body: `${tt.creator.name} invited you to play ${cName} on ${fmtDate(dateTime)}`, url: `/teetimes/${tt.id}`, actorId: tt.creatorId }).catch(() => {});
         }
       }
     }
@@ -199,7 +199,7 @@ router.post("/:id/invite", async (req: AuthRequest, res: Response) => {
   const creator = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
   const cName = teeTimeCourseName(tt) || "golf";
   for (const userId of validIds) {
-    sendPushToUser(userId, "Tee Time Invite", `${creator?.name} invited you to play ${cName} on ${fmtDate(tt.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+    notifyUser(userId, { type: "teetime_invite", title: "Tee Time Invite", body: `${creator?.name} invited you to play ${cName} on ${fmtDate(tt.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
   }
 
   res.json({ invited: validIds.length });
@@ -254,7 +254,7 @@ router.post("/:id/join", async (req: AuthRequest, res: Response) => {
 
   // Notify creator
   const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-  sendPushToUser(tt.creatorId, "Tee Time Update", `${user?.name} is joining your round on ${fmtDate(tt.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+  notifyUser(tt.creatorId, { type: "teetime_update", title: "Tee Time Update", body: `${user?.name} is joining your round on ${fmtDate(tt.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
 
   res.json({ status: "CONFIRMED" });
 });
@@ -301,7 +301,7 @@ router.post("/:id/respond", async (req: AuthRequest, res: Response) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-    sendPushToUser(tt.creatorId, "Tee Time Update", `${user?.name} is in for ${fmtDate(tt.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+    notifyUser(tt.creatorId, { type: "teetime_update", title: "Tee Time Update", body: `${user?.name} is in for ${fmtDate(tt.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
   } else {
     await prisma.teeTimeParticipant.update({
       where: { id: participant.id },
@@ -309,7 +309,7 @@ router.post("/:id/respond", async (req: AuthRequest, res: Response) => {
     });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-    sendPushToUser(tt.creatorId, "Tee Time Update", `${user?.name} can't make ${fmtDate(tt.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+    notifyUser(tt.creatorId, { type: "teetime_update", title: "Tee Time Update", body: `${user?.name} can't make ${fmtDate(tt.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
   }
 
   res.json({ status: parsed.data.response });
@@ -348,7 +348,7 @@ router.post("/:id/withdraw", async (req: AuthRequest, res: Response) => {
   }
 
   const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { name: true } });
-  sendPushToUser(tt.creatorId, "Tee Time Update", `${user?.name} dropped out of your round on ${fmtDate(tt.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+  notifyUser(tt.creatorId, { type: "teetime_update", title: "Tee Time Update", body: `${user?.name} dropped out of your round on ${fmtDate(tt.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
 
   res.json({ status: "WITHDRAWN" });
 });
@@ -376,7 +376,7 @@ router.post("/:id/cancel", async (req: AuthRequest, res: Response) => {
   const cName = teeTimeCourseName(tt) || "the round";
   for (const p of tt.participants) {
     if (p.userId !== req.userId!) {
-      sendPushToUser(p.userId, "Tee Time Cancelled", `${creator?.name} cancelled ${cName} on ${fmtDate(tt.dateTime)}`, `/teetimes`).catch(() => {});
+      notifyUser(p.userId, { type: "teetime_update", title: "Tee Time Cancelled", body: `${creator?.name} cancelled ${cName} on ${fmtDate(tt.dateTime)}`, url: `/teetimes`, actorId: req.userId! }).catch(() => {});
     }
   }
 
@@ -469,7 +469,7 @@ router.patch("/:id", async (req: AuthRequest, res: Response) => {
     const cName = teeTimeCourseName(updated) || "the round";
     const confirmedParticipants = tt.participants.filter((p) => p.status === "CONFIRMED" && p.userId !== req.userId!);
     for (const p of confirmedParticipants) {
-      sendPushToUser(p.userId, "Time Changed", `${creator?.name} changed the time for ${cName} to ${fmtDate(updated.dateTime)}`, `/teetimes/${ttId}`).catch(() => {});
+      notifyUser(p.userId, { type: "teetime_update", title: "Time Changed", body: `${creator?.name} changed the time for ${cName} to ${fmtDate(updated.dateTime)}`, url: `/teetimes/${ttId}`, actorId: req.userId! }).catch(() => {});
     }
   }
 
@@ -686,7 +686,7 @@ router.delete("/:id", async (req: AuthRequest, res: Response) => {
   const cName = teeTimeCourseName(tt) || "the round";
   for (const p of tt.participants) {
     if (p.userId !== req.userId!) {
-      sendPushToUser(p.userId, "Tee Time Removed", `${creator?.name} removed ${cName} on ${fmtDate(tt.dateTime)}`, `/teetimes`).catch(() => {});
+      notifyUser(p.userId, { type: "teetime_update", title: "Tee Time Removed", body: `${creator?.name} removed ${cName} on ${fmtDate(tt.dateTime)}`, url: `/teetimes`, actorId: req.userId! }).catch(() => {});
     }
   }
 
