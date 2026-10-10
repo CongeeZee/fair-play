@@ -1,5 +1,5 @@
 import client from './client'
-import type { Friend, FriendRequest, UserSearchResult } from '../types'
+import type { Friend, FriendRequest, UserSearchResult, FriendSuggestion } from '../types'
 
 export const getFriends = () =>
   client.get<Friend[]>('/friends').then((r) => r.data)
@@ -27,3 +27,6 @@ export const blockUser = (userId: number) =>
 
 export const unblockUser = (userId: number) =>
   client.delete(`/friends/block/${userId}`).then((r) => r.data)
+
+export const getFriendSuggestions = () =>
+  client.get<FriendSuggestion[]>('/friends/suggestions').then((r) => r.data)

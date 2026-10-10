@@ -24,7 +24,6 @@ import { formatCourseName, formatHandicap, formatDifferential } from '../utils'
 import PageHeader from '../components/PageHeader'
 import LinkHandicapDialog from '../components/LinkHandicapDialog'
 import HandicapTrendChart from '../components/HandicapTrendChart'
-import LeaderboardSection from '../components/LeaderboardSection'
 import FeatureGate from '../components/FeatureGate'
 import StrokesGainedSection from '../components/StrokesGainedSection'
 import TrendsSection from '../components/TrendsSection'
@@ -580,9 +579,6 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Friend leaderboards */}
-      <LeaderboardSection />
 
       {/* Handicap trend chart */}
       <HandicapTrendChart />

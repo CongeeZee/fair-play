@@ -362,8 +362,17 @@ export interface UserSearchResult {
   id: number
   name: string
   isFriend: boolean
+  /** You sent them a request that's still open. */
   isPending: boolean
-  isBlocked: boolean
+  /** They sent you one — accept it straight from the result. */
+  incomingRequestId: string | null
+}
+
+export interface FriendSuggestion {
+  id: number
+  name: string
+  mutualFriends: number
+  playedWith: boolean
 }
 
 // ── Competitions ──────────────────────────────────────────────────────────────

@@ -56,7 +56,7 @@ export default function LeaderboardSection() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Add friends to see leaderboards
           </Typography>
-          <Button variant="outlined" component={Link} to="/friends" size="small">
+          <Button variant="outlined" component={Link} to="/friends?tab=add" size="small">
             Find Friends
           </Button>
         </CardContent>
