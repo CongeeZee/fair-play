@@ -5,7 +5,7 @@ import { formatCourseName } from '../utils'
 import PageHeader from '../components/PageHeader'
 import {
   Box, Container, Typography, CircularProgress, Alert,
-  List, ListItem, ListItemButton, ListItemText, Paper, Chip, Divider,
+  List, ListItem, ListItemButton, ListItemText, Paper, Chip,
   IconButton, Dialog, DialogTitle, DialogContent, DialogContentText,
   DialogActions, Button, TextField, InputAdornment, Fab, Tooltip,
   Menu, MenuItem, ListItemIcon,
@@ -193,8 +193,7 @@ export default function HistoryPage() {
                       : { bg: SCORE.poor.fill, fg: SCORE.poor.on }                // blow-up round — slate
 
                     return (
-                      <Box key={round.id}>
-                        {idx > 0 && <Divider />}
+                      <Box key={round.id} sx={{ borderTop: idx > 0 ? '1px solid var(--c-borderC)' : 0 }}>
                         {/* The row-actions button used to sit inside the
                             ListItemButton, which nests a <button> in a
                             <button>. Keyboard users could reach the outer
@@ -219,14 +218,33 @@ export default function HistoryPage() {
                             onClick={() => navigate(round.shareId ? `/scorecard/${round.shareId}` : `/rounds/${round.id}`)}
                             onMouseEnter={() => { if (!round.shareId) prefetchRound(round.id) }}
                           >
+                            {/* Date block, like a diary — scanning a season by
+                                month is how people look for a round */}
+                            <Box sx={{ width: 44, flexShrink: 0, textAlign: 'center', mr: 1.5, py: 0.5, borderRadius: 2, bgcolor: CLAY.sunken }}>
+                              <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', lineHeight: 1.4 }}>
+                                {new Date(round.playedAt).toLocaleDateString(undefined, { month: 'short' })}
+                              </Typography>
+                              <Typography className="tabular" sx={{ fontWeight: 800, fontSize: '1.1rem', lineHeight: 1.1 }}>
+                                {new Date(round.playedAt).getDate()}
+                              </Typography>
+                            </Box>
                             <ListItemText
                               primary={round.course?.name ? formatCourseName(round.course.name) : 'Unknown Course'}
-                              secondary={new Date(round.playedAt).toLocaleDateString('en-GB', { dateStyle: 'long' })}
+                              primaryTypographyProps={{ fontWeight: 600, noWrap: true }}
+                              secondary={[
+                                new Date(round.playedAt).toLocaleDateString(undefined, { weekday: 'long' })
+                                  + (new Date(round.playedAt).getFullYear() !== new Date().getFullYear() ? ` ${new Date(round.playedAt).getFullYear()}` : ''),
+                                round.holesCompleted != null && round.holesCompleted < (round.course?.holes?.length ?? 18)
+                                  ? `${round.holesCompleted} of ${round.course?.holes?.length ?? 18} holes`
+                                  : null,
+                                !round.completedAt ? 'in progress' : null,
+                              ].filter(Boolean).join(' · ')}
+                              sx={{ minWidth: 0 }}
                             />
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, mr: 3 }}>
-                              {round.totalStrokes != null && (
-                                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                  {round.totalStrokes} strokes
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 3, flexShrink: 0 }}>
+                              {round.totalStrokes != null && round.totalStrokes > 0 && (
+                                <Typography className="tabular" sx={{ fontWeight: 800, fontSize: '1.15rem' }}>
+                                  {round.totalStrokes}
                                 </Typography>
                               )}
                               {diffStr && (
@@ -235,11 +253,6 @@ export default function HistoryPage() {
                                   size="small"
                                   sx={{ bgcolor: chip.bg, color: chip.fg, fontWeight: 700, minWidth: 40 }}
                                 />
-                              )}
-                              {round.holesCompleted != null && round.holesCompleted < (round.course?.holes?.length ?? 18) && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {round.holesCompleted}/{round.course?.holes?.length ?? 18}
-                                </Typography>
                               )}
                             </Box>
                           </ListItemButton>
