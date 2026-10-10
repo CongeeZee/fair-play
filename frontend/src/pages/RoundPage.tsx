@@ -4,7 +4,7 @@ import {
   Paper, Button, ButtonGroup, Chip, IconButton, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableBody, TableCell, TableHead, TableRow,
-  Tooltip, Fade, useMediaQuery, useTheme,
+  Tooltip, Fade, useMediaQuery, useTheme, ButtonBase,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
@@ -340,7 +340,7 @@ function ScorecardDialog({ open, onClose, holes, holeScores, currentHoleIndex, o
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
 export default function RoundPage() {
-  const { formatDistance } = useUnits()
+  const { formatDistance, toggleUnit } = useUnits()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -722,9 +722,15 @@ export default function RoundPage() {
             <Typography variant="h5" sx={{ color: 'primary.contrastText', fontWeight: 700 }}>
               Par {hole.par}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'primary.contrastText', opacity: 0.8 }}>
+            {/* Tap the yardage to switch units — the toggle lives in Settings,
+                but you shouldn't have to leave the tee to read metres. */}
+            <ButtonBase
+              onClick={toggleUnit}
+              aria-label={`${formatDistance(hole.distance)}. Switch distance units`}
+              sx={{ color: 'primary.contrastText', opacity: 0.85, borderRadius: 1, px: 0.5, typography: 'caption', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}
+            >
               {formatDistance(hole.distance)}
-            </Typography>
+            </ButtonBase>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             {scoreInfo ? (

@@ -12,6 +12,8 @@ interface AuthContextValue {
   markEmailVerified: () => void
   markOnboardingComplete: () => void
   logout: () => void
+  /** Patch the signed-in user (e.g. after a rename) so the whole UI follows. */
+  updateUser: (patch: Partial<User>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -94,6 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev
+      const updated = { ...prev, ...patch }
+      localStorage.setItem('user', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
   const logout = useCallback(() => {
     const refreshToken = localStorage.getItem('refreshToken')
     authApi.logout(refreshToken)
@@ -105,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, markOnboardingComplete, logout }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, markOnboardingComplete, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -115,3 +115,19 @@ import type { BenchmarksResult } from '../types'
 
 export const getBenchmarks = () =>
   client.get<BenchmarksResult>('/rounds/benchmarks').then((r) => r.data)
+
+/** Download every round as a CSV file. Goes through the client so it's authenticated. */
+export async function downloadRoundsCsv() {
+  const res = await client.get<Blob>('/rounds/export.csv', {
+    responseType: 'blob',
+    params: { tzOffset: new Date().getTimezoneOffset() },
+  })
+  const url = URL.createObjectURL(res.data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `fairplay-rounds-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

@@ -2203,6 +2203,10 @@ router.get("/export.csv", async (req: AuthRequest, res: Response) => {
       orderBy: { playedAt: "desc" },
     });
 
+    // Dates in the player's own calendar, not UTC: a morning round in Sydney
+    // is the previous day in UTC. The client sends getTimezoneOffset().
+    const tzOffsetMin = Math.max(-840, Math.min(840, Number(req.query.tzOffset) || 0));
+    const localDay = (d: Date) => new Date(d.getTime() - tzOffsetMin * 60_000).toISOString().slice(0, 10);
     const esc = (v: unknown) => {
       const str = v == null ? "" : String(v);
       return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -2216,7 +2220,7 @@ router.get("/export.csv", async (req: AuthRequest, res: Response) => {
       const par = hs.reduce((s, h) => s + h.hole.par, 0);
       const drives = hs.filter((h) => h.hole.par > 3 && h.teeShotDirection != null);
       lines.push([
-        r.playedAt.toISOString().slice(0, 10),
+        localDay(r.playedAt),
         r.course.name,
         hs.length,
         r.course._count.holes,

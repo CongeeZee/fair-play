@@ -1,4 +1,8 @@
-import { AppBar, Toolbar, Typography, Button, Box, Badge, Avatar, IconButton, Tooltip, useScrollTrigger } from '@mui/material'
+import { useState } from 'react'
+import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Tooltip, Menu, MenuItem, ListItemIcon, Divider, useScrollTrigger } from '@mui/material'
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import LogoutIcon from '@mui/icons-material/Logout'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
@@ -9,6 +13,7 @@ import { useAppearance } from '../contexts/AppearanceContext'
 import { useUnits } from '../contexts/UnitsContext'
 import { getFriendRequests } from '../api/friends'
 import NotificationBell from './NotificationBell'
+import UserAvatar from './UserAvatar'
 import { HEADING_FONT, tint, CLAY } from '../theme'
 
 /**
@@ -80,6 +85,7 @@ export default function Navbar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const isHome = pathname === '/'
   // On the home page the bar floats over the hero until you scroll past it
   const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 80 })
@@ -176,38 +182,53 @@ export default function Navbar() {
 
         {!user && <Box sx={{ flexGrow: 1 }} />}
 
-        {/* Signed-out on a phone there is no room for these next to the two
-            auth buttons, and nothing on those pages needs them. */}
-        <Box sx={{ display: user ? 'flex' : { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: { xs: 0.25, md: 0.5 } }}>
-          <UnitsToggle overHero={overHero} />
-          <AppearanceToggle overHero={overHero} />
-        </Box>
+        {/* Signed in, these live in Settings. Signed out there is no settings
+            page, so the bar keeps them — except on a phone, where there is no
+            room next to the two auth buttons. */}
+        {!user && (
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5 }}>
+            <UnitsToggle overHero={overHero} />
+            <AppearanceToggle overHero={overHero} />
+          </Box>
+        )}
 
         {user && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, ml: { xs: 0.5, md: 1 } }}>
             {user.emailVerified && <NotificationBell color={ink.fg} />}
-            <Tooltip title="Your profile">
-              <Avatar
-                component={Link}
-                to="/profile/me"
-                aria-label="your profile"
-                sx={{
-                  width: 34, height: 34, fontSize: '0.9rem',
-                  bgcolor: 'secondary.main', color: 'secondary.contrastText',
-                  textDecoration: 'none',
-                }}
+            <Tooltip title="Account">
+              <IconButton
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                aria-label="Account menu"
+                aria-haspopup="true"
+                aria-expanded={!!menuAnchor}
+                sx={{ p: 0.25 }}
               >
-                {user.name?.charAt(0).toUpperCase() || '?'}
-              </Avatar>
+                <UserAvatar userId={Number(user.id)} name={user.name} size={34} link={false} />
+              </IconButton>
             </Tooltip>
-            <Button
-              variant="text"
-              size="small"
-              onClick={handleLogout}
-              sx={{ display: { xs: 'none', md: 'inline-flex' }, color: ink.fg, '&:hover': { color: ink.fgStrong, bgcolor: ink.hover } }}
+            <Menu
+              anchorEl={menuAnchor}
+              open={!!menuAnchor}
+              onClose={() => setMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { minWidth: 220, mt: 1 } } }}
             >
-              Sign out
-            </Button>
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography sx={{ fontWeight: 700 }} noWrap>{user.name}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{user.email}</Typography>
+              </Box>
+              <Divider sx={{ my: 0.5 }} />
+              <MenuItem component={Link} to="/profile/me" onClick={() => setMenuAnchor(null)}>
+                <ListItemIcon><PersonOutlineIcon fontSize="small" /></ListItemIcon>Profile
+              </MenuItem>
+              <MenuItem component={Link} to="/settings" onClick={() => setMenuAnchor(null)}>
+                <ListItemIcon><SettingsOutlinedIcon fontSize="small" /></ListItemIcon>Settings
+              </MenuItem>
+              <MenuItem onClick={() => { setMenuAnchor(null); handleLogout() }}>
+                <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>Sign out
+              </MenuItem>
+            </Menu>
           </Box>
         )}
 

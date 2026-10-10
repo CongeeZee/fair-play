@@ -31,3 +31,22 @@ export const resetPassword = (token: string, newPassword: string) =>
   client
     .post<{ message: string }>('/auth/reset-password', { token, newPassword })
     .then((r) => r.data)
+
+export interface AccountInfo {
+  email: string
+  hasPassword: boolean
+  googleLinked: boolean
+  createdAt: string
+}
+
+export const getAccount = () =>
+  client.get<AccountInfo>('/auth/account').then((r) => r.data)
+
+/** Keeps this device signed in; every other session is ended. */
+export const changePassword = (newPassword: string, currentPassword?: string) =>
+  client
+    .post('/auth/change-password', { currentPassword, newPassword, refreshToken: localStorage.getItem('refreshToken') })
+    .then((r) => r.data)
+
+export const deleteAccount = (password?: string) =>
+  client.delete('/auth/account', { data: { confirm: 'DELETE', password } }).then((r) => r.data)

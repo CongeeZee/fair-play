@@ -13,7 +13,7 @@ import BlockIcon from '@mui/icons-material/Block'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import HistoryIcon from '@mui/icons-material/History'
-import LogoutIcon from '@mui/icons-material/Logout'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -488,7 +488,7 @@ function EditNameDialog({ open, currentName, onClose, onSave }: {
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, updateUser } = useAuth()
   const queryClient = useQueryClient()
 
   const isOwn = userId === 'me' || userId === String(user?.id ?? '')
@@ -514,13 +514,7 @@ export default function ProfilePage() {
     mutationFn: updateProfile,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['profile', targetId] })
-      // Update auth context user name
-      const stored = localStorage.getItem('user')
-      if (stored) {
-        const u = JSON.parse(stored)
-        u.name = data.name
-        localStorage.setItem('user', JSON.stringify(u))
-      }
+      updateUser({ name: data.name })
       setEditOpen(false)
     },
   })
@@ -662,19 +656,11 @@ export default function ProfilePage() {
         </Box>
       )}
 
-      {/* Own profile: sign out — the mobile top bar shows only the avatar,
-          so this is where mobile users sign out */}
+      {/* Own profile: settings (units, notifications, password, sign out) */}
       {isOwn && (
-        <Box sx={{ display: { xs: 'flex', md: 'none' }, justifyContent: 'center', mt: 2, mb: 1 }}>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={<LogoutIcon />}
-            onClick={() => { logout(); navigate('/login') }}
-            sx={{ textTransform: 'none' }}
-          >
-            Sign out
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
+          <Button variant="outlined" startIcon={<SettingsOutlinedIcon />} onClick={() => navigate('/settings')}>
+            Settings
           </Button>
         </Box>
       )}

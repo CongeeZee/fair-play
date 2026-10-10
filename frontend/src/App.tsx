@@ -53,6 +53,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const CourseReviewsPage = lazy(() => import('./pages/CourseReviewsPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import RateLimitSnackbar from './components/RateLimitSnackbar'
@@ -204,6 +205,10 @@ function Layout() {
         <Route
           path="/competitions/:id"
           element={<ProtectedRoute><CompetitionsPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/settings"
+          element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}
         />
         <Route
           path="/notifications"

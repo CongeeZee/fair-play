@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Dialog, DialogTitle, DialogContent, Switch, FormControlLabel, CardActions, TextField, useMediaQuery, useTheme,
+  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, CardActions, TextField, useMediaQuery, useTheme,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SendIcon from '@mui/icons-material/Send'
 import PeopleIcon from '@mui/icons-material/People'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
 import IosShareIcon from '@mui/icons-material/IosShare'
-import SettingsIcon from '@mui/icons-material/Settings'
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import CloseIcon from '@mui/icons-material/Close'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
@@ -525,12 +524,10 @@ function NotificationPrompt() {
 export default function FeedPage() {
   const queryClient = useQueryClient()
   const observerRef = useRef<HTMLDivElement>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
   const inviteToast = (location.state as { inviteToast?: string } | null)?.inviteToast ?? null
   const [inviteSnack, setInviteSnack] = useState(!!inviteToast)
   const [copiedSnack, setCopiedSnack] = useState(false)
-  const { isSupported, isSubscribed, subscribeToNotifications, unsubscribeFromNotifications } = usePushNotifications()
 
   const {
     data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isRefetching,
@@ -557,14 +554,6 @@ export default function FeedPage() {
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['feed'] })
   }, [queryClient])
-
-  const handleToggleNotifications = async () => {
-    if (isSubscribed) {
-      await unsubscribeFromNotifications()
-    } else {
-      await subscribeToNotifications()
-    }
-  }
 
   // Infinite scroll observer
   useEffect(() => {
@@ -631,9 +620,6 @@ export default function FeedPage() {
         subtitle="What you and your mates have been playing"
         action={
           <Box>
-            <IconButton aria-label="Feed settings" onClick={() => setSettingsOpen(true)} size="small" sx={{ mr: 0.5 }}>
-              <SettingsIcon fontSize="small" />
-            </IconButton>
             <IconButton aria-label="Refresh feed" onClick={handleRefresh} disabled={isRefetching} size="small">
               <RefreshIcon sx={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
             </IconButton>
@@ -694,22 +680,6 @@ export default function FeedPage() {
         </Box>
       )}
 
-      {/* Settings dialog */}
-      <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Settings</DialogTitle>
-        <DialogContent>
-          {isSupported ? (
-            <FormControlLabel
-              control={<Switch checked={isSubscribed} onChange={handleToggleNotifications} />}
-              label="Push notifications"
-            />
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Push notifications are not supported in this browser.
-            </Typography>
-          )}
-        </DialogContent>
-      </Dialog>
       <Snackbar
         open={copiedSnack}
         autoHideDuration={2000}
