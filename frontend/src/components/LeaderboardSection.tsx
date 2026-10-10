@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import {
   Box, Card, CardContent, Typography, ToggleButtonGroup, ToggleButton,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  CircularProgress, Button,
+  CircularProgress, Button, ButtonBase,
 } from '@mui/material'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -12,7 +11,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getLeaderboard, getHandicapLeaderboard } from '../api/rounds'
 import { useAuth } from '../contexts/AuthContext'
-import { CLAY } from '../theme'
+import { CLAY, tint } from '../theme'
+import UserAvatar from './UserAvatar'
 import { formatHandicap } from '../utils'
 
 function formatScore(val: number | null) {
@@ -66,135 +66,122 @@ export default function LeaderboardSection() {
 
   return (
     <Box sx={{ mb: 4 }}>
-      {/* Score Leaderboard */}
+      {/* Score leaderboard */}
       <Card elevation={1} sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" color="text.primary" gutterBottom>
-            Score Leaderboard
+        <CardContent sx={{ pb: '8px !important' }}>
+          <Typography variant="h6" sx={{ mb: 0.5 }}>Scoring</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Average over full rounds · best in brackets
           </Typography>
-
           <ToggleButtonGroup
             value={timeframe}
             exclusive
             onChange={(_, v) => v && setTimeframe(v)}
             size="small"
-            sx={{ mb: 2 }}
+            sx={{ mb: 1.5 }}
           >
-            <ToggleButton value="week">This Week</ToggleButton>
-            <ToggleButton value="month">This Month</ToggleButton>
-            <ToggleButton value="all">All Time</ToggleButton>
+            <ToggleButton value="week">Week</ToggleButton>
+            <ToggleButton value="month">Month</ToggleButton>
+            <ToggleButton value="all">All time</ToggleButton>
           </ToggleButtonGroup>
 
           {scoreLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={24} /></Box>
           ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, width: 40 }}>#</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, display: { xs: 'none', sm: 'table-cell' } }}>Rounds</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Best</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Avg</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {scoreBoard?.map((entry, i) => {
-                    const isMe = String(entry.userId) === user?.id
-                    return (
-                      <TableRow
-                        key={entry.userId}
-                        onClick={() => navigate(`/profile/${entry.userId}`)}
-                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(224,185,92, 0.1)' } : {}) }}
-                      >
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            {i === 0 && entry.avgScoreToPar !== null && (
-                              <EmojiEventsIcon titleAccess="Leader" sx={{ fontSize: 16, color: CLAY.goldGraphic }} />
-                            )}
-                            {i + 1}
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: isMe ? 700 : 400 }}>
-                          {entry.name}{isMe ? ' (you)' : ''}
-                        </TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                          {entry.roundsPlayed}
-                        </TableCell>
-                        <TableCell align="right">{formatScoreInt(entry.bestScoreToPar)}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>
-                          {formatScore(entry.avgScoreToPar)}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box>
+              {scoreBoard?.map((entry, i) => (
+                <RankRow
+                  key={entry.userId}
+                  rank={i + 1}
+                  leader={i === 0 && entry.avgScoreToPar !== null}
+                  userId={entry.userId}
+                  name={entry.name}
+                  isMe={String(entry.userId) === String(user?.id)}
+                  sub={`${entry.roundsPlayed} round${entry.roundsPlayed === 1 ? '' : 's'}`}
+                  value={formatScore(entry.avgScoreToPar)}
+                  valueSub={entry.bestScoreToPar != null ? `(${formatScoreInt(entry.bestScoreToPar)})` : undefined}
+                  onClick={() => navigate(`/profile/${entry.userId}`)}
+                />
+              ))}
+            </Box>
           )}
         </CardContent>
       </Card>
 
-      {/* Handicap Leaderboard */}
+      {/* Handicap leaderboard */}
       <Card elevation={1}>
-        <CardContent>
-          <Typography variant="h6" color="text.primary" gutterBottom>
-            Handicap Leaderboard
-          </Typography>
-
+        <CardContent sx={{ pb: '8px !important' }}>
+          <Typography variant="h6" sx={{ mb: 1.5 }}>Handicap</Typography>
           {handicapLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={24} /></Box>
           ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, width: 40 }}>#</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Handicap</TableCell>
-                    <TableCell sx={{ fontWeight: 700, width: 50 }} align="center">Trend</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {handicapBoard?.map((entry, i) => {
-                    const isMe = String(entry.userId) === user?.id
-                    return (
-                      <TableRow
-                        key={entry.userId}
-                        onClick={() => navigate(`/profile/${entry.userId}`)}
-                        sx={{ cursor: 'pointer', ...(isMe ? { bgcolor: 'rgba(224,185,92, 0.1)' } : {}) }}
-                      >
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            {i === 0 && entry.handicapIndex !== null && (
-                              <EmojiEventsIcon titleAccess="Leader" sx={{ fontSize: 16, color: CLAY.goldGraphic }} />
-                            )}
-                            {i + 1}
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: isMe ? 700 : 400 }}>
-                          {entry.name}{isMe ? ' (you)' : ''}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>
-                          {entry.handicapIndex != null ? formatHandicap(entry.handicapIndex) : '—'}
-                        </TableCell>
-                        <TableCell align="center">
-                          {/* The arrow is the only carrier of the trend, so it needs a name for
-                              screen readers and 3:1 against the row for 1.4.11. */}
-                          {entry.trend === 'improving' && <TrendingDownIcon titleAccess="Improving" sx={{ fontSize: 18, color: CLAY.greenLight }} />}
-                          {entry.trend === 'declining' && <TrendingUpIcon titleAccess="Declining" sx={{ fontSize: 18, color: CLAY.red }} />}
-                          {entry.trend === 'stable' && <RemoveIcon titleAccess="Stable" sx={{ fontSize: 18, color: CLAY.inkSoft }} />}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box>
+              {handicapBoard?.map((entry, i) => (
+                <RankRow
+                  key={entry.userId}
+                  rank={i + 1}
+                  leader={i === 0 && entry.handicapIndex !== null}
+                  userId={entry.userId}
+                  name={entry.name}
+                  isMe={String(entry.userId) === String(user?.id)}
+                  sub={entry.trend === 'improving' ? 'Improving' : entry.trend === 'declining' ? 'Going up' : entry.trend === 'stable' ? 'Steady' : undefined}
+                  trend={entry.trend}
+                  value={entry.handicapIndex != null ? formatHandicap(entry.handicapIndex) : '—'}
+                  onClick={() => navigate(`/profile/${entry.userId}`)}
+                />
+              ))}
+            </Box>
           )}
         </CardContent>
       </Card>
     </Box>
+  )
+}
+
+function RankRow({ rank, leader, userId, name, isMe, sub, value, valueSub, trend, onClick }: {
+  rank: number
+  leader: boolean
+  userId: number
+  name: string
+  isMe: boolean
+  sub?: string
+  value: string
+  valueSub?: string
+  trend?: 'improving' | 'declining' | 'stable' | null
+  onClick: () => void
+}) {
+  return (
+    <ButtonBase
+      onClick={onClick}
+      sx={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 1.5, py: 1, px: 1, borderRadius: 3,
+        textAlign: 'left',
+        bgcolor: isMe ? tint(CLAY.gold, 0.14) : 'transparent',
+        '&:hover': { bgcolor: isMe ? tint(CLAY.gold, 0.2) : 'action.hover' },
+      }}
+    >
+      <Box sx={{ width: 24, textAlign: 'center', flexShrink: 0 }}>
+        {leader
+          ? <EmojiEventsIcon titleAccess="Leader" sx={{ fontSize: 20, color: CLAY.goldGraphic, display: 'block', mx: 'auto' }} />
+          : <Typography className="tabular" sx={{ fontWeight: 700, color: 'text.secondary' }}>{rank}</Typography>}
+      </Box>
+      <UserAvatar userId={userId} name={name} size={36} link={false} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontWeight: isMe ? 700 : 600 }} noWrap>{isMe ? 'You' : name}</Typography>
+        {sub && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {/* The arrow is decorative here — the word carries the trend */}
+            {trend === 'improving' && <TrendingDownIcon sx={{ fontSize: 14, color: CLAY.successText }} />}
+            {trend === 'declining' && <TrendingUpIcon sx={{ fontSize: 14, color: CLAY.errorText }} />}
+            {trend === 'stable' && <RemoveIcon sx={{ fontSize: 14 }} />}
+            {sub}
+          </Typography>
+        )}
+      </Box>
+      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+        <Typography className="tabular" sx={{ fontWeight: 800, fontSize: '1.05rem' }}>{value}</Typography>
+        {valueSub && <Typography variant="caption" color="text.secondary" className="tabular">{valueSub}</Typography>}
+      </Box>
+    </ButtonBase>
   )
 }
