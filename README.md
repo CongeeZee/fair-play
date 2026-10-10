@@ -286,6 +286,12 @@ npx prisma generate
 npm run dev
 ```
 
+To develop against a local Postgres instead of Supabase, point both
+`DATABASE_URL` and `DIRECT_URL` at it, run `npx prisma db push`, then
+`npm run seed:dev` for four golfers with a few months of rounds, friendships,
+reactions, a competition and a tee time (password in `scripts/seed-dev.mjs`).
+The seed wipes the database, so it refuses to run against a non-localhost URL.
+
 ### Frontend
 ```bash
 cd frontend

@@ -36,6 +36,7 @@
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:dev": "node scripts/seed-dev.mjs"
   }
 }
