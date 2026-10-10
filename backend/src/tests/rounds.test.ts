@@ -277,6 +277,22 @@ describe("GET /rounds/stats", () => {
     expect(res.body.holeBreakdown.bogeys).toBe(1);
   });
 
+  it("leaves partial rounds out of average/best, and a live round out of the count", async () => {
+    const user = await createVerifiedTestUser();
+    const course = await createTestCourse("Stats Course", 3);
+    await createRoundWithScores(user.id, course.id, course.holes.map((h) => ({ holeId: h.id, strokes: h.par + 2 })));
+    // One hole at par, abandoned: not a "best round of E"
+    await createRoundWithScores(user.id, course.id, [{ holeId: course.holes[0].id, strokes: 3 }]);
+    // Being played right now
+    const live = await createRoundWithScores(user.id, course.id, [{ holeId: course.holes[0].id, strokes: 2 }]);
+    await prisma.round.update({ where: { id: live.id }, data: { lastScoredAt: new Date() } });
+
+    const res = await request(app).get("/rounds/stats").set("Authorization", `Bearer ${user.accessToken}`);
+    expect(res.body.roundsPlayed).toBe(2);
+    expect(res.body.bestScoreToPar).toBe(6);
+    expect(res.body.averageScoreToPar).toBe(6);
+  });
+
   it("returns roundsPlayed 0 with no rounds", async () => {
     const user = await createVerifiedTestUser();
 

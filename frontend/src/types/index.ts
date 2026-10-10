@@ -111,9 +111,10 @@ export interface HoleBreakdown {
 
 export interface Stats {
   roundsPlayed: number
-  averageScoreToPar?: number
-  bestScoreToPar?: number
-  worstScoreToPar?: number
+  /** Over complete rounds only; null when there are none yet. */
+  averageScoreToPar?: number | null
+  bestScoreToPar?: number | null
+  worstScoreToPar?: number | null
   holeBreakdown?: HoleBreakdown
 }
 
@@ -134,8 +135,9 @@ export interface CourseStatsSummary {
   courseId: string
   courseName: string
   roundsPlayed: number
-  averageScoreToPar: number
-  bestScoreToPar: number
+  /** Over complete rounds at the course; null if every round there was partial. */
+  averageScoreToPar: number | null
+  bestScoreToPar: number | null
   rounds: Array<{
     roundId: string
     playedAt: string

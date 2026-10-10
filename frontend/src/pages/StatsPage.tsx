@@ -2,12 +2,10 @@ import {
   Box, Container, Typography, CircularProgress, Alert,
   Grid, Card, CardContent, Divider, LinearProgress,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip,
-  List, ListItemButton, ListItemText, Button,
+  List, ListItemButton, ListItemText, Button, Accordion, AccordionSummary, AccordionDetails,
 } from '@mui/material'
 import BarChartIcon from '@mui/icons-material/BarChart'
-import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import TrendingDownIcon from '@mui/icons-material/TrendingDown'
-import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import LightbulbIcon from '@mui/icons-material/Lightbulb'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -19,7 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
-import { getStats, getHandicap, getRounds, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
+import { getStats, getHandicap, getCourseStats, getInsights, getLinkedHandicap, unlinkHandicap, refreshLinkedHandicap } from '../api/rounds'
 import { formatCourseName, formatHandicap, formatDifferential } from '../utils'
 import PageHeader from '../components/PageHeader'
 import LinkHandicapDialog from '../components/LinkHandicapDialog'
@@ -28,191 +26,28 @@ import FeatureGate from '../components/FeatureGate'
 import StrokesGainedSection from '../components/StrokesGainedSection'
 import TrendsSection from '../components/TrendsSection'
 import BenchmarksSection from '../components/BenchmarksSection'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ReferenceLine, ResponsiveContainer, Dot
-} from 'recharts'
 import { useState } from 'react'
 import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import type { Round, InsightSuggestion } from '../types'
-import { CLAY, raised, pressed, tint, greenGradient } from '../theme'
-import { SENTIMENT, scoreBand, holeBand, ON_GREEN } from '../scoreColors'
+import type { InsightSuggestion } from '../types'
+import { CLAY, pressed, tint, greenGradient, HEADING_FONT } from '../theme'
+import { scoreBand, holeBand, ON_GREEN } from '../scoreColors'
 
-function formatScore(val: number | undefined) {
+function formatScore(val: number | null | undefined, decimals = 1) {
   if (val == null) return '–'
   if (val === 0) return 'E'
-  return val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1)
+  return val > 0 ? `+${val.toFixed(decimals)}` : val.toFixed(decimals)
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+function KeyStat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <Card elevation={1} sx={{ height: '100%' }}>
-      <CardContent sx={{ textAlign: 'center', py: 3 }}>
-        <Typography variant="h3" sx={{ color: color ?? 'primary.main', mb: 0.5 }}>
-          {value}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {label}
-        </Typography>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ── Form/Improvement Card ────────────────────────────────────────────────────
-function ImprovementCard({ rounds }: { rounds: Round[] }) {
-  const eligible = rounds
-    .filter((r) => r.scoreToPar != null && r.holesCompleted != null && r.holesCompleted > 0)
-    .slice()
-    .sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime())
-
-  if (eligible.length < 4) return null
-
-  const recent = eligible.slice(0, Math.min(5, Math.floor(eligible.length / 2)))
-  const previous = eligible.slice(recent.length, recent.length * 2)
-
-  if (previous.length === 0) return null
-
-  const avgRecent = recent.reduce((s, r) => s + r.scoreToPar!, 0) / recent.length
-  const avgPrev = previous.reduce((s, r) => s + r.scoreToPar!, 0) / previous.length
-  const delta = avgRecent - avgPrev // negative = improved (lower score = better)
-
-  const improved = delta < -0.4
-  const declined = delta > 0.4
-
-  const TrendIcon = improved ? TrendingDownIcon : declined ? TrendingUpIcon : TrendingFlatIcon
-  const trendColor = improved ? SENTIMENT.good.text : declined ? SENTIMENT.bad.text : CLAY.inkSoft
-  const trendFill = improved ? SENTIMENT.good.fill : declined ? SENTIMENT.bad.fill : CLAY.inkSoft
-  // Flattened onto the card surface with color-mix, so it follows the theme
-  const trendBg = tint(trendFill, 0.1)
-  const label = improved
-    ? `${Math.abs(delta).toFixed(1)} strokes better`
-    : declined
-    ? `${Math.abs(delta).toFixed(1)} strokes worse`
-    : 'Holding steady'
-  const sub = `Last ${recent.length} rounds vs previous ${previous.length}`
-
-  return (
-    <Card elevation={2} sx={{ mb: 4, bgcolor: trendBg }}>
-      <CardContent sx={{ py: 2.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ bgcolor: trendFill, borderRadius: '50%', p: 1.25, display: 'flex', flexShrink: 0 }}>
-            <TrendIcon sx={{ color: '#fff', fontSize: 22 }} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, display: 'block', lineHeight: 1.2 }}>
-              Recent Form
-            </Typography>
-            <Typography variant="h6" fontWeight={700} sx={{ color: trendColor, lineHeight: 1.3 }}>
-              {label}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {sub}
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-            <Typography variant="caption" color="text.secondary" display="block">Avg (recent)</Typography>
-            <Typography variant="h6" fontWeight={700} sx={{ color: trendColor }}>
-              {avgRecent >= 0 ? '+' : ''}{avgRecent.toFixed(1)}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ScoreTrendChart({ rounds }: { rounds: Round[] }) {
-  const chartData = rounds
-    .filter((r) => r.holesCompleted != null && r.holesCompleted > 0 && r.scoreToPar != null)
-    .slice()
-    .sort((a, b) => new Date(a.playedAt).getTime() - new Date(b.playedAt).getTime())
-    .map((r, i) => ({
-      index: i,
-      date: new Date(r.playedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-      scoreToPar: r.scoreToPar!,
-      course: r.course?.name ? formatCourseName(r.course.name) : 'Unknown',
-      strokes: r.totalStrokes,
-    }))
-
-  if (chartData.length < 2) return null
-
-  const minVal = Math.min(...chartData.map((d) => d.scoreToPar))
-  const maxVal = Math.max(...chartData.map((d) => d.scoreToPar))
-
-  return (
-    <Card elevation={1} sx={{ mb: 4 }}>
-      <CardContent>
-        <Typography variant="h6" color="text.primary" gutterBottom>
-          Score Trend
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Score to par over your last {chartData.length} rounds
-        </Typography>
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ded6c8" />
-            <XAxis
-              dataKey="index"
-              type="number"
-              domain={[0, chartData.length - 1]}
-              ticks={chartData.map((d) => d.index)}
-              tickFormatter={(i) => chartData[i]?.date ?? ''}
-              tick={{ fontSize: 12, fill: CLAY.inkSoft }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              domain={[minVal - 1, maxVal + 1]}
-              tickFormatter={(v) => v === 0 ? 'E' : v > 0 ? `+${v}` : `${v}`}
-              tick={{ fontSize: 12, fill: CLAY.inkSoft }}
-              axisLine={false}
-              tickLine={false}
-              width={36}
-            />
-            <ReferenceLine y={0} stroke={CLAY.greenText} strokeDasharray="4 4" strokeWidth={1.5} />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null
-                const d = payload[0].payload
-                const score = d.scoreToPar
-                const label = score === 0 ? 'E' : score > 0 ? `+${score}` : `${score}`
-                return (
-                  <Paper elevation={3} sx={{ p: 1.5, minWidth: 160 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {d.date}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 700, my: 0.25 }}>
-                      {label}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{
-                      maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
-                      {d.course}
-                    </Typography>
-                  </Paper>
-                )
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="scoreToPar"
-              stroke={CLAY.infoText}
-              strokeWidth={2.5}
-              dot={(props) => {
-                const { cx, cy, payload } = props
-                const score = payload.scoreToPar
-                const color = score < 0 ? CLAY.errorText : score === 0 ? CLAY.greenText : CLAY.infoText
-                return <Dot key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={2} />
-              }}
-              activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <Paper elevation={0} sx={{ p: 2 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block' }}>{label}</Typography>
+      <Typography className="tabular" sx={{ fontFamily: HEADING_FONT, fontWeight: 800, fontSize: '1.6rem', lineHeight: 1.25, color: color ?? 'text.primary' }}>
+        {value}
+      </Typography>
+    </Paper>
   )
 }
 
@@ -277,12 +112,6 @@ export default function StatsPage() {
       setRefreshing(false)
     }
   }
-
-  // Reuses the ['rounds'] cache already populated by HistoryPage
-  const { data: rounds } = useQuery({
-    queryKey: ['rounds'],
-    queryFn: getRounds,
-  })
 
   const { data: courseStats } = useQuery({
     queryKey: ['course-stats'],
@@ -491,20 +320,258 @@ export default function StatsPage() {
         onLinked={() => queryClient.invalidateQueries({ queryKey: ['linked-handicap'] })}
       />
 
-      {/* Recent form / improvement trend */}
-      <ImprovementCard rounds={rounds ?? []} />
+      {/* Key numbers at a glance */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1.5, mb: 4 }}>
+        <KeyStat label="Rounds" value={String(stats.roundsPlayed)} />
+        <KeyStat
+          label="Average"
+          value={formatScore(stats.averageScoreToPar)}
+          color={stats.averageScoreToPar == null ? undefined : scoreBand(stats.averageScoreToPar).text}
+        />
+        <KeyStat
+          label="Best round"
+          value={formatScore(stats.bestScoreToPar, 0)}
+          color={stats.bestScoreToPar == null ? undefined : scoreBand(stats.bestScoreToPar).text}
+        />
+        <KeyStat label="Putts / hole" value={insights?.metrics?.avgPutts != null ? insights.metrics.avgPutts.toFixed(1) : '–'} />
+        <KeyStat label="Greens hit" value={insights?.metrics?.girRate != null ? `${Math.round(insights.metrics.girRate * 100)}%` : '–'} />
+        <KeyStat label="Fairways hit" value={insights?.metrics?.fairwayRate != null ? `${Math.round(insights.metrics.fairwayRate * 100)}%` : '–'} />
+      </Box>
 
-      {/* Score differentials table */}
-      {handicap && handicap.differentials.length > 0 && (
+      {/* What to work on — the coaching, near the top where it's read */}
+      {(insights?.suggestions?.length ?? 0) > 0 && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <LightbulbIcon sx={{ color: CLAY.goldText }} />
+              <Typography variant="h6">What to work on</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              From {insights!.dataPoints} holes you've tracked
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {[...(insights!.suggestions ?? [])]
+                .sort((a, b) => ['high', 'medium', 'low'].indexOf(a.severity) - ['high', 'medium', 'low'].indexOf(b.severity))
+                .map((s, i) => {
+                  const { bg, text } = severityBg(s.severity)
+                  return (
+                    <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, borderRadius: 3 }}>
+                      <Box sx={{ pt: 0.1, flexShrink: 0 }}>{severityIcon(s.severity)}</Box>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} sx={{ color: text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          {s.area}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 0.25 }}>{s.message}</Typography>
+                      </Box>
+                    </Box>
+                  )
+                })}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Trends (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="trends">
+        <TrendsSection />
+      </FeatureGate>
+
+      {/* Handicap trend chart */}
+      <HandicapTrendChart />
+
+      {/* Hole breakdown */}
+      {breakdown && totalHoles > 0 && (
         <Card elevation={1} sx={{ mb: 4 }}>
           <CardContent>
             <Typography variant="h6" color="text.primary" gutterBottom>
-              Score Differentials
+              Hole Breakdown
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Based on {totalHoles} holes played
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {breakdownItems.map(({ label, value, color }) => (
+                <Box key={label}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" fontWeight={600} sx={{ color }}>
+                      {label}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {value} ({totalHoles > 0 ? ((value / totalHoles) * 100).toFixed(0) : 0}%)
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={totalHoles > 0 ? (value / totalHoles) * 100 : 0}
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      bgcolor: 'var(--c-sunken)',
+                      '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 4 },
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Strokes Gained (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="strokesGained">
+        <StrokesGainedSection />
+      </FeatureGate>
+
+      {/* ── How you compare (gated — FREE today, scaffolding for paid tiers) ── */}
+      <FeatureGate feature="benchmarks">
+        <BenchmarksSection />
+      </FeatureGate>
+
+      {/* ── Game Insights ─────────────────────────────────────────────── */}
+      {/* Was gated on there being at least one suggestion, which meant the
+          measured numbers vanished for anyone playing well enough not to
+          trigger any coaching. The metrics are the point of the card; the
+          suggestions are commentary on them. */}
+      {insights?.hasData && insights.metrics && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <LightbulbIcon sx={{ color: CLAY.goldText }} />
+              <Typography variant="h6" color="text.primary" fontWeight={700}>
+                Shot details
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Based on {insights.dataPoints} holes analysed
+            </Typography>
+
+            {/* Key metrics row */}
+            {insights.metrics && (
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
+                {insights.metrics.girRate != null && (
+                  <MetricPill label="GIR Rate" value={`${(insights.metrics.girRate * 100).toFixed(0)}%`} />
+                )}
+                {insights.metrics.fairwayRate != null && (
+                  <MetricPill label="Fairways Hit" value={`${(insights.metrics.fairwayRate * 100).toFixed(0)}%`} />
+                )}
+                {insights.metrics.avgPutts != null && (
+                  <MetricPill label="Avg Putts" value={insights.metrics.avgPutts.toFixed(1)} />
+                )}
+                {/* The overall putting average hides which half of the game is
+                    costing strokes: two putts after hitting the green is a par,
+                    two after a chip-on is a scramble you converted. The hole
+                    counts are on the labels because these two are averaged over
+                    different, and often very unequal, sets of holes. */}
+                {insights.metrics.puttsPerGir != null && (
+                  <MetricPill
+                    label={`Putts per GIR (${insights.metrics.girHolesWithPutts} holes)`}
+                    value={insights.metrics.puttsPerGir.toFixed(2)}
+                  />
+                )}
+                {insights.metrics.puttsPerNonGir != null && (
+                  <MetricPill
+                    label={`Putts per non-GIR (${insights.metrics.nonGirHolesWithPutts} holes)`}
+                    value={insights.metrics.puttsPerNonGir.toFixed(2)}
+                  />
+                )}
+                {insights.metrics.penaltiesPerRound != null && (
+                  <MetricPill
+                    label={`Penalties / round (${insights.metrics.penaltyRoundsTracked} rounds)`}
+                    value={insights.metrics.penaltiesPerRound.toFixed(1)}
+                  />
+                )}
+                {insights.metrics.doublePlusRate != null && (
+                  <MetricPill label="Double+ Rate" value={`${(insights.metrics.doublePlusRate * 100).toFixed(0)}%`} />
+                )}
+              </Box>
+            )}
+
+            {/* Per-par averages */}
+            {insights.metrics && (insights.metrics.par3 || insights.metrics.par4 || insights.metrics.par5) && (
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
+                {insights.metrics.par3 && (
+                  <MetricPill
+                    label={`Par 3 avg (${insights.metrics.par3.count} holes)`}
+                    value={insights.metrics.par3.averageScoreToPar > 0 ? `+${insights.metrics.par3.averageScoreToPar.toFixed(1)}` : insights.metrics.par3.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+                {insights.metrics.par4 && (
+                  <MetricPill
+                    label={`Par 4 avg (${insights.metrics.par4.count} holes)`}
+                    value={insights.metrics.par4.averageScoreToPar > 0 ? `+${insights.metrics.par4.averageScoreToPar.toFixed(1)}` : insights.metrics.par4.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+                {insights.metrics.par5 && (
+                  <MetricPill
+                    label={`Par 5 avg (${insights.metrics.par5.count} holes)`}
+                    value={insights.metrics.par5.averageScoreToPar > 0 ? `+${insights.metrics.par5.averageScoreToPar.toFixed(1)}` : insights.metrics.par5.averageScoreToPar.toFixed(1)}
+                  />
+                )}
+              </Box>
+            )}
+
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Courses Played ────────────────────────────────────────────── */}
+      {courseStats && courseStats.length > 0 && (
+        <Card elevation={1} sx={{ mb: 4 }}>
+          <CardContent sx={{ pb: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <GolfCourseIcon sx={{ color: 'var(--c-greenText)' }} />
+              <Typography variant="h6" color="text.primary" fontWeight={700}>
+                Courses Played
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Tap a course to see your hole-by-hole breakdown
+            </Typography>
+          </CardContent>
+          <List disablePadding>
+            {courseStats.map((c, idx) => {
+              const diffStr = formatScore(c.averageScoreToPar)
+              const bestStr = formatScore(c.bestScoreToPar, 0)
+              const chipBand = c.averageScoreToPar == null ? { fill: CLAY.inkSoft, on: '#fff' } : scoreBand(c.averageScoreToPar, 10)
+              return (
+                <Box key={c.courseId}>
+                  {idx > 0 && <Divider />}
+                  <ListItemButton onClick={() => navigate(`/stats/courses/${c.courseId}`)}>
+                    <ListItemText
+                      primary={formatCourseName(c.courseName)}
+                      secondary={`${c.roundsPlayed} round${c.roundsPlayed !== 1 ? 's' : ''}${c.bestScoreToPar != null ? ` · Best: ${bestStr}` : ''}`}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="caption" color="text.secondary" display="block">Avg</Typography>
+                        <Chip label={diffStr} size="small" sx={{ bgcolor: chipBand.fill, color: chipBand.on, fontWeight: 700, height: 22 }} />
+                      </Box>
+                      <ChevronRightIcon sx={{ color: 'text.secondary' }} />
+                    </Box>
+                  </ListItemButton>
+                </Box>
+              )
+            })}
+          </List>
+        </Card>
+      )}
+      {/* Score differentials — the working behind the index, folded away */}
+      {handicap && handicap.differentials.length > 0 && (
+        <Accordion elevation={0} disableGutters sx={{ mb: 4 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>How your handicap is worked out</Typography>
+              <Typography variant="caption" color="text.secondary">
+                The {handicap.differentialsUsed} best of your last {handicap.totalEligible} rated rounds, averaged
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Last {handicap.totalEligible} eligible rounds · differential = (113 ÷ slope) × (score − course rating)
             </Typography>
-            <TableContainer component={Paper} variant="outlined">
+            <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'background.default' }}>
@@ -576,250 +643,10 @@ export default function StatsPage() {
                 </TableBody>
               </Table>
             </TableContainer>
-          </CardContent>
-        </Card>
+          </AccordionDetails>
+        </Accordion>
       )}
 
-      {/* Handicap trend chart */}
-      <HandicapTrendChart />
-
-      {/* Score trend chart */}
-      <ScoreTrendChart rounds={rounds ?? []} />
-
-      {/* General stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard label="Rounds Played" value={String(stats.roundsPlayed)} />
-        </Grid>
-        {/* All three read their colour from the shared score scale instead of
-            hand-rolling a ternary each. The old versions disagreed with it and
-            with each other — "Worst Round" was unconditionally red even when it
-            was level par, and a sub-par best round came out gold. */}
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard
-            label="Average Score"
-            value={formatScore(stats.averageScoreToPar)}
-            color={stats.averageScoreToPar == null ? undefined : scoreBand(stats.averageScoreToPar).text}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard
-            label="Best Round"
-            value={formatScore(stats.bestScoreToPar)}
-            color={stats.bestScoreToPar == null ? undefined : scoreBand(stats.bestScoreToPar).text}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <StatCard
-            label="Worst Round"
-            value={formatScore(stats.worstScoreToPar)}
-            color={stats.worstScoreToPar == null ? undefined : scoreBand(stats.worstScoreToPar).text}
-          />
-        </Grid>
-      </Grid>
-
-      {/* Hole breakdown */}
-      {breakdown && totalHoles > 0 && (
-        <Card elevation={1} sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" color="text.primary" gutterBottom>
-              Hole Breakdown
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Based on {totalHoles} holes played
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {breakdownItems.map(({ label, value, color }) => (
-                <Box key={label}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2" fontWeight={600} sx={{ color }}>
-                      {label}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {value} ({totalHoles > 0 ? ((value / totalHoles) * 100).toFixed(0) : 0}%)
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={totalHoles > 0 ? (value / totalHoles) * 100 : 0}
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: 'var(--c-sunken)',
-                      '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 4 },
-                    }}
-                  />
-                </Box>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Strokes Gained (gated — FREE today, scaffolding for paid tiers) ── */}
-      <FeatureGate feature="strokesGained">
-        <StrokesGainedSection />
-      </FeatureGate>
-
-      {/* ── Trends (gated — FREE today, scaffolding for paid tiers) ── */}
-      <FeatureGate feature="trends">
-        <TrendsSection />
-      </FeatureGate>
-
-      {/* ── How you compare (gated — FREE today, scaffolding for paid tiers) ── */}
-      <FeatureGate feature="benchmarks">
-        <BenchmarksSection />
-      </FeatureGate>
-
-      {/* ── Game Insights ─────────────────────────────────────────────── */}
-      {/* Was gated on there being at least one suggestion, which meant the
-          measured numbers vanished for anyone playing well enough not to
-          trigger any coaching. The metrics are the point of the card; the
-          suggestions are commentary on them. */}
-      {insights?.hasData && (insights.metrics || (insights.suggestions?.length ?? 0) > 0) && (
-        <Card elevation={1} sx={{ mb: 4 }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <LightbulbIcon sx={{ color: CLAY.goldText }} />
-              <Typography variant="h6" color="text.primary" fontWeight={700}>
-                Game Insights
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Based on {insights.dataPoints} holes analysed
-            </Typography>
-
-            {/* Key metrics row */}
-            {insights.metrics && (
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
-                {insights.metrics.girRate != null && (
-                  <MetricPill label="GIR Rate" value={`${(insights.metrics.girRate * 100).toFixed(0)}%`} />
-                )}
-                {insights.metrics.fairwayRate != null && (
-                  <MetricPill label="Fairways Hit" value={`${(insights.metrics.fairwayRate * 100).toFixed(0)}%`} />
-                )}
-                {insights.metrics.avgPutts != null && (
-                  <MetricPill label="Avg Putts" value={insights.metrics.avgPutts.toFixed(1)} />
-                )}
-                {/* The overall putting average hides which half of the game is
-                    costing strokes: two putts after hitting the green is a par,
-                    two after a chip-on is a scramble you converted. The hole
-                    counts are on the labels because these two are averaged over
-                    different, and often very unequal, sets of holes. */}
-                {insights.metrics.puttsPerGir != null && (
-                  <MetricPill
-                    label={`Putts per GIR (${insights.metrics.girHolesWithPutts} holes)`}
-                    value={insights.metrics.puttsPerGir.toFixed(2)}
-                  />
-                )}
-                {insights.metrics.puttsPerNonGir != null && (
-                  <MetricPill
-                    label={`Putts per non-GIR (${insights.metrics.nonGirHolesWithPutts} holes)`}
-                    value={insights.metrics.puttsPerNonGir.toFixed(2)}
-                  />
-                )}
-                {insights.metrics.penaltiesPerRound != null && (
-                  <MetricPill
-                    label={`Penalties / round (${insights.metrics.penaltyRoundsTracked} rounds)`}
-                    value={insights.metrics.penaltiesPerRound.toFixed(1)}
-                  />
-                )}
-                {insights.metrics.doublePlusRate != null && (
-                  <MetricPill label="Double+ Rate" value={`${(insights.metrics.doublePlusRate * 100).toFixed(0)}%`} />
-                )}
-              </Box>
-            )}
-
-            <Divider sx={{ mb: 2 }} />
-
-            {/* Per-par averages */}
-            {insights.metrics && (insights.metrics.par3 || insights.metrics.par4 || insights.metrics.par5) && (
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2.5 }}>
-                {insights.metrics.par3 && (
-                  <MetricPill
-                    label={`Par 3 avg (${insights.metrics.par3.count} holes)`}
-                    value={insights.metrics.par3.averageScoreToPar > 0 ? `+${insights.metrics.par3.averageScoreToPar.toFixed(1)}` : insights.metrics.par3.averageScoreToPar.toFixed(1)}
-                  />
-                )}
-                {insights.metrics.par4 && (
-                  <MetricPill
-                    label={`Par 4 avg (${insights.metrics.par4.count} holes)`}
-                    value={insights.metrics.par4.averageScoreToPar > 0 ? `+${insights.metrics.par4.averageScoreToPar.toFixed(1)}` : insights.metrics.par4.averageScoreToPar.toFixed(1)}
-                  />
-                )}
-                {insights.metrics.par5 && (
-                  <MetricPill
-                    label={`Par 5 avg (${insights.metrics.par5.count} holes)`}
-                    value={insights.metrics.par5.averageScoreToPar > 0 ? `+${insights.metrics.par5.averageScoreToPar.toFixed(1)}` : insights.metrics.par5.averageScoreToPar.toFixed(1)}
-                  />
-                )}
-              </Box>
-            )}
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {(insights.suggestions ?? []).map((s, i) => {
-                const { bg, text } = severityBg(s.severity)
-                return (
-                  <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: bg, boxShadow: raised(2.4), borderRadius: 2 }}>
-                    <Box sx={{ pt: 0.1, flexShrink: 0 }}>{severityIcon(s.severity)}</Box>
-                    <Box>
-                      <Typography variant="caption" fontWeight={700} sx={{ color: text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                        {s.area}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 0.25 }}>
-                        {s.message}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )
-              })}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Courses Played ────────────────────────────────────────────── */}
-      {courseStats && courseStats.length > 0 && (
-        <Card elevation={1} sx={{ mb: 4 }}>
-          <CardContent sx={{ pb: 0 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <GolfCourseIcon sx={{ color: 'var(--c-greenText)' }} />
-              <Typography variant="h6" color="text.primary" fontWeight={700}>
-                Courses Played
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Click a course to see your hole-by-hole breakdown
-            </Typography>
-          </CardContent>
-          <List disablePadding>
-            {courseStats.map((c, idx) => {
-              const diffStr = c.averageScoreToPar === 0 ? 'E' : c.averageScoreToPar > 0 ? `+${c.averageScoreToPar.toFixed(1)}` : c.averageScoreToPar.toFixed(1)
-              const bestStr = c.bestScoreToPar === 0 ? 'E' : c.bestScoreToPar > 0 ? `+${c.bestScoreToPar}` : `${c.bestScoreToPar}`
-              const chipBand = scoreBand(c.averageScoreToPar, 10)
-              return (
-                <Box key={c.courseId}>
-                  {idx > 0 && <Divider />}
-                  <ListItemButton onClick={() => navigate(`/stats/courses/${c.courseId}`)}>
-                    <ListItemText
-                      primary={formatCourseName(c.courseName)}
-                      secondary={`${c.roundsPlayed} round${c.roundsPlayed !== 1 ? 's' : ''} · Best: ${bestStr}`}
-                    />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="caption" color="text.secondary" display="block">Avg</Typography>
-                        <Chip label={diffStr} size="small" sx={{ bgcolor: chipBand.fill, color: chipBand.on, fontWeight: 700, height: 22 }} />
-                      </Box>
-                      <ChevronRightIcon sx={{ color: 'text.secondary' }} />
-                    </Box>
-                  </ListItemButton>
-                </Box>
-              )
-            })}
-          </List>
-        </Card>
-      )}
     </Container>
     </Box>
   )

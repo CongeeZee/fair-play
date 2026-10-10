@@ -1197,19 +1197,22 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
     const rounds = await prisma.round.findMany({
       where: { userId: req.userId! },
       include: {
+        course: { select: { _count: { select: { holes: true } } } },
         roundHoles: {
           include: { hole: { select: { par: true } } },
         },
       },
     });
 
-    if (rounds.length === 0) {
+    // Rounds with no scores at all are abandoned starts, not rounds played
+    const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
+    const liveCutoff = Date.now() - 4 * 60 * 60 * 1000;
+    const isLive = (r: (typeof rounds)[number]) =>
+      r.completedAt == null && r.lastScoredAt != null && r.lastScoredAt.getTime() > liveCutoff;
+    if (scoredRounds.length === 0) {
       res.json({ roundsPlayed: 0 });
       return;
     }
-
-    // Exclude rounds with no scores at all — likely abandoned
-    const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
 
     const toMetricHoles = (r: (typeof scoredRounds)[number]) =>
       r.roundHoles.map((rh) => ({
@@ -1220,19 +1223,25 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
         approachResult: rh.approachResult,
       }));
 
-    // roundScoreToPar never returns null here — scoredRounds all have holes
-    const scoresToPar = scoredRounds.map((r) => roundScoreToPar(toMetricHoles(r))!);
+    /* Average, best and worst compare like with like: only rounds where every
+       hole on the course was scored. A par on the one hole of a round you
+       abandoned is "E" — and was being reported as your best round. */
+    const fullRounds = scoredRounds.filter((r) => r.roundHoles.length >= r.course._count.holes);
+    const scoresToPar = fullRounds.map((r) => roundScoreToPar(toMetricHoles(r))!);
 
-    const best = Math.min(...scoresToPar);
-    const worst = Math.max(...scoresToPar);
-    const average = scoresToPar.reduce((a, b) => a + b, 0) / scoresToPar.length;
+    const best = scoresToPar.length ? Math.min(...scoresToPar) : null;
+    const worst = scoresToPar.length ? Math.max(...scoresToPar) : null;
+    const average = scoresToPar.length ? scoresToPar.reduce((a, b) => a + b, 0) / scoresToPar.length : null;
 
-    // Hole-level outcome breakdown (shared with lib/roundMetrics)
+    // Hole-level outcome breakdown counts every hole played, partial rounds included
     const breakdown = holeBreakdown(scoredRounds.flatMap(toMetricHoles));
 
     res.json({
-      roundsPlayed: rounds.length,
-      averageScoreToPar: parseFloat(average.toFixed(2)),
+      // Everything scored except a round still being played. Rounds from
+      // before "finish round" existed were never marked complete, so
+      // completedAt alone would drop them.
+      roundsPlayed: scoredRounds.filter((r) => !isLive(r)).length,
+      averageScoreToPar: average == null ? null : parseFloat(average.toFixed(2)),
       bestScoreToPar: best,
       worstScoreToPar: worst,
       holeBreakdown: breakdown,
@@ -1355,7 +1364,7 @@ router.get("/course-stats", async (req: AuthRequest, res: Response) => {
     const rounds = await prisma.round.findMany({
       where: { userId: req.userId! },
       include: {
-        course: { select: { id: true, name: true } },
+        course: { select: { id: true, name: true, _count: { select: { holes: true } } } },
         roundHoles: {
           include: { hole: { select: { number: true, par: true } } },
         },
@@ -1385,14 +1394,17 @@ router.get("/course-stats", async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const holeCounts = new Map(rounds.map((r) => [r.courseId, r.course._count.holes]));
     const result = Array.from(courseMap.values()).map((c) => {
-      const scores = c.rounds.map((r) => r.scoreToPar);
+      // Average and best over complete rounds only, same rule as /stats
+      const full = c.rounds.filter((r) => r.holesCompleted >= (holeCounts.get(c.courseId) ?? 18));
+      const scores = full.map((r) => r.scoreToPar);
       return {
         courseId: c.courseId,
         courseName: c.courseName,
         roundsPlayed: c.rounds.length,
-        averageScoreToPar: parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)),
-        bestScoreToPar: Math.min(...scores),
+        averageScoreToPar: scores.length ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null,
+        bestScoreToPar: scores.length ? Math.min(...scores) : null,
         rounds: c.rounds,
       };
     });
@@ -1823,7 +1835,12 @@ router.get(
         prisma.linkedHandicap.findUnique({ where: { userId: req.userId! } }),
       ]);
 
-      const scoredRounds = rounds.filter((r) => r.roundHoles.length > 0);
+      // Score to par and strokes gained are round *totals*, so a round cut
+      // short would plot as a brilliant score; only complete rounds count for
+      // those. Putts, GIR and fairways are per-hole rates and can use any.
+      const totalsMetric = metric === "scoreToPar" || metric === "strokesGained";
+      const scoredRounds = rounds.filter((r) =>
+        r.roundHoles.length > 0 && (!totalsMetric || r.roundHoles.length >= r.course._count.holes));
       if (scoredRounds.length === 0) {
         res.json({ hasData: false, metric, window });
         return;
