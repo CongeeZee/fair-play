@@ -1,4 +1,10 @@
-import { Box, Typography, Button, Container, Grid } from '@mui/material'
+import { Box, Typography, Button, Container, Grid, Paper } from '@mui/material'
+import DynamicFeedIcon from '@mui/icons-material/DynamicFeed'
+import EventAvailableIcon from '@mui/icons-material/EventAvailable'
+import InsightsIcon from '@mui/icons-material/Insights'
+import LeaderboardIcon from '@mui/icons-material/Leaderboard'
+import IosShareIcon from '@mui/icons-material/IosShare'
+import { greenGradient } from '../theme'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import TrackChangesIcon from '@mui/icons-material/TrackChanges'
 import BarChartIcon from '@mui/icons-material/BarChart'
@@ -9,22 +15,19 @@ import { useAuth } from '../contexts/AuthContext'
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1592919505780-303950717480?auto=format&fit=crop&w=1920&q=80'
 
+const heroPoints = [
+  { icon: <TrackChangesIcon sx={{ fontSize: 28, color: '#e0b95c' }} />, title: 'Score every hole', body: 'Fast, one-thumb scoring for 30,000+ real courses — works offline on the course.' },
+  { icon: <EmojiEventsIcon sx={{ fontSize: 28, color: '#e0b95c' }} />, title: 'Your handicap, automatic', body: 'A World Handicap System index that updates after every round.' },
+  { icon: <BarChartIcon sx={{ fontSize: 28, color: '#e0b95c' }} />, title: 'Know where shots go', body: 'Putts, greens, fairways and strokes gained — and what to work on next.' },
+]
+
 const features = [
-  {
-    icon: <TrackChangesIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
-    title: 'Track Every Round',
-    body: 'Log scores hole-by-hole for any real course, from Pebble Beach to your local club.',
-  },
-  {
-    icon: <EmojiEventsIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
-    title: 'Official Handicap',
-    body: 'Your WHS Handicap Index is calculated automatically from your round history.',
-  },
-  {
-    icon: <BarChartIcon sx={{ fontSize: 32, color: '#e0b95c' }} />,
-    title: 'Analyse Your Game',
-    body: 'Score trends, hole breakdowns, and stats that show you where to improve.',
-  },
+  { icon: <DynamicFeedIcon />, title: 'A feed for your group', body: 'See your mates’ rounds as they post them. React, comment, and watch rounds live.' },
+  { icon: <EmojiEventsIcon />, title: 'Competitions', body: 'Set up a monthly medal or Stableford comp with net scoring done for you.' },
+  { icon: <EventAvailableIcon />, title: 'Tee times', body: 'Post a time, invite friends, fill the four-ball — straight into your calendar.' },
+  { icon: <InsightsIcon />, title: 'Stats that coach', body: 'Trends, hole breakdowns and plain-English tips from the holes you’ve tracked.' },
+  { icon: <LeaderboardIcon />, title: 'Leaderboards', body: 'Friendly rankings by scoring average and handicap, week, month or all time.' },
+  { icon: <IosShareIcon />, title: 'Share any scorecard', body: 'A link that opens a clean scorecard for anyone — no account needed to look.' },
 ]
 
 export default function HomePage() {
@@ -68,29 +71,26 @@ export default function HomePage() {
           variant="h1"
           sx={{
             color: '#fff',
-            fontSize: { xs: '3.5rem', sm: '5rem', md: '6.5rem' },
-            fontWeight: 700,
-            letterSpacing: '-1px',
-            lineHeight: 1,
-            mb: 2,
+            fontSize: { xs: '2.75rem', sm: '4rem', md: '5rem' },
+            lineHeight: 1.02,
+            maxWidth: 820,
+            mb: 2.5,
             textShadow: '0 2px 20px rgba(0,0,0,0.4)',
           }}
         >
-          Fairplay
+          Golf’s better with your mates.
         </Typography>
 
         <Typography
-          variant="h5"
           sx={{
             color: 'rgba(255,255,255,0.88)',
-            fontWeight: 300,
-            fontFamily: '"Source Sans 3", sans-serif',
-            maxWidth: 480,
-            mb: 6,
+            fontSize: { xs: '1.1rem', md: '1.3rem' },
+            maxWidth: 560,
+            mb: 5,
             lineHeight: 1.5,
           }}
         >
-          Track your rounds. Know your handicap. Elevate your game.
+          Score your rounds, get an automatic handicap, see where you lose shots — and share it all with the people you play with. Free.
         </Typography>
 
         {/* The two CTAs were sized for the desktop hero and inherited straight
@@ -108,7 +108,7 @@ export default function HomePage() {
             size="large"
             sx={{ px: { xs: 3, sm: 5 }, py: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9375rem', sm: '1rem' } }}
           >
-            Get Started
+            Create free account
           </Button>
           <Button
             variant="outlined"
@@ -142,7 +142,7 @@ export default function HomePage() {
               },
             }}
           >
-            Sign In
+            Sign in
           </Button>
         </Box>
 
@@ -164,7 +164,7 @@ export default function HomePage() {
         >
           <Container maxWidth="lg">
             <Grid container>
-              {features.map((f, i) => (
+              {heroPoints.map((f, i) => (
                 <Grid
                   key={f.title}
                   size={{ xs: 12, md: 4 }}
@@ -192,6 +192,45 @@ export default function HomePage() {
             </Grid>
           </Container>
         </Box>
+      </Box>
+
+      {/* Everything else */}
+      <Container maxWidth="lg" sx={{ py: { xs: 7, md: 11 } }}>
+        <Typography variant="overline" sx={{ color: 'var(--c-greenText)', display: 'block', textAlign: 'center' }}>
+          More than a scorecard
+        </Typography>
+        <Typography variant="h3" sx={{ textAlign: 'center', fontSize: { xs: '1.9rem', md: '2.6rem' }, mb: { xs: 4, md: 6 } }}>
+          Everything your golf group needs
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2 }}>
+          {features.map((f) => (
+            <Paper key={f.title} elevation={0} sx={{ p: 3 }}>
+              <Box sx={{ width: 44, height: 44, borderRadius: 3, display: 'grid', placeItems: 'center', bgcolor: 'primary.main', color: 'var(--c-goldOnGreen)', mb: 2 }}>
+                {f.icon}
+              </Box>
+              <Typography variant="h6" sx={{ mb: 0.75 }}>{f.title}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{f.body}</Typography>
+            </Paper>
+          ))}
+        </Box>
+      </Container>
+
+      <Box sx={{ background: greenGradient, py: { xs: 7, md: 9 }, px: 3, textAlign: 'center' }}>
+        <Typography variant="h3" sx={{ color: '#fff', fontSize: { xs: '1.8rem', md: '2.4rem' }, mb: 1.5 }}>
+          Your next round, sorted.
+        </Typography>
+        <Typography sx={{ color: 'var(--c-onGreenSoft)', mb: 4, maxWidth: 480, mx: 'auto' }}>
+          Sign up in under a minute, pick your course and tee off. Invite your group when you’re ready.
+        </Typography>
+        <Button variant="contained" color="secondary" size="large" component={Link} to="/register">
+          Create free account
+        </Button>
+      </Box>
+
+      <Box component="footer" sx={{ py: 4, textAlign: 'center' }}>
+        <Typography variant="caption" color="text.secondary">
+          © {new Date().getFullYear()} Fairplay · Made for golfers who play with friends
+        </Typography>
       </Box>
     </Box>
   )
