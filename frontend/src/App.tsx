@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Box, Toolbar, CircularProgress } from '@mui/material'
@@ -35,7 +35,6 @@ const importFriends = () => import('./pages/FriendsPage')
 
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
-const CoursesPage = lazy(() => import('./pages/CoursesPage'))
 const RoundPage = lazy(() => import('./pages/RoundPage'))
 const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const StatsPage = lazy(importStats)
@@ -164,10 +163,8 @@ function Layout() {
           path="/feed"
           element={<ProtectedRoute><FeedPage /></ProtectedRoute>}
         />
-        <Route
-          path="/courses"
-          element={<ProtectedRoute><CoursesPage /></ProtectedRoute>}
-        />
+        {/* Course search lives on Play now; keep old links working */}
+        <Route path="/courses" element={<Navigate to="/play" replace />} />
         <Route
           path="/rounds/:id"
           element={<ProtectedRoute><RoundPage /></ProtectedRoute>}

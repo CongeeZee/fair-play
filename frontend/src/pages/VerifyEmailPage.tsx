@@ -53,7 +53,7 @@ export default function VerifyEmailPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Your account is now fully verified.
             </Typography>
-            <Button variant="contained" component={Link} to="/courses">
+            <Button variant="contained" component={Link} to="/play">
               Start Playing
             </Button>
           </>
@@ -68,7 +68,7 @@ export default function VerifyEmailPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               {message}
             </Typography>
-            <Button variant="outlined" component={Link} to="/courses">
+            <Button variant="outlined" component={Link} to="/play">
               Go to App
             </Button>
           </>

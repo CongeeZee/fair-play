@@ -27,7 +27,10 @@ const STORAGE_KEY = 'appearance'
  * finished round indoors still gets the chunkier layout. That is the trade the
  * automatic-by-route approach makes.
  */
-const COURSE_ROUTES = ['/rounds/:id', '/live/:roundId', '/play']
+// `/play` used to be here. It is now mostly search, logging a past round and
+// tee times — as often done on the sofa as on the first tee — and the scoring
+// screen it hands off to is the one that needs the outdoor treatment.
+const COURSE_ROUTES = ['/rounds/:id', '/live/:roundId']
 
 export function densityForPath(pathname: string): Density {
   return COURSE_ROUTES.some((p) => matchPath(p, pathname)) ? 'course' : 'comfortable'

@@ -16,7 +16,7 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   getTeeTimes, getTeeTime, createTeeTime,
   joinTeeTime, respondToTeeTime, withdrawFromTeeTime,
@@ -116,14 +116,15 @@ function TeeTimeCard({ tt, onClick, action }: { tt: TeeTimeSummary; onClick?: ()
 
 // ── Create Dialog ───────────────────────────────────────────────────────────
 
-function CreateTeeTimeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateTeeTimeDialog({ open, onClose, initialInvite }: { open: boolean; onClose: () => void; initialInvite?: number }) {
   const queryClient = useQueryClient()
   const [selectedCourse, setSelectedCourse] = useState<{ name: string } | null>(null)
   const [dateTime, setDateTime] = useState(getNextSaturday8am())
   const [spotsTotal, setSpotsTotal] = useState(4)
-  const [visibility, setVisibility] = useState<'FRIENDS' | 'INVITED_ONLY'>('FRIENDS')
+  // Arriving from a friend's profile ("Challenge") pre-selects that friend
+  const [visibility, setVisibility] = useState<'FRIENDS' | 'INVITED_ONLY'>(initialInvite ? 'INVITED_ONLY' : 'FRIENDS')
   const [notes, setNotes] = useState('')
-  const [selectedFriends, setSelectedFriends] = useState<number[]>([])
+  const [selectedFriends, setSelectedFriends] = useState<number[]>(initialInvite ? [initialInvite] : [])
   const [error, setError] = useState('')
 
   const { data: friends } = useQuery({
@@ -502,7 +503,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
         )}
 
         {tt.course && tt.status !== 'CANCELLED' && tt.myStatus === 'CONFIRMED' && (
-          <Button variant="contained" startIcon={<GolfCourseIcon />} onClick={() => navigate(`/courses`)} sx={{ textTransform: 'none' }}>
+          <Button variant="contained" startIcon={<GolfCourseIcon />} onClick={() => navigate(`/play`)} sx={{ textTransform: 'none' }}>
             Start Round
           </Button>
         )}
@@ -537,7 +538,11 @@ function TeeTimeDetailView({ id }: { id: string }) {
 function TeeTimesListView() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
+  // ?create=1 (from Play) or ?invite=<userId> (from a profile) open the
+  // create dialog straight away
+  const [params] = useSearchParams()
+  const inviteParam = Number(params.get('invite')) || undefined
+  const [showCreate, setShowCreate] = useState(params.get('create') === '1' || !!inviteParam)
   const [joinTarget, setJoinTarget] = useState<TeeTimeSummary | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -671,7 +676,7 @@ function TeeTimesListView() {
         </>
       )}
 
-      <CreateTeeTimeDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateTeeTimeDialog open={showCreate} onClose={() => setShowCreate(false)} initialInvite={inviteParam} />
 
       {/* Join confirmation */}
       <Dialog open={!!joinTarget} onClose={() => setJoinTarget(null)}>

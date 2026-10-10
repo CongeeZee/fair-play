@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Box, TextField, InputAdornment, List, ListItemButton, ListItemText,
-  Paper, CircularProgress, Typography, Divider,
+  Paper, CircularProgress, Typography, Divider, ListSubheader,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
@@ -22,8 +22,13 @@ export interface CourseSearchResult {
 
 interface Props {
   onSelect: (course: CourseSearchResult) => void
-  /** 'external' uses golfcourseapi.com (30k+ courses). 'local' uses our own DB. */
-  source?: 'external' | 'local'
+  /**
+   * 'external' uses golfcourseapi.com (30k+ courses). 'local' uses our own DB.
+   * 'both' shows courses already on Fairplay first (instant, exact tees, and
+   * no external quota spent) with the worldwide results under them — and keeps
+   * working off the local list when the external API is down or out of quota.
+   */
+  source?: 'external' | 'local' | 'both'
   /** 'inline' = compact dropdown; 'fullPage' = paper card list. */
   variant?: 'inline' | 'fullPage'
   placeholder?: string
@@ -61,37 +66,42 @@ export default function CourseSearchInput({
   const externalQuery = useQuery({
     queryKey: ['course-search-ext', debounced],
     queryFn: () => searchExternalCourses(debounced),
-    enabled: ready && source === 'external',
+    enabled: ready && source !== 'local',
     staleTime: 60_000,
   })
   const localQuery = useQuery({
     queryKey: ['course-search-local', debounced],
     queryFn: () => getCourses(debounced),
-    enabled: ready && source === 'local',
+    enabled: ready && source !== 'external',
     staleTime: 60_000,
   })
 
-  const isLoading = source === 'external' ? externalQuery.isLoading : localQuery.isLoading
-  const error = source === 'external' ? externalQuery.error : localQuery.error
-
   const results: CourseSearchResult[] = useMemo(() => {
-    if (source === 'external') {
-      const data = (externalQuery.data ?? []) as ExternalCourse[]
-      return data.map((c) => ({
-        source: 'external' as const,
-        id: String(c.id),
-        name: c.course_name,
-        subtitle: [c.club_name, locationStr(c.location)].filter(Boolean).join(' · ') || undefined,
-      }))
-    }
-    const data = localQuery.data ?? []
-    return data.map((c) => ({
+    const ext = ((externalQuery.data ?? []) as ExternalCourse[]).map((c) => ({
+      source: 'external' as const,
+      id: String(c.id),
+      name: c.course_name,
+      subtitle: [c.club_name, locationStr(c.location)].filter(Boolean).join(' · ') || undefined,
+    }))
+    const local = (localQuery.data ?? []).map((c) => ({
       source: 'local' as const,
       id: String(c.id),
       name: formatCourseName(c.name),
+      subtitle: source === 'both' ? `${c.holes?.length ?? 18} holes` : undefined,
       externalId: c.externalId,
     }))
+    if (source === 'external') return ext
+    if (source === 'local') return local
+    return [...local.slice(0, 5), ...ext]
   }, [source, externalQuery.data, localQuery.data])
+
+  const isLoading = source === 'external' ? externalQuery.isLoading
+    : source === 'local' ? localQuery.isLoading
+    // In 'both', show whatever has arrived rather than waiting on the slower call
+    : (externalQuery.isLoading && localQuery.isLoading) || (results.length === 0 && (externalQuery.isLoading || localQuery.isLoading))
+  const error = source === 'external' ? externalQuery.error
+    : source === 'local' ? localQuery.error
+    : (results.length === 0 ? (externalQuery.error ?? localQuery.error) : null)
 
   const handleSelect = (r: CourseSearchResult) => {
     if (shouldClear) {
@@ -131,7 +141,7 @@ export default function CourseSearchInput({
             elevation={1}
             sx={{
               mt: 1,
-              maxHeight: 260,
+              maxHeight: 320,
               overflow: 'auto',
               borderRadius: 1,
             }}
@@ -155,7 +165,12 @@ export default function CourseSearchInput({
               <List dense disablePadding>
                 {results.map((r, idx) => (
                   <Box key={`${r.source}:${r.id}`}>
-                    {idx > 0 && <Divider />}
+                    {source === 'both' && (idx === 0 || results[idx - 1].source !== r.source) && (
+                      <ListSubheader disableSticky sx={{ lineHeight: '32px', bgcolor: 'transparent', fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                        {r.source === 'local' ? 'On Fairplay' : 'All courses'}
+                      </ListSubheader>
+                    )}
+                    {idx > 0 && results[idx - 1].source === r.source && <Divider />}
                     <ListItemButton onClick={() => handleSelect(r)}>
                       <ListItemText
                         primary={r.name}

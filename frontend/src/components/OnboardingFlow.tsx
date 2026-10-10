@@ -38,7 +38,7 @@ export default function OnboardingFlow() {
     if (step < STEPS.length - 1) setStep(step + 1)
     // On the final step, drop the user straight into course search so the
     // first action is teeing up their first round — not a blank page.
-    else handleNavigate('/courses')
+    else handleNavigate('/play')
   }
 
   const handleNavigate = (path: string) => {
@@ -90,7 +90,7 @@ export default function OnboardingFlow() {
               </Typography>
               <Button
                 variant="outlined"
-                onClick={() => handleNavigate('/courses')}
+                onClick={() => handleNavigate('/play')}
                 sx={{ textTransform: 'none', fontWeight: 600 }}
               >
                 Try it now

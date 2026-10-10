@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const pendingInvite = localStorage.getItem('pendingInviteCode')
   const postAuthDest =
     (location.state as { from?: string })?.from ??
-    (pendingInvite ? `/invite/${pendingInvite}` : '/courses')
+    (pendingInvite ? `/invite/${pendingInvite}` : '/play')
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
