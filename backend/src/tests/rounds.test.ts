@@ -47,6 +47,18 @@ async function createRoundWithScores(
 }
 
 describe("POST /rounds", () => {
+  it("accepts a courseId sent as a string, as the web client sends it", async () => {
+    const user = await createVerifiedTestUser();
+    const course = await createTestCourse();
+    const res = await request(app)
+      .post("/rounds")
+      .set("Authorization", `Bearer ${user.accessToken}`)
+      .send({ courseId: String(course.id), playedAt: "2026-09-01T09:00:00.000Z" });
+    expect(res.status).toBe(201);
+    expect(res.body.courseId).toBe(course.id);
+    expect(res.body.playedAt).toBe("2026-09-01T09:00:00.000Z");
+  });
+
   it("creates a round for authenticated user", async () => {
     const user = await createVerifiedTestUser();
     const course = await createTestCourse();

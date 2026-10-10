@@ -825,7 +825,9 @@ async function importExternalCourse(
 router.post("/", async (req: AuthRequest, res: Response) => {
   const schema = z
     .object({
-      courseId: z.number().int().positive().optional(),
+      // Coerced: the client's ids are strings, and a strict number check
+      // rejected every "Play again" from the recent-courses list.
+      courseId: z.coerce.number().int().positive().optional(),
       externalCourseId: z.string().optional(),
       teeName: z.string().optional(),
       // Optional so an older client, or a queued offline round created before
@@ -835,6 +837,12 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     })
     .refine((d) => d.courseId != null || d.externalCourseId != null, {
       message: "Either courseId or externalCourseId is required",
+    })
+    // Backdating a round is fine; a round from next week is a typo. A day of
+    // slack covers timezones ahead of the server.
+    .refine((d) => !d.playedAt || d.playedAt.getTime() <= Date.now() + 864e5, {
+      message: "A round can't be played in the future",
+      path: ["playedAt"],
     });
 
   const result = schema.safeParse(req.body);
