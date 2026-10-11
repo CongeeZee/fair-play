@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import {
   Box, Paper, Typography, List, ListItemButton, ListItemIcon, ListItemText, Switch,
   ToggleButton, ToggleButtonGroup, Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, Alert, Snackbar, CircularProgress,
+  Button, TextField, Alert, Snackbar, CircularProgress, ButtonBase,
 } from '@mui/material'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline'
 import StraightenIcon from '@mui/icons-material/Straighten'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
@@ -22,7 +23,8 @@ import { useUnits } from '../contexts/UnitsContext'
 import { useAppearance } from '../contexts/AppearanceContext'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { getAccount, changePassword, deleteAccount } from '../api/auth'
-import { updateProfile } from '../api/users'
+import { updateProfile, uploadProfilePhoto, removeProfilePhoto } from '../api/users'
+import { usePhotoVersion, setPhotoVersion, prepareProfilePhoto } from '../lib/photos'
 import { downloadRoundsCsv } from '../api/rounds'
 import { getApiErrorMessage } from '../api/errorMessage'
 
@@ -68,6 +70,25 @@ export default function SettingsPage() {
   const [toast, setToast] = useState('')
 
   const { data: account } = useQuery({ queryKey: ['account'], queryFn: getAccount })
+
+  // ── Photo ──
+  const fileInput = useRef<HTMLInputElement>(null)
+  const myPhoto = usePhotoVersion(Number(user?.id ?? 0))
+  const photoMut = useMutation({
+    mutationFn: async (file: File) => uploadProfilePhoto(await prepareProfilePhoto(file)),
+    onSuccess: ({ version }) => {
+      setPhotoVersion(Number(user!.id), version)
+      setToast('Profile photo updated')
+    },
+    onError: (err) => setToast(getApiErrorMessage(err, "Couldn't use that image — try a JPEG or PNG")),
+  })
+  const removePhotoMut = useMutation({
+    mutationFn: removeProfilePhoto,
+    onSuccess: () => {
+      setPhotoVersion(Number(user!.id), null)
+      setToast('Profile photo removed')
+    },
+  })
 
   // ── Name ──
   const [nameOpen, setNameOpen] = useState(false)
@@ -122,13 +143,54 @@ export default function SettingsPage() {
     <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 4 }}>
       <PageHeader title="Settings" />
 
-      <Paper elevation={0} sx={{ p: 2, mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <UserAvatar userId={Number(user.id)} name={user.name} size={56} />
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="h6" noWrap>{user.name}</Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>{account?.email ?? user.email}</Typography>
+      <Paper elevation={0} sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Tapping the photo is the natural way in, as in every other app */}
+          <ButtonBase
+            onClick={() => fileInput.current?.click()}
+            aria-label={myPhoto ? 'Change profile photo' : 'Add a profile photo'}
+            sx={{ borderRadius: '50%', position: 'relative', flexShrink: 0 }}
+            disabled={photoMut.isPending}
+          >
+            <UserAvatar userId={Number(user.id)} name={user.name} size={64} link={false} />
+            <Box sx={{
+              position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: '50%',
+              bgcolor: 'primary.main', color: '#fff', display: 'grid', placeItems: 'center',
+              border: '2px solid', borderColor: 'background.paper',
+            }}>
+              {photoMut.isPending ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <PhotoCameraIcon sx={{ fontSize: 15 }} />}
+            </Box>
+          </ButtonBase>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="h6" noWrap>{user.name}</Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>{account?.email ?? user.email}</Typography>
+          </Box>
+          <Button variant="outlined" size="small" onClick={() => navigate('/profile/me')} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+            View profile
+          </Button>
         </Box>
-        <Button variant="outlined" size="small" onClick={() => navigate('/profile/me')}>View profile</Button>
+        <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+          <Button size="small" startIcon={<PhotoCameraIcon />} onClick={() => fileInput.current?.click()} disabled={photoMut.isPending}>
+            {myPhoto ? 'Change photo' : 'Add photo'}
+          </Button>
+          {myPhoto && (
+            <Button size="small" color="inherit" onClick={() => removePhotoMut.mutate()} disabled={removePhotoMut.isPending} sx={{ color: 'text.secondary' }}>
+              Remove photo
+            </Button>
+          )}
+          <Button size="small" onClick={() => navigate('/profile/me')} sx={{ display: { sm: 'none' }, ml: 'auto' }}>View profile</Button>
+        </Box>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) photoMut.mutate(f)
+          }}
+        />
       </Paper>
 
       <Section title="Profile">

@@ -12,3 +12,11 @@ export const getUserHandicapHistory = (userId: number) =>
 
 export const updateProfile = (data: { name: string }) =>
   client.patch('/auth/profile', data).then((r) => r.data)
+
+/** Upload a (pre-resized) profile photo; returns its new version. */
+export const uploadProfilePhoto = (image: Blob) =>
+  client
+    .put<{ version: number }>('/photos/me', image, { headers: { 'Content-Type': image.type || 'image/jpeg' } })
+    .then((r) => r.data)
+
+export const removeProfilePhoto = () => client.delete('/photos/me').then((r) => r.data)

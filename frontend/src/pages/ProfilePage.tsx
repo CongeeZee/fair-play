@@ -6,6 +6,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Popover,
+  ButtonBase,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'
@@ -47,7 +48,14 @@ function ProfileHeader({ profile, isOwn, onEdit }: { profile: UserProfile; isOwn
   const navigate = useNavigate()
   return (
     <Box sx={{ textAlign: 'center', mb: 3 }}>
-      <UserAvatar userId={profile.id} name={profile.name} size={80} link={false} sx={{ mx: 'auto', mb: 1.5, fontSize: '1.9rem' }} />
+      {isOwn ? (
+        // Your own photo opens Settings, where it can be changed
+        <ButtonBase onClick={() => navigate('/settings')} aria-label="Change profile photo" sx={{ borderRadius: '50%', mx: 'auto', mb: 1.5, display: 'block', width: 80 }}>
+          <UserAvatar userId={profile.id} name={profile.name} size={80} link={false} sx={{ fontSize: '1.9rem' }} />
+        </ButtonBase>
+      ) : (
+        <UserAvatar userId={profile.id} name={profile.name} size={80} link={false} sx={{ mx: 'auto', mb: 1.5, fontSize: '1.9rem' }} />
+      )}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         <Typography variant="h5" sx={{ fontWeight: 800 }}>{profile.name}</Typography>
         {isOwn && (
