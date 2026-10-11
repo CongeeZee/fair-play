@@ -1,5 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  // Load `include`d relations with JOINs in one SQL statement instead of one
+  // query per relation. Each query is a round-trip to the database, so a
+  // round with its user, course, holes and scores went from 9 serial
+  // queries to 1.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

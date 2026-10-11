@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import authRouter from "./routes/auth";
 import coursesRouter from "./routes/courses";
 import roundsRouter from "./routes/rounds";
@@ -41,6 +42,9 @@ if (trustProxy) {
 }
 
 app.use(cors());
+// gzip responses: round history and feed payloads are repetitive JSON that
+// shrinks 5-10x, which matters on a phone signal at the course.
+app.use(compression());
 app.use(express.json());
 app.use(standardLimiter);
 
