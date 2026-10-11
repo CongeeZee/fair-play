@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Skeleton, CardActions, TextField, useMediaQuery, useTheme,
+  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Skeleton, Paper, CardActions, TextField, useMediaQuery, useTheme,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SendIcon from '@mui/icons-material/Send'
@@ -29,6 +29,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications'
 import EmptyState from '../components/EmptyState'
 import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import FeedSidebar from '../components/FeedSidebar'
+import FeedProfileCard from '../components/FeedProfileCard'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 /**
@@ -575,6 +576,25 @@ export default function FeedPage() {
   // owns and the column it lives in appear and disappear together.
   const theme = useTheme()
   const showSidebar = useMediaQuery(theme.breakpoints.up('lg'))
+  // Wide screens get a left column too — your numbers and quick actions —
+  // instead of two bands of empty background either side of a 600px strip.
+  const showProfile = useMediaQuery(theme.breakpoints.up('xl'))
+
+  /** Centred grid: feed alone on phones/tablets, + sidebar at lg, + profile at xl. */
+  const shellSx = {
+    display: 'grid',
+    gridTemplateColumns: {
+      xs: 'minmax(0, 640px)',
+      lg: 'minmax(0, 620px) 300px',
+      xl: '270px minmax(0, 620px) 300px',
+    },
+    justifyContent: 'center',
+    columnGap: { lg: 3.5, xl: 4 },
+    alignItems: 'start',
+    px: 2,
+    py: { xs: 0, md: 1 },
+  } as const
+  const sideSx = { position: 'sticky', top: 88, pt: { lg: 11 } } as const
 
   const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
@@ -586,8 +606,9 @@ export default function FeedPage() {
      shell during loading lets them go out together. */
   if (isLoading) {
     return (
-      <Box sx={{ maxWidth: { xs: 600, lg: 960 }, mx: 'auto', px: 2, py: 3, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-        <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto' }} aria-busy="true" aria-label="Loading feed">
+      <Box sx={shellSx}>
+        {showProfile && <Box sx={sideSx}><FeedProfileCard /></Box>}
+        <Box sx={{ minWidth: 0 }} aria-busy="true" aria-label="Loading feed">
           <PageHeader title="Activity" subtitle="What you and your mates have been playing" />
           {/* Card-shaped placeholders: the page has its final shape at once
               instead of a lone spinner, so the wait reads as shorter. */}
@@ -609,31 +630,15 @@ export default function FeedPage() {
             </Card>
           ))}
         </Box>
-        {showSidebar && (
-          <Box sx={{ width: 300, flexShrink: 0, position: 'sticky', top: 88 }}>
-            <FeedSidebar />
-          </Box>
-        )}
+        {showSidebar && <Box sx={sideSx}><FeedSidebar /></Box>}
       </Box>
     )
   }
 
   return (
-    // Two-column shell on large screens: main feed (600px) + sticky sidebar.
-    // Below `lg` the sidebar disappears and this collapses to the original
-    // single centered column.
-    <Box
-      sx={{
-        maxWidth: { xs: 600, lg: 960 },
-        mx: 'auto',
-        px: 2,
-        py: 3,
-        display: 'flex',
-        gap: 4,
-        alignItems: 'flex-start',
-      }}
-    >
-    <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto' }}>
+    <Box sx={shellSx}>
+    {showProfile && <Box sx={sideSx}><FeedProfileCard /></Box>}
+    <Box sx={{ minWidth: 0 }}>
       <PageHeader
         title="Activity"
         subtitle="What you and your mates have been playing"
@@ -666,14 +671,17 @@ export default function FeedPage() {
         />
       )}
 
-      {/* Only your own rounds so far — nudge towards bringing friends in */}
-      {allFeedRounds.length > 0 && allFeedRounds.every((r) => r.isOwn) && (
-        <EmptyState
-          icon={<PeopleIcon sx={{ fontSize: 36 }} />}
-          title="Golf's better with mates"
-          description="Share an invite link so your group can post their scores, react, and compete."
-          primary={{ label: 'Invite mates', to: '/friends' }}
-        />
+      {/* Only your own rounds so far — a slim nudge, not a full-page empty
+          state above real content. Wide screens have the sidebar's invite card. */}
+      {!showSidebar && allFeedRounds.length > 0 && allFeedRounds.every((r) => r.isOwn) && (
+        <Paper elevation={0} sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: tint(CLAY.green, 0.07) }}>
+          <PeopleIcon sx={{ color: CLAY.greenText }} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700 }}>Golf's better with mates</Typography>
+            <Typography variant="body2" color="text.secondary">Invite your group to see their rounds here.</Typography>
+          </Box>
+          <Button size="small" variant="contained" component={Link} to="/friends?tab=add">Invite</Button>
+        </Paper>
       )}
 
       {(() => {
@@ -722,18 +730,7 @@ export default function FeedPage() {
         queries of its own, and a hidden-but-mounted sidebar still ran both of
         them on every phone that opened the feed — two requests for a panel that
         viewport can never show. */}
-    {showSidebar && (
-      <Box
-        sx={{
-          width: 300,
-          flexShrink: 0,
-          position: 'sticky',
-          top: 88,
-        }}
-      >
-        <FeedSidebar />
-      </Box>
-    )}
+    {showSidebar && <Box sx={sideSx}><FeedSidebar /></Box>}
     </Box>
   )
 }
