@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   // Load `include`d relations with JOINs in one SQL statement instead of one
   // query per relation. Each query is a round-trip to the database, so a
   // round with its user, course, holes and scores went from 9 serial
@@ -46,6 +46,19 @@ model User {
   subscription           Subscription?
   notifications          Notification[]           @relation("notificationRecipient")
   notificationsSent      Notification[]           @relation("notificationActor")
+  profilePhoto           ProfilePhoto?
+}
+
+// ── Profile photo ────────────────────────────────────────────────────────────
+// One small square image per user (the client resizes to 320px before
+// upload). Kept off the User row so ordinary user queries never drag the
+// bytes along. `updatedAt` doubles as the cache-busting version in the URL.
+model ProfilePhoto {
+  userId    Int      @id
+  data      Bytes
+  mimeType  String
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ── In-app notifications ─────────────────────────────────────────────────────

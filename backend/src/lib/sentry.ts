@@ -81,6 +81,14 @@ export function isSentryEnabled(): boolean {
  * Captures the error in Sentry (when enabled) and forwards a generic 500.
  */
 export const sentryErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  // Client errors raised by middleware — a body over the size limit (413),
+  // malformed JSON (400) — carry their own status and a safe message
+  // (`expose`). They used to come back as a 500 and be reported as crashes.
+  const status = Number(err?.status ?? err?.statusCode)
+  if (status >= 400 && status < 500 && !res.headersSent) {
+    res.status(status).json({ error: err.expose && err.message ? err.message : "Bad request" })
+    return
+  }
   if (initialised) {
     Sentry.withScope((scope) => {
       scope.setTag("path", req.path);
