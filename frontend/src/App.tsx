@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Box, Toolbar, CircularProgress } from '@mui/material'
 
@@ -73,10 +75,40 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       staleTime: 5 * 60_000,  // 5 minutes — most data is stable
-      gcTime: 10 * 60_000,    // keep unused cache for 10 minutes
+      // Must be at least the persisted maxAge, or restored entries would be
+      // garbage-collected before anything reads them.
+      gcTime: 24 * 60 * 60_000,
     },
   },
 })
+
+/**
+ * The query cache is saved to this device, so opening the app paints the feed,
+ * stats and history from the last visit immediately and refreshes them in the
+ * background, instead of a spinner per page while the API answers. Restored
+ * data is older than staleTime, so every query still refetches on mount.
+ *
+ * Scoped to the signed-in user via `buster`: a cache written by one account is
+ * discarded rather than shown to another on a shared device (logout also
+ * clears it — see AuthContext).
+ */
+const persister = createSyncStoragePersister({
+  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  key: 'fairplay-query-cache',
+  throttleTime: 2000,
+})
+
+function cacheOwner(): string {
+  try {
+    const raw = localStorage.getItem('user')
+    return raw ? String(JSON.parse(raw).id ?? '') : ''
+  } catch {
+    return ''
+  }
+}
+
+// Volatile or bulky queries that aren't worth restoring
+const NOT_PERSISTED = new Set(['live-rounds', 'notifications-unread', 'course-search-ext', 'course-search-local', 'friend-search', 'external-course-tees'])
 
 /**
  * Warm the chunks behind the bottom nav once the current page has settled.
@@ -239,7 +271,18 @@ function Layout() {
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister,
+          maxAge: 24 * 60 * 60_000,
+          buster: `v1-${cacheOwner()}`,
+          dehydrateOptions: {
+            shouldDehydrateQuery: (q) =>
+              q.state.status === 'success' && !NOT_PERSISTED.has(String(q.queryKey[0])),
+          },
+        }}
+      >
         {/* AppearanceProvider supplies the theme and CssBaseline, and sits
             inside the router because course density is derived from the route.
             Everything visual therefore mounts below BrowserRouter now. */}
@@ -252,7 +295,7 @@ export default function App() {
             </UnitsProvider>
           </AppearanceProvider>
         </BrowserRouter>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </GoogleOAuthProvider>
   )
 }

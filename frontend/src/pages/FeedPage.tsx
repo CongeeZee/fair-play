@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, CardActions, TextField, useMediaQuery, useTheme,
+  Box, Typography, Card, CardContent, Chip, Button, CircularProgress, IconButton, Snackbar, Skeleton, CardActions, TextField, useMediaQuery, useTheme,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SendIcon from '@mui/icons-material/Send'
@@ -587,8 +587,27 @@ export default function FeedPage() {
   if (isLoading) {
     return (
       <Box sx={{ maxWidth: { xs: 600, lg: 960 }, mx: 'auto', px: 2, py: 3, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-        <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto', display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
+        <Box sx={{ flex: 1, maxWidth: 600, minWidth: 0, mx: 'auto' }} aria-busy="true" aria-label="Loading feed">
+          <PageHeader title="Activity" subtitle="What you and your mates have been playing" />
+          {/* Card-shaped placeholders: the page has its final shape at once
+              instead of a lone spinner, so the wait reads as shorter. */}
+          {[0, 1, 2].map((i) => (
+            <Card key={i} elevation={1} sx={{ mb: 2 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Skeleton width="40%" height={22} />
+                </Box>
+                <Skeleton width="70%" height={26} sx={{ mt: 1.5 }} />
+                <Box sx={{ display: 'flex', gap: 2.5, mt: 1, alignItems: 'flex-end' }}>
+                  <Skeleton variant="rounded" width={88} height={40} />
+                  <Skeleton width={44} height={36} />
+                  <Skeleton width={44} height={36} />
+                  <Skeleton width={44} height={36} />
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
         </Box>
         {showSidebar && (
           <Box sx={{ width: 300, flexShrink: 0, position: 'sticky', top: 88 }}>

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { User, AuthResponse } from '../types'
+import { useQueryClient } from '@tanstack/react-query'
 import * as authApi from '../api/auth'
 import { setAccessToken, refreshAccessToken } from '../api/client'
 import { identify, resetAnalytics, capture, AnalyticsEvent } from '../analytics'
@@ -17,6 +18,9 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+/** Key of the on-device query cache written in App.tsx. */
+const QUERY_CACHE_KEY = 'fairplay-query-cache'
 
 function handleAuthResponse(data: AuthResponse, setUser: (u: User | null) => void) {
   setAccessToken(data.token)
@@ -54,16 +58,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Whenever the signed-in account changes, nothing cached for the previous
+  // one may be shown — in memory or in the on-device copy.
+  const queryClient = useQueryClient()
+  const resetCache = useCallback(() => {
+    queryClient.clear()
+    try { localStorage.removeItem(QUERY_CACHE_KEY) } catch { /* storage unavailable */ }
+  }, [queryClient])
+
   const login = useCallback(async (email: string, password: string) => {
     const data = await authApi.login(email, password)
+    resetCache()
     handleAuthResponse(data, setUser)
-  }, [])
+  }, [resetCache])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     const data = await authApi.register(name, email, password)
+    resetCache()
     handleAuthResponse(data, setUser)
     capture(AnalyticsEvent.SignupCompleted, { method: 'email' })
-  }, [])
+  }, [resetCache])
 
   const googleLogin = useCallback(async (credential: string) => {
     // We can't tell from the response alone whether this Google sign-in created
@@ -72,11 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // by checking whether we'd previously stored a user.
     const isFirstAuth = !localStorage.getItem('user')
     const data = await authApi.googleLogin(credential)
+    resetCache()
     handleAuthResponse(data, setUser)
     if (isFirstAuth) {
       capture(AnalyticsEvent.SignupCompleted, { method: 'google' })
     }
-  }, [])
+  }, [resetCache])
 
   const markEmailVerified = useCallback(() => {
     setUser((prev) => {
@@ -111,9 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null)
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
+    resetCache()
     setUser(null)
     resetAnalytics()
-  }, [])
+  }, [resetCache])
 
   return (
     <AuthContext.Provider value={{ user, login, register, googleLogin, markEmailVerified, markOnboardingComplete, logout, updateUser }}>
