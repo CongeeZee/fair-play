@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { User, AuthResponse } from '../types'
 import { useQueryClient } from '@tanstack/react-query'
 import * as authApi from '../api/auth'
-import { setAccessToken, refreshAccessToken } from '../api/client'
+import { setAccessToken, refreshAccessToken, hasValidAccessToken } from '../api/client'
 import { identify, resetAnalytics, capture, AnalyticsEvent } from '../analytics'
 
 interface AuthContextValue {
@@ -45,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshToken = localStorage.getItem('refreshToken')
     if (!refreshToken || !user) return
+    // A still-valid stored access token means there's nothing to wait for:
+    // requests go straight out, and the next refresh happens when it expires.
+    if (hasValidAccessToken()) return
 
     refreshAccessToken().then((result) => {
       if (result.status === 'ok') {

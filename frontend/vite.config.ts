@@ -14,7 +14,9 @@ export default defineConfig({
         // library — into the entry's critical path.
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (id.includes('@mui') || id.includes('@emotion')) return 'mui'
+          // MUI is left to Rollup: grouping all of it forced every component any
+          // lazy page uses (tables, steppers, dialogs) into the first load.
+          if (id.includes('@emotion')) return 'mui'
           if (id.includes('@tanstack')) return 'query'
           // Named so the async analytics chunk is identifiable in a waterfall;
           // it is dynamically imported, so this never pulls it into the entry.

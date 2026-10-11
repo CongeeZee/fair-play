@@ -69,8 +69,11 @@ export const getStrokesGained = () =>
 export const getHandicapHistory = () =>
   client.get<HandicapHistoryPoint[]>('/rounds/handicap-history').then((r) => r.data)
 
+/** First screen gets a short page so it answers fast; scrolling fetches more. */
 export const getFeed = (cursor?: number) =>
-  client.get<FeedResponse>('/rounds/feed', { params: cursor ? { cursor } : {} }).then((r) => r.data)
+  client
+    .get<FeedResponse>('/rounds/feed', { params: cursor ? { cursor, limit: 15 } : { limit: 8 } })
+    .then((r) => r.data)
 
 export const getLeaderboard = (timeframe: string) =>
   client.get<LeaderboardEntry[]>('/rounds/leaderboard', { params: { timeframe } }).then((r) => r.data)

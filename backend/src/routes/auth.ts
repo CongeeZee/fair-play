@@ -278,14 +278,29 @@ router.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
       return;
     }
 
-    await prisma.refreshToken.delete({ where: { id: stored.id } });
-
     if (stored.expiresAt < new Date()) {
+      await prisma.refreshToken.delete({ where: { id: stored.id } });
       res.status(401).json({ error: "Refresh token expired" });
       return;
     }
 
-    await issueTokens(stored.user, res);
+    // Rotate in place: one UPDATE swaps in the new token, where delete-then-
+    // create was two writes. This request sits in front of every app open
+    // that has no live access token, so each round-trip saved is felt.
+    const raw = crypto.randomBytes(40).toString("hex");
+    await prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: {
+        token: hashToken(raw),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
+    const u = stored.user;
+    res.json({
+      user: { id: u.id, email: u.email, name: u.name, emailVerified: u.emailVerified, hasCompletedOnboarding: u.hasCompletedOnboarding },
+      token: signAccessToken(u.id),
+      refreshToken: raw,
+    });
   } catch (err) {
     console.error("Refresh error:", err);
     res.status(500).json({ error: "Internal server error" });

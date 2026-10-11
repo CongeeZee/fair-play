@@ -7,11 +7,52 @@ const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
 })
 
-// In-memory access token — never stored in localStorage
-let accessToken: string | null = null
+/**
+ * The short-lived (15 min) access token, kept in localStorage alongside the
+ * refresh token. It used to live only in memory, so every app open had to call
+ * /auth/refresh — several database round-trips — before *any* other request
+ * was allowed out, a serial wait of seconds in front of the first screen.
+ * Keeping it means a reopen within its lifetime starts loading data at once.
+ * The refresh token (which can mint new access tokens for 30 days) was already
+ * in localStorage, so this adds no exposure an XSS bug didn't already have.
+ */
+const ACCESS_KEY = 'accessToken'
+
+/** Seconds-since-epoch expiry from a JWT, or 0 if unreadable. */
+function tokenExpiry(token: string): number {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof payload.exp === 'number' ? payload.exp : 0
+  } catch {
+    return 0
+  }
+}
+
+/** Usable for at least another 30s, so a request doesn't race the expiry. */
+function stillValid(token: string | null): token is string {
+  return !!token && tokenExpiry(token) * 1000 > Date.now() + 30_000
+}
+
+let accessToken: string | null = (() => {
+  try {
+    const t = localStorage.getItem(ACCESS_KEY)
+    return stillValid(t) ? t : null
+  } catch {
+    return null
+  }
+})()
 
 export function setAccessToken(token: string | null) {
   accessToken = token
+  try {
+    if (token) localStorage.setItem(ACCESS_KEY, token)
+    else localStorage.removeItem(ACCESS_KEY)
+  } catch { /* storage unavailable — memory copy still works */ }
+}
+
+/** True when a stored access token can be used without refreshing first. */
+export function hasValidAccessToken() {
+  return stillValid(accessToken)
 }
 
 export function getAccessToken() {
@@ -25,7 +66,7 @@ export function getAccessToken() {
 // Instead, if we hold a refresh token but no access token yet, wait for the
 // shared refresh (deduped with AuthContext's boot refresh) before sending.
 client.interceptors.request.use(async (config) => {
-  if (!accessToken && localStorage.getItem('refreshToken')) {
+  if (!stillValid(accessToken) && localStorage.getItem('refreshToken')) {
     await refreshAccessToken()
   }
   if (accessToken) {
@@ -58,7 +99,7 @@ async function doRefresh(): Promise<RefreshResult> {
       { refreshToken },
     )
     const { token, refreshToken: newRefreshToken, user } = resp.data
-    accessToken = token
+    setAccessToken(token)
     localStorage.setItem('refreshToken', newRefreshToken)
     localStorage.setItem('user', JSON.stringify(user))
     return { status: 'ok', token, user }
@@ -68,7 +109,7 @@ async function doRefresh(): Promise<RefreshResult> {
     // (rate limit), 5xx, or network error must not wipe a valid session —
     // that was logging users out spuriously.
     if (status === 401 || status === 403) {
-      accessToken = null
+      setAccessToken(null)
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       return { status: 'invalid' }
