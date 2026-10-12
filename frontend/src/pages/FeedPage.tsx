@@ -580,13 +580,17 @@ export default function FeedPage() {
   // instead of two bands of empty background either side of a 600px strip.
   const showProfile = useMediaQuery(theme.breakpoints.up('xl'))
 
-  /** Centred grid: feed alone on phones/tablets, + sidebar at lg, + profile at xl. */
+  /**
+   * The feed always owns the exact middle of the page. From `lg` up the grid is
+   * three columns — two equal flexible sides around the feed — so it stays
+   * centred whether the left side holds the profile card (xl) or is empty (lg).
+   * Centring the *group* instead (feed + one sidebar) pushed the feed left.
+   */
   const shellSx = {
     display: 'grid',
     gridTemplateColumns: {
       xs: 'minmax(0, 640px)',
-      lg: 'minmax(0, 620px) 300px',
-      xl: '270px minmax(0, 620px) 300px',
+      lg: 'minmax(0, 1fr) minmax(0, 620px) minmax(0, 1fr)',
     },
     justifyContent: 'center',
     columnGap: { lg: 3.5, xl: 4 },
@@ -594,7 +598,11 @@ export default function FeedPage() {
     px: 2,
     py: { xs: 0, md: 1 },
   } as const
-  const sideSx = { position: 'sticky', top: 88, pt: { lg: 11 } } as const
+  const sideSx = { position: 'sticky', top: 88, pt: { lg: 11 }, width: '100%', maxWidth: 300 } as const
+  // Left side hugs the feed from the left, right side from the right
+  const leftSx = { ...sideSx, justifySelf: 'end', gridColumn: 1 } as const
+  const rightSx = { ...sideSx, justifySelf: 'start', gridColumn: 3 } as const
+  const mainSx = { minWidth: 0, gridColumn: { xs: 1, lg: 2 } } as const
 
   const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
@@ -607,8 +615,8 @@ export default function FeedPage() {
   if (isLoading) {
     return (
       <Box sx={shellSx}>
-        {showProfile && <Box sx={sideSx}><FeedProfileCard /></Box>}
-        <Box sx={{ minWidth: 0 }} aria-busy="true" aria-label="Loading feed">
+        {showProfile && <Box sx={leftSx}><FeedProfileCard /></Box>}
+        <Box sx={mainSx} aria-busy="true" aria-label="Loading feed">
           <PageHeader title="Activity" subtitle="What you and your mates have been playing" />
           {/* Card-shaped placeholders: the page has its final shape at once
               instead of a lone spinner, so the wait reads as shorter. */}
@@ -630,15 +638,15 @@ export default function FeedPage() {
             </Card>
           ))}
         </Box>
-        {showSidebar && <Box sx={sideSx}><FeedSidebar /></Box>}
+        {showSidebar && <Box sx={rightSx}><FeedSidebar /></Box>}
       </Box>
     )
   }
 
   return (
     <Box sx={shellSx}>
-    {showProfile && <Box sx={sideSx}><FeedProfileCard /></Box>}
-    <Box sx={{ minWidth: 0 }}>
+    {showProfile && <Box sx={leftSx}><FeedProfileCard /></Box>}
+    <Box sx={mainSx}>
       <PageHeader
         title="Activity"
         subtitle="What you and your mates have been playing"
@@ -730,7 +738,7 @@ export default function FeedPage() {
         queries of its own, and a hidden-but-mounted sidebar still ran both of
         them on every phone that opened the feed — two requests for a panel that
         viewport can never show. */}
-    {showSidebar && <Box sx={sideSx}><FeedSidebar /></Box>}
+    {showSidebar && <Box sx={rightSx}><FeedSidebar /></Box>}
     </Box>
   )
 }
