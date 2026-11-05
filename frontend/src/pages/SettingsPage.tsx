@@ -27,6 +27,9 @@ import { updateProfile, uploadProfilePhoto, removeProfilePhoto } from '../api/us
 import { usePhotoVersion, setPhotoVersion, prepareProfilePhoto } from '../lib/photos'
 import { downloadRoundsCsv } from '../api/rounds'
 import { getApiErrorMessage } from '../api/errorMessage'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { FriendsCard, InviteCard } from '../components/RailCards'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -140,7 +143,8 @@ export default function SettingsPage() {
   if (!user) return null
 
   return (
-    <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 4 }}>
+    <PageShell left={<FeedProfileCard />} right={<><FriendsCard /><InviteCard /></>}>
+    <Box sx={{ pb: 4 }}>
       <PageHeader title="Settings" />
 
       <Paper elevation={0} sx={{ p: 2, mb: 3 }}>
@@ -331,5 +335,6 @@ export default function SettingsPage() {
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast('')} message={toast} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: '76px', md: 0 } }} />
     </Box>
+    </PageShell>
   )
 }

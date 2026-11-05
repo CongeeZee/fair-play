@@ -32,6 +32,9 @@ import CourseSearchInput from '../components/CourseSearchInput'
 import type { TeeTimeSummary } from '../types'
 import { CLAY, raised, tint, greenGradient } from '../theme'
 import { ON_GREEN } from '../scoreColors'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { CompetitionsCard, FriendsCard, PeopleYouMayKnowCard, InviteCard, UpcomingRoundsCard } from '../components/RailCards'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -358,7 +361,8 @@ function TeeTimeDetailView({ id }: { id: string }) {
   const spotsRemaining = tt.spotsTotal - confirmed.length
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+    <PageShell maxWidth={620} left={<><FeedProfileCard /><UpcomingRoundsCard /></>} right={<><FriendsCard /><InviteCard /></>}>
+    <Box>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/teetimes')} sx={{ mb: 1, textTransform: 'none' }}>
         Back
       </Button>
@@ -555,6 +559,7 @@ function TeeTimeDetailView({ id }: { id: string }) {
         </DialogActions>
       </Dialog>
     </Box>
+    </PageShell>
   )
 }
 
@@ -596,8 +601,8 @@ function TeeTimesListView() {
   const isEmpty = invitations.length === 0 && myUpcoming.length === 0 && friendsTT.length === 0
 
   return (
-    <Box>
-      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3 }}>
+    <PageShell maxWidth={620} left={<><FeedProfileCard /><CompetitionsCard /></>} right={<><FriendsCard /><PeopleYouMayKnowCard /><InviteCard /></>}>
+      <Box sx={{ pb: 3 }}>
       <PageHeader title="Tee Times" subtitle="Organise rounds with friends" />
       {isEmpty ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -719,7 +724,7 @@ function TeeTimesListView() {
         </DialogActions>
       </Dialog>
       </Box>
-    </Box>
+    </PageShell>
   )
 }
 

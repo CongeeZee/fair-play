@@ -31,6 +31,9 @@ import type { UserProfile, HeadToHead, UnlockedAchievement } from '../types'
 import { CLAY } from '../theme'
 import UserAvatar from '../components/UserAvatar'
 import { scoreBand } from '../scoreColors'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { FriendsCard, PeopleYouMayKnowCard, InviteCard } from '../components/RailCards'
 
 function scoreLabel(val: number | null) {
   if (val == null) return '-'
@@ -562,7 +565,8 @@ export default function ProfilePage() {
   const viewerName = user?.name ?? 'You'
 
   return (
-    <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 3 }}>
+    <PageShell maxWidth={620} left={<FeedProfileCard />} right={<><FriendsCard /><PeopleYouMayKnowCard /><InviteCard /></>}>
+    <Box sx={{ py: 3 }}>
       <PageHeader title={isOwn ? 'My Profile' : 'Profile'} />
 
       <ProfileHeader profile={profile} isOwn={isOwn} onEdit={() => setEditOpen(true)} />
@@ -708,6 +712,7 @@ export default function ProfilePage() {
         </DialogActions>
       </Dialog>
     </Box>
+    </PageShell>
   )
 }
 

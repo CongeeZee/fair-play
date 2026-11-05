@@ -22,6 +22,9 @@ import { CLAY, tint } from '../theme'
 import { teeKey, parseTeeKey, formatTeeName, formatCourseName } from '../utils'
 import { useUnits } from '../contexts/UnitsContext'
 import type { Round } from '../types'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { RecentRoundsCard, FocusCard, CompetitionsCard, InviteCard } from '../components/RailCards'
 
 function relativeDate(dt: string): string {
   const d = new Date(dt)
@@ -146,7 +149,11 @@ export default function PlayPage() {
   const canStart = !!selectedCourse && !startRoundMut.isPending && (!needsTee || (!!selectedTee && !teesQuery.isLoading))
 
   return (
-    <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 4 }}>
+    <PageShell
+      left={<><FeedProfileCard actions={false} /><RecentRoundsCard /></>}
+      right={<><FocusCard /><CompetitionsCard /><InviteCard /></>}
+    >
+    <Box sx={{ pb: 4 }}>
       <PageHeader title="Play" subtitle="Start a round, log one you've played, or organise the next" />
 
       {liveData?.ownLiveRound && <ResumeRoundBanner round={liveData.ownLiveRound} />}
@@ -338,5 +345,6 @@ export default function PlayPage() {
         )}
       </Box>
     </Box>
+    </PageShell>
   )
 }

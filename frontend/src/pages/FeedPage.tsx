@@ -30,6 +30,7 @@ import EmptyState from '../components/EmptyState'
 import ResumeRoundBanner from '../components/ResumeRoundBanner'
 import FeedSidebar from '../components/FeedSidebar'
 import FeedProfileCard from '../components/FeedProfileCard'
+import PageShell from '../components/PageShell'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
 /**
@@ -572,37 +573,14 @@ export default function FeedPage() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  // `lg` matches the breakpoint the sidebar is laid out at, so the query it
-  // owns and the column it lives in appear and disappear together.
+  // `lg` is where PageShell lays out its rails; the "Golf's better with
+  // mates" nudge below gives way to the sidebar's invite card there.
   const theme = useTheme()
   const showSidebar = useMediaQuery(theme.breakpoints.up('lg'))
-  // Wide screens get a left column too — your numbers and quick actions —
-  // instead of two bands of empty background either side of a 600px strip.
-  const showProfile = useMediaQuery(theme.breakpoints.up('xl'))
-
-  /**
-   * The feed always owns the exact middle of the page. From `lg` up the grid is
-   * three columns — two equal flexible sides around the feed — so it stays
-   * centred whether the left side holds the profile card (xl) or is empty (lg).
-   * Centring the *group* instead (feed + one sidebar) pushed the feed left.
-   */
-  const shellSx = {
-    display: 'grid',
-    gridTemplateColumns: {
-      xs: 'minmax(0, 640px)',
-      lg: 'minmax(0, 1fr) minmax(0, 620px) minmax(0, 1fr)',
-    },
-    justifyContent: 'center',
-    columnGap: { lg: 3.5, xl: 4 },
-    alignItems: 'start',
-    px: 2,
-    py: { xs: 0, md: 1 },
-  } as const
-  const sideSx = { position: 'sticky', top: 88, pt: { lg: 11 }, width: '100%', maxWidth: 300 } as const
-  // Left side hugs the feed from the left, right side from the right
-  const leftSx = { ...sideSx, justifySelf: 'end', gridColumn: 1 } as const
-  const rightSx = { ...sideSx, justifySelf: 'start', gridColumn: 3 } as const
-  const mainSx = { minWidth: 0, gridColumn: { xs: 1, lg: 2 } } as const
+  // Wide screens get a column either side — your numbers and quick actions on
+  // the left, what's coming up on the right — around the centred feed.
+  const left = <FeedProfileCard />
+  const right = <FeedSidebar />
 
   const feedTeeTimes = data?.pages[0]?.feedTeeTimes ?? []
   const allFeedRounds = data?.pages.flatMap((p) => p.feed) ?? []
@@ -614,9 +592,8 @@ export default function FeedPage() {
      shell during loading lets them go out together. */
   if (isLoading) {
     return (
-      <Box sx={shellSx}>
-        {showProfile && <Box sx={leftSx}><FeedProfileCard /></Box>}
-        <Box sx={mainSx} aria-busy="true" aria-label="Loading feed">
+      <PageShell left={left} right={right}>
+        <Box aria-busy="true" aria-label="Loading feed">
           <PageHeader title="Activity" subtitle="What you and your mates have been playing" />
           {/* Card-shaped placeholders: the page has its final shape at once
               instead of a lone spinner, so the wait reads as shorter. */}
@@ -638,15 +615,12 @@ export default function FeedPage() {
             </Card>
           ))}
         </Box>
-        {showSidebar && <Box sx={rightSx}><FeedSidebar /></Box>}
-      </Box>
+      </PageShell>
     )
   }
 
   return (
-    <Box sx={shellSx}>
-    {showProfile && <Box sx={leftSx}><FeedProfileCard /></Box>}
-    <Box sx={mainSx}>
+    <PageShell left={left} right={right}>
       <PageHeader
         title="Activity"
         subtitle="What you and your mates have been playing"
@@ -731,14 +705,6 @@ export default function FeedPage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{ mb: { xs: '68px', md: 0 } }}
       />
-    </Box>
-
-    {/* Desktop sidebar — upcoming tee times and competitions at a glance.
-        Mounted only at `lg`, not merely hidden with `display: none`. It owns two
-        queries of its own, and a hidden-but-mounted sidebar still ran both of
-        them on every phone that opened the feed — two requests for a panel that
-        viewport can never show. */}
-    {showSidebar && <Box sx={rightSx}><FeedSidebar /></Box>}
-    </Box>
+    </PageShell>
   )
 }

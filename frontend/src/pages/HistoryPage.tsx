@@ -25,6 +25,9 @@ import { getRounds, getRound, deleteRound } from '../api/rounds'
 import type { Round } from '../types'
 import EmptyState from '../components/EmptyState'
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { FocusCard, UpcomingRoundsCard, CompetitionsCard } from '../components/RailCards'
 
 export default function HistoryPage() {
   const navigate = useNavigate()
@@ -117,7 +120,8 @@ export default function HistoryPage() {
 
   return (
     <Box>
-    <Container maxWidth="md" sx={{ pb: 4 }}>
+    <PageShell maxWidth={720} left={<FeedProfileCard />} right={<><FocusCard /><UpcomingRoundsCard /><CompetitionsCard /></>}>
+    <Box sx={{ pb: 4 }}>
     <PageHeader title="Round History" subtitle="Every round you've logged, hole by hole" />
 
       {rounds && rounds.length === 0 && (
@@ -307,7 +311,8 @@ export default function HistoryPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
+    </PageShell>
 
     <Snackbar
       open={shareSnackbar}

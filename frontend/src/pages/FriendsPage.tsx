@@ -27,6 +27,9 @@ import { resendVerification } from '../api/auth'
 import { CLAY, tint } from '../theme'
 import { getApiErrorMessage } from '../api/errorMessage'
 import { formatHandicap, formatCourseName } from '../utils'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { PeopleYouMayKnowCard, InviteCard, UpcomingRoundsCard } from '../components/RailCards'
 
 /** One card holding a list, rows separated by the card hairline. */
 function ListCard({ children }: { children: ReactNode }) {
@@ -303,6 +306,7 @@ const TABS = ['friends', 'leaderboard', 'requests', 'add'] as const
 type TabKey = (typeof TABS)[number]
 
 export default function FriendsPage() {
+  const rail = <><PeopleYouMayKnowCard /><InviteCard /><UpcomingRoundsCard /></>
   // ?tab=requests deep-links from a friend-request notification
   const [params, setParams] = useSearchParams()
   const fromUrl = params.get('tab')
@@ -333,7 +337,8 @@ export default function FriendsPage() {
 
   if (!emailVerified) {
     return (
-      <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 3 }}>
+      <PageShell left={<FeedProfileCard />} right={rail}>
+    <Box sx={{ pb: 3 }}>
         <PageHeader title="Friends" />
         <EmptyState
           icon={<MarkEmailUnreadIcon sx={{ fontSize: 36 }} />}
@@ -348,11 +353,13 @@ export default function FriendsPage() {
           <Alert severity="error" sx={{ mt: 2 }}>Couldn't resend the verification email. Please try again in a moment.</Alert>
         )}
       </Box>
+      </PageShell>
     )
   }
 
   return (
-    <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 3 }}>
+    <PageShell left={<FeedProfileCard />} right={rail}>
+    <Box sx={{ pb: 3 }}>
       <PageHeader
         title="Friends"
         action={tab === 'add'
@@ -384,5 +391,6 @@ export default function FriendsPage() {
       {tab === 'requests' && <RequestsTab />}
       {tab === 'add' && <FindFriendsTab onInvite={() => setInviteOpen(true)} />}
     </Box>
+    </PageShell>
   )
 }

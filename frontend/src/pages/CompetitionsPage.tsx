@@ -34,6 +34,9 @@ import CourseSearchInput from '../components/CourseSearchInput'
 import type { CompetitionSummary } from '../types'
 import { capture, AnalyticsEvent } from '../analytics'
 import EmptyState from '../components/EmptyState'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { UpcomingRoundsCard, FriendsCard, InviteCard, RecentRoundsCard, CompetitionFormatsCard } from '../components/RailCards'
 
 // ── Status badge colors ──────────────────────────────────────────────────────
 
@@ -482,7 +485,8 @@ function CompetitionDetailView({ id }: { id: string }) {
   const isStableford = comp.scoringType === 'STABLEFORD'
 
   return (
-    <Box sx={{ maxWidth: 700, mx: 'auto', px: 2, py: 2 }}>
+    <PageShell maxWidth={680} left={<><FeedProfileCard /><RecentRoundsCard /></>} right={<><CompetitionFormatsCard /><UpcomingRoundsCard /></>}>
+    <Box sx={{ py: 2 }}>
       {/* Back button */}
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/competitions')} sx={{ mb: 1, textTransform: 'none', color: 'text.secondary' }}>
         Back
@@ -705,6 +709,7 @@ function CompetitionDetailView({ id }: { id: string }) {
         </DialogActions>
       </Dialog>
     </Box>
+    </PageShell>
   )
 }
 
@@ -725,8 +730,8 @@ function CompetitionsListView() {
   const isEmpty = active.length === 0 && upcoming.length === 0 && completed.length === 0
 
   return (
-    <Box>
-      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 3, position: 'relative' }}>
+    <PageShell maxWidth={620} left={<><FeedProfileCard /><UpcomingRoundsCard /></>} right={<><CompetitionFormatsCard /><FriendsCard /><InviteCard /></>}>
+      <Box sx={{ pb: 3, position: 'relative' }}>
         <PageHeader title="Competitions" subtitle="Compete with friends" />
         {isEmpty ? (
           <EmptyState
@@ -770,7 +775,7 @@ function CompetitionsListView() {
         onClose={() => setCreateOpen(false)}
         onCreated={() => { /* list re-fetches via cache invalidation */ }}
       />
-    </Box>
+    </PageShell>
   )
 }
 

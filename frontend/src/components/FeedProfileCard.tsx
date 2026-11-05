@@ -26,11 +26,12 @@ function Figure({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Left column of the wide-screen feed: who you are, your numbers, and the
- * three things you most often come to do. Shares its queries with the Stats
- * page (and the on-device cache), so it costs nothing extra after a first visit.
+ * Left rail of wide-screen pages: who you are, your numbers, and the three
+ * things you most often come to do. Shares its queries with the Stats page
+ * (and the on-device cache), so it costs nothing extra after a first visit.
+ * Pass `actions={false}` on pages where those shortcuts would point at itself.
  */
-export default function FeedProfileCard() {
+export default function FeedProfileCard({ actions = true }: { actions?: boolean }) {
   const { user } = useAuth()
   const { data: handicap } = useQuery({ queryKey: ['handicap'], queryFn: getHandicap })
   const { data: stats } = useQuery({ queryKey: ['stats'], queryFn: getStats })
@@ -48,7 +49,7 @@ export default function FeedProfileCard() {
         </Box>
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {actions && <Paper elevation={0} sx={{ p: 1.5, mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Button component={Link} to="/play" variant="contained" startIcon={<SportsGolfIcon />} fullWidth>
           Start a round
         </Button>
@@ -58,7 +59,7 @@ export default function FeedProfileCard() {
         <Button component={Link} to="/stats" startIcon={<InsightsIcon />} fullWidth>
           Your stats
         </Button>
-      </Paper>
+      </Paper>}
     </Box>
   )
 }

@@ -10,6 +10,9 @@ import EmptyState from '../components/EmptyState'
 import UserAvatar from '../components/UserAvatar'
 import { timeAgo } from '../utils'
 import { CLAY, tint } from '../theme'
+import PageShell from '../components/PageShell'
+import FeedProfileCard from '../components/FeedProfileCard'
+import { UpcomingRoundsCard, CompetitionsCard, PeopleYouMayKnowCard } from '../components/RailCards'
 
 /** Group headings so a long inbox scans by recency, like every phone's does. */
 function bucket(dateStr: string): string {
@@ -93,7 +96,8 @@ export default function NotificationsPage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 640, mx: 'auto', px: 2, pb: 4 }}>
+    <PageShell left={<FeedProfileCard />} right={<><UpcomingRoundsCard /><CompetitionsCard /><PeopleYouMayKnowCard /></>}>
+    <Box sx={{ pb: 4 }}>
       <PageHeader
         title="Notifications"
         action={unreadCount > 0 ? (
@@ -130,5 +134,6 @@ export default function NotificationsPage() {
         </Box>
       ))}
     </Box>
+    </PageShell>
   )
 }
